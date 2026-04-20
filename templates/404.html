@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Page Not Found — TrustedBiz</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+    .not-found {
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        min-height: 70vh; text-align: center; padding: 40px 20px;
+    }
+    .not-found h1 { font-size: 72px; font-weight: 800; color: #2b7a78; margin: 0; line-height: 1; }
+    .not-found h2 { font-size: 22px; color: #1f2937; margin: 12px 0 8px; }
+    .not-found p  { color: #6b7280; font-size: 15px; margin-bottom: 28px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Trusted<span style="color:#2b7a78;">Biz</span></h1>
+    <a href="/" style="text-decoration:none;font-weight:600;color:#2b7a78;font-size:14px;padding:7px 14px;border:1.5px solid #2b7a78;border-radius:8px;">← Home</a>
+</header>
+<div class="not-found">
+    <h1>404</h1>
+    <h2>Page Not Found</h2>
+    <p>The page you're looking for doesn't exist or was moved.</p>
+    <a href="/" class="btn btn-primary" style="background:#2b7a78;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700;">Go Home</a>
+</div>
+</body>
+</html>
