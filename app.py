@@ -864,9 +864,22 @@ def admin():
     else:
         businesses = db_fetchall(q("SELECT * FROM business ORDER BY created_at DESC"))
 
+    # Stats for admin dashboard — covers all variables admin.html might use
+    all_biz      = db_fetchall(q("SELECT * FROM business"))
+    total_businesses = len(all_biz)
+    total_approved   = sum(1 for b in all_biz if b['status'] == 'approved')
+    total_premium    = sum(1 for b in all_biz if b['is_premium'])
+    pending          = sum(1 for b in all_biz if b['status'] == 'pending')
+    total_reported   = sum(1 for b in all_biz if (b['reports'] or 0) > 0)
+
     return render_template('admin.html',
         businesses=[dict(b) for b in businesses],
-        tab=tab
+        tab=tab,
+        total_businesses=total_businesses,
+        total_approved=total_approved,
+        total_premium=total_premium,
+        pending=pending,
+        total_reported=total_reported,
     )
 
 
