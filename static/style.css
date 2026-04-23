@@ -1,0 +1,144 @@
+/* ═══════════════════════════════════════════════════
+   TRUSTEDBIZ — Master Stylesheet
+   Brand: #2b7a78 teal, white, #f4f6fb light bg
+   ═══════════════════════════════════════════════════ */
+
+   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+   body {
+       font-family: 'Segoe UI', Tahoma, sans-serif;
+       background: #f4f6fb;
+       color: #1f2937;
+       line-height: 1.5;
+   }
+   
+   /* ── HEADER ── */
+   header {
+       background: white;
+       padding: 14px 30px;
+       box-shadow: 0 2px 8px rgba(0,0,0,.08);
+       display: flex;
+       justify-content: space-between;
+       align-items: center;
+       position: sticky;
+       top: 0;
+       z-index: 500;
+   }
+   header h1 { margin: 0; font-size: 22px; color: #1f2937; font-weight: 800; }
+   header h1 span { color: #2b7a78; }
+   .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+   .header-right a, .header-right button {
+       text-decoration: none; font-weight: 600; font-size: 13px;
+       padding: 7px 14px; border-radius: 8px;
+       transition: background .2s, color .2s; white-space: nowrap;
+       border: none; cursor: pointer; font-family: inherit;
+   }
+   .btn-add  { background: #2b7a78; color: white; }
+   .btn-add:hover { background: #205e5c; }
+   .btn-dash { color: #2b7a78; border: 1.5px solid #2b7a78 !important; }
+   .btn-dash:hover { background: #2b7a78; color: white; }
+   .btn-plain { color: #6b7280; border: 1.5px solid #e5e7eb !important; }
+   .btn-plain:hover { background: #f3f4f6; }
+   .header-name { font-size: 13px; color: #6b7280; }
+   
+   /* ── FOOTER ── */
+   footer {
+       background: white;
+       border-top: 1px solid #e5e7eb;
+       text-align: center;
+       padding: 24px 20px;
+       color: #9ca3af;
+       font-size: 13px;
+       margin-top: auto;
+   }
+   footer p { margin: 3px 0; }
+   footer a { color: #2b7a78; text-decoration: none; font-weight: 600; }
+   footer a:hover { text-decoration: underline; }
+   
+   /* ── FLASH MESSAGES ── */
+   .flash {
+       padding: 10px 14px; border-radius: 8px;
+       font-size: 13px; margin-bottom: 16px;
+   }
+   .flash-info    { background: #fef3c7; border: 1.5px solid #f59e0b; color: #92400e; }
+   .flash-success { background: #dcfce7; border: 1.5px solid #16a34a; color: #166534; }
+   .flash-error   { background: #fee2e2; border: 1.5px solid #dc2626; color: #991b1b; }
+   
+   /* Default flash (no class) matches info */
+   div.flash { background: #fef3c7; border: 1.5px solid #f59e0b; color: #92400e; }
+   
+   /* ── FORM BASICS (shared across all forms) ── */
+   .form-group { margin-bottom: 18px; }
+   .form-group label {
+       display: block; font-size: 13px;
+       font-weight: 600; color: #374151; margin-bottom: 6px;
+   }
+   .form-group input,
+   .form-group textarea,
+   .form-group select {
+       width: 100%; padding: 11px 14px; font-size: 14px;
+       border: 1.5px solid #e5e7eb; border-radius: 8px; outline: none;
+       font-family: inherit; background: #fafafa;
+       transition: border-color .2s, box-shadow .2s;
+   }
+   .form-group input:focus,
+   .form-group textarea:focus,
+   .form-group select:focus {
+       border-color: #2b7a78;
+       box-shadow: 0 0 0 3px rgba(43,122,120,.12);
+       background: white;
+   }
+   .form-group textarea { resize: vertical; min-height: 80px; }
+   .form-hint { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+   
+   /* ── BUTTONS (global reusable) ── */
+   .btn {
+       display: inline-flex; align-items: center; gap: 7px;
+       padding: 10px 20px; border: none; border-radius: 8px;
+       font-size: 14px; font-weight: 600; cursor: pointer;
+       font-family: inherit; transition: all .2s; text-decoration: none;
+   }
+   .btn-primary  { background: #2b7a78; color: white; }
+   .btn-primary:hover { background: #205e5c; }
+   .btn-wa       { background: #22c55e; color: white; }
+   .btn-wa:hover { background: #16a34a; }
+   .btn-secondary { background: #f3f4f6; color: #374151; border: 1.5px solid #e5e7eb; }
+   .btn-secondary:hover { background: #e5e7eb; }
+   .btn-danger   { background: #fee2e2; color: #dc2626; }
+   .btn-danger:hover { background: #fecaca; }
+   .btn-gold     { background: linear-gradient(135deg,#f59e0b,#d97706); color: white; }
+   .btn-gold:hover { filter: brightness(1.08); }
+   .submit-btn {
+       width: 100%; padding: 13px; background: #2b7a78; color: white;
+       font-size: 15px; font-weight: 700; border: none; border-radius: 8px;
+       cursor: pointer; transition: background .2s, transform .15s; font-family: inherit;
+   }
+   .submit-btn:hover { background: #205e5c; transform: translateY(-1px); }
+   
+   /* ── CARDS ── */
+   .card {
+       background: white; padding: 18px 20px; border-radius: 12px;
+       margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.07);
+       border: 1.5px solid #f0f0f0;
+   }
+   .card h3 { margin: 0 0 12px; font-size: 16px; color: #1f2937; font-weight: 700; }
+   .card p  { margin: 6px 0; font-size: 14px; color: #374151; }
+   .card p b { color: #1f2937; margin-right: 6px; }
+   
+   /* ── PREMIUM BADGE ── */
+   .premium-badge {
+       display: inline-flex; align-items: center; gap: 4px;
+       background: linear-gradient(135deg,#f59e0b,#d97706);
+       color: white; font-size: 11px; font-weight: 700;
+       padding: 3px 10px; border-radius: 100px;
+   }
+   
+   /* ── RESPONSIVE ── */
+   @media (max-width: 600px) {
+       header { padding: 12px 16px; }
+       .header-name { display: none; }
+   }
+   @media (max-width: 480px) {
+       .header-right a { padding: 7px 10px; font-size: 12px; }
+   }
+   
