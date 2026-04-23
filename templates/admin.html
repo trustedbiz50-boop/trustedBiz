@@ -255,7 +255,7 @@
                     {{ b.name }}
                     {% if b.is_premium %}<span class="badge badge-premium">⭐ Premium</span>{% endif %}
                     {% if b.verified %}<span class="badge badge-verified">✔ Verified</span>{% endif %}
-                    {% if b.report_count > 0 %}<span class="badge badge-reports">🚩 {{ b.report_count }} reports</span>{% endif %}
+                    {% if b.reports > 0 %}<span class="badge badge-reports">🚩 {{ b.report_count }} reports</span>{% endif %}
                 </div>
                 <div class="biz-meta">
                     <strong>Category:</strong> {{ b.category }} &nbsp;|&nbsp;
