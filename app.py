@@ -842,45 +842,94 @@ def price_guard():
 def admin():
     ADMIN_PASS = os.environ.get("ADMIN_PASS", "admin123")
 
+    # ── LOGIN CHECK ──────────────────────────────────────────────────
     if not session.get('admin_auth'):
-        if request.method == 'POST':
+        if request.method == 'POST' and 'admin_pass' in request.form:
             if request.form.get('admin_pass') == ADMIN_PASS:
                 session.permanent = True
                 session['admin_auth'] = True
-                return redirect('/admin')          # ← redirect after login
+                return redirect('/admin')
             else:
                 flash("Wrong password.")
                 return render_template('admin_login.html')
         return render_template('admin_login.html')
 
-    tab = request.args.get('tab', 'all')
-    if tab == 'pending':
-        businesses = db_fetchall(q("SELECT * FROM business WHERE status='pending' ORDER BY created_at DESC"))
-    elif tab == 'approved':
-        businesses = db_fetchall(q("SELECT * FROM business WHERE status='approved' ORDER BY created_at DESC"))
-    elif tab == 'premium':
-        businesses = db_fetchall(q("SELECT * FROM business WHERE is_premium=1 ORDER BY created_at DESC"))
-    elif tab == 'reported':
-        businesses = db_fetchall(q("SELECT * FROM business WHERE reports>0 ORDER BY reports DESC"))
-    else:
-        businesses = db_fetchall(q("SELECT * FROM business ORDER BY created_at DESC"))
+    # ── HANDLE FORM ACTIONS (approve/reject/verify/premium/delete) ───
+    if request.method == 'POST' and 'action' in request.form:
+        action = request.form.get('action', '')
+        biz_id = request.form.get('id', '')
+        try:
+            biz_id = int(biz_id)
+        except (ValueError, TypeError):
+            flash("Invalid business ID.")
+            return redirect('/admin')
 
-    # Stats for admin dashboard — covers all variables admin.html might use
-    all_biz      = db_fetchall(q("SELECT * FROM business"))
+        if action == 'approve':
+            db_execute(q("UPDATE business SET status='approved' WHERE id=?"), (biz_id,))
+            b = db_fetchone(q("SELECT owner_id, name FROM business WHERE id=?"), (biz_id,))
+            if b and b['owner_id']:
+                db_insert(q("INSERT INTO notifications (user_id, message) VALUES (?,?)"),
+                    (b['owner_id'], f"✅ Your business '{b['name']}' is now live on TrustedBiz!"))
+            flash(f"Business approved and is now live.")
+
+        elif action == 'reject':
+            db_execute(q("UPDATE business SET status='rejected' WHERE id=?"), (biz_id,))
+            flash("Business rejected.")
+
+        elif action == 'verify':
+            db_execute(q("UPDATE business SET verified=1 WHERE id=?"), (biz_id,))
+            flash("Business verified.")
+
+        elif action == 'unverify':
+            db_execute(q("UPDATE business SET verified=0 WHERE id=?"), (biz_id,))
+            flash("Verification removed.")
+
+        elif action == 'set_premium':
+            db_execute(q("UPDATE business SET is_premium=1 WHERE id=?"), (biz_id,))
+            b = db_fetchone(q("SELECT owner_id, name FROM business WHERE id=?"), (biz_id,))
+            if b and b['owner_id']:
+                db_insert(q("INSERT INTO notifications (user_id, message) VALUES (?,?)"),
+                    (b['owner_id'], f"⭐ '{b['name']}' is now Premium on TrustedBiz! Your website is ready."))
+            flash("Business upgraded to Premium.")
+
+        elif action == 'remove_premium':
+            db_execute(q("UPDATE business SET is_premium=0 WHERE id=?"), (biz_id,))
+            flash("Premium removed.")
+
+        elif action == 'delete':
+            db_execute(q("DELETE FROM business WHERE id=?"), (biz_id,))
+            flash("Business deleted.")
+
+        return redirect('/admin')
+
+    # ── LOAD ADMIN PAGE ──────────────────────────────────────────────
+    businesses = db_fetchall(q("""
+        SELECT b.*, u.name as owner_name
+        FROM business b
+        LEFT JOIN users u ON u.id = b.owner_id
+        ORDER BY
+            CASE WHEN b.status='pending' THEN 0 ELSE 1 END,
+            b.created_at DESC
+    """))
+
+    all_biz          = list(businesses)
     total_businesses = len(all_biz)
     total_approved   = sum(1 for b in all_biz if b['status'] == 'approved')
     total_premium    = sum(1 for b in all_biz if b['is_premium'])
     pending          = sum(1 for b in all_biz if b['status'] == 'pending')
     total_reported   = sum(1 for b in all_biz if (b['reports'] or 0) > 0)
+    total_users      = db_fetchone(q("SELECT COUNT(*) as c FROM users"))['c']
+    total_reviews    = db_fetchone(q("SELECT COUNT(*) as c FROM reviews"))['c']
 
     return render_template('admin.html',
         businesses=[dict(b) for b in businesses],
-        tab=tab,
         total_businesses=total_businesses,
         total_approved=total_approved,
         total_premium=total_premium,
         pending=pending,
         total_reported=total_reported,
+        total_users=total_users,
+        total_reviews=total_reviews,
     )
 
 
