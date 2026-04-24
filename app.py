@@ -20,6 +20,14 @@ from werkzeug.utils import secure_filename
 # ─────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+
+@app.template_filter('dateformat')
+def dateformat(value, fmt='%Y-%m-%d'):
+    if not value:
+        return ''
+    if hasattr(value, 'strftime'):
+        return value.strftime(fmt)
+    return str(value)[:10]
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload
 
