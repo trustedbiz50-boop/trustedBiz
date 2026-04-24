@@ -1,355 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Admin Panel — TrustedBiz</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', sans-serif; background: #f4f6fb; color: #1f2937; }
-
-    header {
-        background: #1a1d2e; padding: 14px 28px;
-        display: flex; justify-content: space-between; align-items: center;
-        position: sticky; top: 0; z-index: 100;
-    }
-    header h1 { color: white; font-size: 20px; font-weight: 800; }
-    header h1 span { color: #4ecdc4; }
-    .header-right { display: flex; gap: 10px; align-items: center; }
-    .header-right a {
-        color: #8890b8; text-decoration: none; font-size: 13px;
-        font-weight: 600; padding: 7px 14px; border-radius: 8px;
-        border: 1px solid #2e3148; transition: all .2s;
-    }
-    .header-right a:hover { background: #2e3148; color: white; }
-    .header-right a.danger { border-color: #dc2626; color: #dc2626; }
-    .header-right a.danger:hover { background: #dc2626; color: white; }
-
-    .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
-
-    /* STATS */
-    .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 28px; }
-    .stat-card {
-        background: white; border-radius: 12px; padding: 18px 16px;
-        text-align: center; border: 1.5px solid #f0f0f0;
-        box-shadow: 0 2px 8px rgba(0,0,0,.06);
-    }
-    .stat-num   { font-size: 28px; font-weight: 800; color: #2b7a78; line-height: 1; margin-bottom: 5px; }
-    .stat-label { font-size: 12px; color: #6b7280; font-weight: 600; }
-
-    /* SECTION */
-    .section-title {
-        font-size: 16px; font-weight: 700; color: #1f2937;
-        margin-bottom: 14px; padding-bottom: 10px;
-        border-bottom: 2px solid #e5e7eb;
-        display: flex; align-items: center; gap: 8px;
-    }
-
-    /* PENDING HIGHLIGHT */
-    .pending-banner {
-        background: linear-gradient(135deg, #fef3c7, #fde68a);
-        border: 1.5px solid #f59e0b; border-radius: 12px;
-        padding: 16px 20px; margin-bottom: 24px;
-        display: flex; align-items: center; gap: 12px;
-    }
-    .pending-banner .count { font-size: 28px; font-weight: 800; color: #d97706; }
-    .pending-banner .text h3 { font-size: 15px; color: #92400e; margin-bottom: 2px; }
-    .pending-banner .text p  { font-size: 13px; color: #b45309; }
-
-    /* BIZ ROWS */
-    .biz-table { background: white; border-radius: 14px; border: 1.5px solid #f0f0f0; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 28px; }
-    .biz-row {
-        padding: 16px 20px; border-bottom: 1px solid #f3f4f6;
-        display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
-    }
-    .biz-row:last-child { border-bottom: none; }
-    .biz-row.is-premium { background: linear-gradient(to right, #fffbeb, white); }
-    .biz-info { flex: 1; min-width: 200px; }
-    .biz-name { font-size: 15px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
-    .biz-meta { font-size: 12px; color: #6b7280; line-height: 1.8; }
-    .biz-meta a { color: #2b7a78; text-decoration: none; }
-    .biz-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
-
-    /* BADGES */
-    .badge {
-        display: inline-flex; align-items: center; gap: 3px;
-        font-size: 11px; font-weight: 700; padding: 3px 9px;
-        border-radius: 100px; white-space: nowrap;
-    }
-    .badge-pending  { background: #fef3c7; color: #d97706; }
-    .badge-approved { background: #dcfce7; color: #16a34a; }
-    .badge-rejected { background: #fee2e2; color: #dc2626; }
-    .badge-premium  { background: linear-gradient(135deg,#f59e0b,#d97706); color: white; }
-    .badge-verified { background: #e8f7f7; color: #2b7a78; }
-    .badge-reports  { background: #fee2e2; color: #dc2626; }
-
-    /* ACTION BUTTONS */
-    .btn {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 7px 12px; border: none; border-radius: 7px;
-        font-size: 12px; font-weight: 700; cursor: pointer;
-        font-family: inherit; transition: all .2s; white-space: nowrap;
-    }
-    .btn-approve  { background: #dcfce7; color: #16a34a; }
-    .btn-approve:hover  { background: #16a34a; color: white; }
-    .btn-reject   { background: #fee2e2; color: #dc2626; }
-    .btn-reject:hover   { background: #dc2626; color: white; }
-    .btn-verify   { background: #e8f7f7; color: #2b7a78; }
-    .btn-verify:hover   { background: #2b7a78; color: white; }
-    .btn-premium  { background: linear-gradient(135deg,#f59e0b,#d97706); color: white; }
-    .btn-premium:hover  { filter: brightness(1.1); }
-    .btn-remove-premium { background: #f3f4f6; color: #6b7280; }
-    .btn-remove-premium:hover { background: #e5e7eb; }
-    .btn-delete   { background: #fee2e2; color: #dc2626; }
-    .btn-delete:hover   { background: #dc2626; color: white; }
-    .btn-view     { background: #2b7a78; color: white; }
-    .btn-view:hover     { background: #205e5c; }
-
-    /* FILTER TABS */
-    .filter-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-    .ftab {
-        padding: 7px 16px; border-radius: 20px; font-size: 13px;
-        font-weight: 600; cursor: pointer; border: 1.5px solid #e5e7eb;
-        background: white; color: #6b7280; transition: all .2s;
-    }
-    .ftab:hover, .ftab.active { background: #2b7a78; color: white; border-color: #2b7a78; }
-
-    /* FLASH */
-    .flash { background:#dcfce7; border:1.5px solid #16a34a; color:#166534; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; }
-
-    /* PREMIUM PAYMENT GUIDE */
-    .payment-guide {
-        background: white; border-radius: 14px; border: 1.5px solid #f0f0f0;
-        padding: 22px; margin-bottom: 28px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
-    }
-    .payment-guide h3 { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: #1f2937; }
-    .step-flow { display: flex; gap: 0; flex-wrap: wrap; }
-    .step-item {
-        flex: 1; min-width: 160px; padding: 14px 16px;
-        border-right: 1px solid #f3f4f6; position: relative;
-    }
-    .step-item:last-child { border-right: none; }
-    .step-num { width: 28px; height: 28px; background: #2b7a78; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
-    .step-item h4 { font-size: 13px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
-    .step-item p  { font-size: 12px; color: #6b7280; line-height: 1.5; }
-
-    @media(max-width: 900px) {
-        .stats-row { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media(max-width: 600px) {
-        .stats-row { grid-template-columns: 1fr 1fr; }
-        .biz-row { flex-direction: column; }
-        header { padding: 12px 16px; }
-        .page { padding: 16px 14px 40px; }
-        .step-flow { flex-direction: column; }
-        .step-item { border-right: none; border-bottom: 1px solid #f3f4f6; }
-    }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — TrustedBiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans','Segoe UI',sans-serif;background:#f4f6fb;color:#1f2937;}
+header{background:#0d2020;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;}
+header h1{font-size:18px;font-weight:800;color:white;}
+header h1 span{color:#4ecdc4;}
+header a{color:rgba(255,255,255,.6);text-decoration:none;font-size:13px;}
+.page{max-width:1100px;margin:24px auto;padding:0 18px 60px;}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+.tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;transition:all .18s;color:#6b7280;border:1.5px solid #e5e7eb;background:white;}
+.tab:hover{border-color:#2b7a78;color:#2b7a78;}
+.tab.active{background:#2b7a78;color:white;border-color:#2b7a78;}
+.count{font-size:11px;background:rgba(0,0,0,.1);padding:2px 7px;border-radius:100px;margin-left:4px;}
+table{width:100%;background:white;border-radius:13px;border:1.5px solid #e8eaf0;border-collapse:collapse;overflow:hidden;font-size:13px;}
+th{background:#f8fafc;padding:11px 14px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;border-bottom:1.5px solid #e8eaf0;}
+td{padding:12px 14px;border-bottom:1px solid #f3f4f6;vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#f8fafc;}
+.biz-name{font-weight:700;color:#1f2937;font-size:14px;}
+.biz-cat{font-size:11px;font-weight:700;background:#e8f7f7;color:#2b7a78;padding:2px 8px;border-radius:100px;}
+.status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;}
+.s-approved{background:#dcfce7;color:#16a34a;}
+.s-pending{background:#fef3c7;color:#92400e;}
+.s-rejected{background:#fee2e2;color:#dc2626;}
+.premium-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:4px;}
+.actions{display:flex;gap:5px;flex-wrap:wrap;}
+.ab{display:inline-block;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;transition:all .18s;white-space:nowrap;}
+.ab-approve{background:#dcfce7;color:#16a34a;}
+.ab-approve:hover{background:#22c55e;color:white;}
+.ab-reject{background:#fee2e2;color:#dc2626;}
+.ab-reject:hover{background:#dc2626;color:white;}
+.ab-verify{background:#e0f2fe;color:#0369a1;}
+.ab-verify:hover{background:#0369a1;color:white;}
+.ab-premium{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;}
+.ab-premium:hover{background:#f59e0b;color:white;}
+.ab-unpremium{background:#f3f4f6;color:#6b7280;}
+.ab-unpremium:hover{background:#e5e7eb;}
+.ab-delete{background:#fee2e2;color:#dc2626;}
+.ab-delete:hover{background:#dc2626;color:white;}
+.ab-view{background:#f0faf9;color:#2b7a78;}
+.ab-view:hover{background:#2b7a78;color:white;}
+.empty{text-align:center;padding:48px;color:#9ca3af;}
+@media(max-width:700px){
+  .page{padding:0 12px 40px;}
+  table{font-size:12px;}
+  th,td{padding:8px 10px;}
+  .actions{gap:3px;}
+  .ab{font-size:10px;padding:4px 7px;}
+}
+</style>
 </head>
 <body>
-
 <header>
-    <h1>Trusted<span>Biz</span> Admin</h1>
-    <div class="header-right">
-        <a href="/">View Site</a>
-        <a href="/admin/logout" class="danger">Logout</a>
-    </div>
+  <h1>Trusted<span>Biz</span> Admin</h1>
+  <a href="/admin/logout">Logout</a>
 </header>
 
 <div class="page">
+  <div class="tabs">
+    <a href="/admin?tab=all" class="tab {% if tab=='all' %}active{% endif %}">All <span class="count">{{ businesses|length }}</span></a>
+    <a href="/admin?tab=pending" class="tab {% if tab=='pending' %}active{% endif %}">⏳ Pending</a>
+    <a href="/admin?tab=approved" class="tab {% if tab=='approved' %}active{% endif %}">✓ Approved</a>
+    <a href="/admin?tab=premium" class="tab {% if tab=='premium' %}active{% endif %}">⭐ Premium</a>
+    <a href="/admin?tab=reported" class="tab {% if tab=='reported' %}active{% endif %}">🚩 Reported</a>
+  </div>
 
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}{% for msg in messages %}
-    <div class="flash">{{ msg }}</div>
-    {% endfor %}{% endif %}
-    {% endwith %}
-
-    <!-- STATS -->
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-num">{{ total_users }}</div>
-            <div class="stat-label">Total Users</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num">{{ total_businesses }}</div>
-            <div class="stat-label">All Listings</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num" style="color:#d97706;">{{ pending }}</div>
-            <div class="stat-label">Pending Review</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num">{{ total_reviews }}</div>
-            <div class="stat-label">Reviews</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num" style="color:#f59e0b;">{{ total_premium }}</div>
-            <div class="stat-label">Premium</div>
-        </div>
-    </div>
-
-    <!-- PENDING ALERT -->
-    {% if pending > 0 %}
-    <div class="pending-banner">
-        <div class="count">{{ pending }}</div>
-        <div class="text">
-            <h3>Businesses waiting for your review</h3>
-            <p>Scroll down to approve or reject them. They cannot be seen by users until approved.</p>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- HOW PREMIUM PAYMENT WORKS -->
-    <div class="payment-guide">
-        <h3>💰 When Someone Wants to Upgrade to Premium — Your Process</h3>
-        <div class="step-flow">
-            <div class="step-item">
-                <div class="step-num">1</div>
-                <h4>They message you on WhatsApp</h4>
-                <p>The "Upgrade" button in their dashboard sends them to your WhatsApp. They tell you which business they want to upgrade.</p>
-            </div>
-            <div class="step-item">
-                <div class="step-num">2</div>
-                <h4>They pay UGX 50,000</h4>
-                <p>They send the money to your MTN MoMo or Airtel Money number. They send you a screenshot as proof.</p>
-            </div>
-            <div class="step-item">
-                <div class="step-num">3</div>
-                <h4>You come here to /admin</h4>
-                <p>Find their business in the list below. Click the gold <strong>"Set Premium"</strong> button next to it.</p>
-            </div>
-            <div class="step-item">
-                <div class="step-num">4</div>
-                <h4>Done — they're live</h4>
-                <p>Their dashboard instantly shows the Website Builder, template picker, and their shareable link. No other steps needed.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- FILTER TABS -->
-    <div class="filter-tabs">
-        <div class="ftab active" onclick="filterRows('all', this)">All ({{ total_businesses }})</div>
-        <div class="ftab" onclick="filterRows('pending', this)">⏳ Pending ({{ pending }})</div>
-        <div class="ftab" onclick="filterRows('approved', this)">✅ Approved</div>
-        <div class="ftab" onclick="filterRows('premium', this)">⭐ Premium</div>
-        <div class="ftab" onclick="filterRows('reported', this)">🚩 Reported</div>
-    </div>
-
-    <!-- BUSINESS LIST -->
-    <div class="section-title">All Business Listings</div>
-    <div class="biz-table" id="bizTable">
-
-        {% if businesses|length == 0 %}
-        <div style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">
-            No businesses yet. They'll appear here once someone submits a listing.
-        </div>
-        {% endif %}
-
-        {% for b in businesses %}
-        <div class="biz-row {% if b.is_premium %}is-premium{% endif %}"
-             data-status="{{ b.status }}"
-             data-premium="{{ b.is_premium }}"
-             data-reports="{{ b.report_count or 0 }}">
-
-            <div class="biz-info">
-                <div class="biz-name">
-                    {{ b.name }}
-                    {% if b.is_premium %}<span class="badge badge-premium">⭐ Premium</span>{% endif %}
-                    {% if b.verified %}<span class="badge badge-verified">✔ Verified</span>{% endif %}
-                    {% if b.reports > 0 %}<span class="badge badge-reports">🚩 {{ b.report_count }} reports</span>{% endif %}
-                </div>
-                <div class="biz-meta">
-                    <strong>Category:</strong> {{ b.category }} &nbsp;|&nbsp;
-                    <strong>WhatsApp:</strong> +{{ b.whatsapp }}<br>
-                    <strong>Owner:</strong> {{ b.owner_name or 'Unknown' }} &nbsp;|&nbsp;
-                    <strong>Views:</strong> {{ b.views or 0 }} &nbsp;|&nbsp;
-                    <strong>Status:</strong>
-                    {% if b.status == 'approved' %}<span class="badge badge-approved">✔ Approved</span>
-                    {% elif b.status == 'pending' %}<span class="badge badge-pending">⏳ Pending</span>
-                    {% else %}<span class="badge badge-rejected">✘ Rejected</span>{% endif %}
-                    <br>
-                    {% if b.hours %}<strong>Hours:</strong> {{ b.hours }}<br>{% endif %}
-                    {% if b.description %}<strong>About:</strong> {{ b.description[:80] }}{% if b.description|length > 80 %}...{% endif %}{% endif %}
-                </div>
-            </div>
-
-            <div class="biz-actions">
-                <a href="/business/{{ b.id }}" target="_blank" class="btn btn-view">👁 View</a>
-
-                <!-- APPROVE / REJECT -->
-                {% if b.status == 'pending' %}
-                <form method="POST" action="{{ url_for('approve_business', business_id=b.id) }}" style="display:inline;">
-                    <button type="submit" class="btn btn-approve">✔ Approve</button>
-                </form>                
-                </form>
-                <form method="POST" action="{{ url_for('reject_business', business_id=b.id) }}" style="display:inline;">
-                    <button type="submit" class="btn btn-reject">✘ Reject</button>
-                </form>
-                {% elif b.status == 'approved' %}
-                <form method="POST" action="{{ url_for('unpublish_business', business_id=b.id) }}" style="display:inline;">
-                    <button type="submit" class="btn btn-reject">Unpublish</button>
-                </form>
-                {% endif %}
-
-                <!-- VERIFY -->
-                {% if not b.verified %}
-                <form method="POST" action="{{ url_for('verify_business', business_id=b.id) }}" style="display:inline;">
-                    <button type="submit" class="btn btn-verify">✔ Verify</button>
-                </form>
-                {% else %}
-                <form method="POST" action="{{ url_for('unverify_business', business_id=b.id) }}" style="display:inline;">              
-                    <button type="submit" class="btn btn-remove-premium">Unverify</button>
-                </form>
-                {% endif %}
-
-                <!-- PREMIUM -->
-                {% if not b.is_premium %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="set_premium">
-                    <button type="submit" class="btn btn-premium">⭐ Set Premium</button>
-                </form>
-                {% else %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="remove_premium">
-                    <button type="submit" class="btn btn-remove-premium">Remove Premium</button>
-                </form>
-                {% endif %}
-
-                <!-- DELETE -->
-                <form method="POST" style="display:inline;"
-                      onsubmit="return confirm('Delete {{ b.name }}? This cannot be undone.')">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="delete">
-                    <button type="submit" class="btn btn-delete">🗑 Delete</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-
-    </div>
-
+  {% if businesses %}
+  <table>
+    <thead>
+      <tr>
+        <th>Business</th>
+        <th>Contact</th>
+        <th>Status</th>
+        <th>Info</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in businesses %}
+      <tr>
+        <td>
+          <div class="biz-name">
+            {% if b.is_premium %}<span class="premium-dot"></span>{% endif %}
+            {{ b.name }}
+          </div>
+          <div style="margin-top:4px;"><span class="biz-cat">{{ b.category }}</span></div>
+          {% if b.slug %}<div style="font-size:11px;color:#9ca3af;margin-top:3px;">/site/{{ b.slug }}</div>{% endif %}
+        </td>
+        <td>
+          <div>+{{ b.whatsapp }}</div>
+          {% if b.hours %}<div style="font-size:11px;color:#9ca3af;">{{ b.hours }}</div>{% endif %}
+        </td>
+        <td>
+          <span class="status s-{{ b.status }}">{{ b.status }}</span>
+          {% if b.verified %}<div style="font-size:11px;color:#16a34a;margin-top:4px;">✔ verified</div>{% endif %}
+        </td>
+        <td style="font-size:11px;color:#6b7280;">
+          <div>👁 {{ b.views or 0 }} views</div>
+          <div>🚩 {{ b.reports or 0 }} reports</div>
+          <div>{{ (b.created_at or '')[:10] }}</div>
+        </td>
+        <td>
+          <div class="actions">
+            {% if b.status != 'approved' %}
+            <a href="/admin/approve/{{ b.id }}?tab={{ tab }}" class="ab ab-approve">✓ Approve</a>
+            {% endif %}
+            {% if b.status != 'rejected' %}
+            <a href="/admin/reject/{{ b.id }}?tab={{ tab }}" class="ab ab-reject">✗ Reject</a>
+            {% endif %}
+            {% if not b.verified %}
+            <a href="/admin/verify/{{ b.id }}?tab={{ tab }}" class="ab ab-verify">✔ Verify</a>
+            {% endif %}
+            {% if not b.is_premium %}
+            <a href="/admin/set-premium/{{ b.id }}?tab={{ tab }}" class="ab ab-premium">⭐ Premium</a>
+            {% else %}
+            <a href="/admin/remove-premium/{{ b.id }}?tab={{ tab }}" class="ab ab-unpremium">✗ Remove Premium</a>
+            {% endif %}
+            {% if b.status == 'approved' %}
+            <a href="/business/{{ b.id }}" target="_blank" class="ab ab-view">View</a>
+            {% endif %}
+            <a href="/admin/delete/{{ b.id }}?tab={{ tab }}"
+               class="ab ab-delete"
+               onclick="return confirm('Delete {{ b.name }}? This cannot be undone.')">🗑</a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <p style="font-size:16px;font-weight:700;margin-bottom:6px;">No businesses here</p>
+    <p>Try a different tab or wait for new submissions.</p>
+  </div>
+  {% endif %}
 </div>
-
-<script>
-function filterRows(filter, tab) {
-    document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    document.querySelectorAll('.biz-row').forEach(function(row) {
-        if (filter === 'all') {
-            row.style.display = '';
-        } else if (filter === 'pending') {
-            row.style.display = row.dataset.status === 'pending' ? '' : 'none';
-        } else if (filter === 'approved') {
-            row.style.display = row.dataset.status === 'approved' ? '' : 'none';
-        } else if (filter === 'premium') {
-            row.style.display = row.dataset.premium === '1' ? '' : 'none';
-        } else if (filter === 'reported') {
-            row.style.display = parseInt(row.dataset.reports) > 0 ? '' : 'none';
-        }
-    });
-}
-</script>
-
 </body>
 </html>
