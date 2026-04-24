@@ -217,10 +217,7 @@ h1.biz-name{
   flex:1;padding:8px 12px;background:#f4f6fb;
   border:1.5px solid #e8eaf0;border-radius:7px;
   font-size:11px;color:#6b7280;font-family:monospace;
-  overflow:hidden;text-overflow:ellipsis;
-    word-break: break-all;
-    white-space: normal;
-;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
 }
 .copy-btn{
   padding:8px 14px;background:#2b7a78;color:white;
@@ -244,16 +241,7 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
 /* ── RESPONSIVE — MOBILE FIRST ── */
 @media(max-width:700px){
   /* Stack to single column */
-  .biz-grid {
-    grid-template-columns: 1fr;
-}
-
-@media(min-width: 900px){
-    .biz-grid {
-        grid-template-columns: 1fr 320px;
-    }
-}
-
+  .biz-grid{grid-template-columns:1fr;}
   .biz-right{order:-1;}
 
   /* Hero tighter on phone */
@@ -405,7 +393,7 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
         <div class="gallery-grid">
           {% for img in imgs[:3] %}
           <div class="g-slot {% if loop.first %}main{% endif %}" onclick="openLb({{ loop.index0 }})">
-            <img src="/static/images/{{ img.strip() }}" alt="{{ business.name }} photo {{ loop.index }}">
+            <img src="{{ photo_url(img.strip()) }}" alt="{{ business.name }} photo {{ loop.index }}">
             {% if loop.last and imgs|length > 3 %}
             <div class="more-overlay">+{{ imgs|length - 3 }}</div>
             {% endif %}
@@ -559,7 +547,7 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
 
 <script>
 /* ── LIGHTBOX ── */
-var allImgs=[{% if business.photos %}{% for img in business.photos.split(',') %}"/static/images/{{ img.strip() }}",{% endfor %}{% endif %}];
+var allImgs=[{% if business.photos %}{% for img in business.photos.split(',') %}"{{ photo_url(img.strip()) }}",{% endfor %}{% endif %}];
 var lbI=0;
 function openLb(i){lbI=i;lbUpdate();document.getElementById('lightbox').classList.add('open');document.body.style.overflow='hidden';}
 function closeLb(){document.getElementById('lightbox').classList.remove('open');document.body.style.overflow='';}
