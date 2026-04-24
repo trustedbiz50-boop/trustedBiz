@@ -277,35 +277,26 @@
 
                 <!-- APPROVE / REJECT -->
                 {% if b.status == 'pending' %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="approve">
+                <form method="POST" action="{{ url_for('approve_business', business_id=b.id) }}" style="display:inline;">
                     <button type="submit" class="btn btn-approve">✔ Approve</button>
+                </form>                
                 </form>
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="reject">
+                <form method="POST" action="{{ url_for('reject_business', business_id=b.id) }}" style="display:inline;">
                     <button type="submit" class="btn btn-reject">✘ Reject</button>
                 </form>
                 {% elif b.status == 'approved' %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="reject">
+                <form method="POST" action="{{ url_for('unpublish_business', business_id=b.id) }}" style="display:inline;">
                     <button type="submit" class="btn btn-reject">Unpublish</button>
                 </form>
                 {% endif %}
 
                 <!-- VERIFY -->
                 {% if not b.verified %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="verify">
+                <form method="POST" action="{{ url_for('verify_business', business_id=b.id) }}" style="display:inline;">
                     <button type="submit" class="btn btn-verify">✔ Verify</button>
                 </form>
                 {% else %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="unverify">
+                <form method="POST" action="{{ url_for('unverify_business', business_id=b.id) }}" style="display:inline;">              
                     <button type="submit" class="btn btn-remove-premium">Unverify</button>
                 </form>
                 {% endif %}
