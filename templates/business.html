@@ -430,7 +430,7 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
             <span class="reviewer-name">{{ r.reviewer_name or 'Anonymous' }}</span>
             <span class="rev-stars">{% for i in range(1,6) %}{% if i <= r.rating %}★{% else %}☆{% endif %}{% endfor %}</span>
           </div>
-          <div class="rev-date">{{ r.created_at[:10] if r.created_at else '' }}</div>
+          <div class="rev-date">{{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '' }}</div>
           {% if r.comment %}<div class="rev-text">{{ r.comment }}</div>{% endif %}
         </div>
         {% endfor %}
