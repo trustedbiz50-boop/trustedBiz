@@ -104,7 +104,7 @@ tr:hover td{background:#f8fafc;}
         <td style="font-size:11px;color:#6b7280;">
           <div>👁 {{ b.views or 0 }} views</div>
           <div>🚩 {{ b.reports or 0 }} reports</div>
-          <div>{{ (b.created_at or '')[:10] }}</div>
+          <div>{{ b.created_at.strftime('%Y-%m-%d') if b.created_at else '' }}</div>
         </td>
         <td>
           <div class="actions">
