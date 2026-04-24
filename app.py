@@ -334,28 +334,29 @@ def db_fetchone(sql, params=()):
 
 
 def db_execute(sql, params=()):
+    """Run INSERT/UPDATE/DELETE. Commits. Returns None."""
     conn = get_db()
     try:
         if USE_POSTGRES:
             cur = conn.cursor()
             cur.execute(sql, params)
-            last_id = None
-            # Get the last inserted id for INSERT statements
-            if sql.strip().upper().startswith("INSERT"):
-                # PostgreSQL: add RETURNING id
-                pass
             conn.commit()
             cur.close()
-            return last_id
         else:
-            cur = conn.execute(sql, params)
+            conn.execute(sql, params)
             conn.commit()
-            return cur.lastrowid
     except Exception as e:
-        conn.rollback() if USE_POSTGRES else None
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        print(f"db_execute error: {e} | sql: {sql[:80]}")
         raise e
     finally:
-        conn.close()
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def db_insert(sql, params=()):
