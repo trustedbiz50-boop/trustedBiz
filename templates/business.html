@@ -64,12 +64,12 @@ h1.biz-name{
 .rating-score{font-size:26px;font-weight:900;color:white;line-height:1;}
 .stars-row{color:#fbbf24;font-size:17px;letter-spacing:1px;}
 .rating-count{font-size:13px;color:rgba(255,255,255,.55);}
-.biz-hero-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;}
+.biz-hero-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;max-width:100%;}
 .hbtn{
   display:inline-flex;align-items:center;gap:7px;
   padding:11px 18px;border-radius:9px;font-size:14px;font-weight:700;
   text-decoration:none;transition:all .2s;border:none;cursor:pointer;font-family:inherit;
-  white-space:nowrap;
+  white-space:nowrap;min-width:0;
 }
 .hbtn-wa{background:#22c55e;color:white;}
 .hbtn-wa:hover{background:#16a34a;transform:translateY(-1px);}
@@ -176,7 +176,7 @@ h1.biz-name{
 
 /* ── MAP ── */
 #map{width:100%;height:230px;border-radius:9px;display:block;cursor:pointer;}
-#map.map-fullscreen{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:8000!important;border-radius:0!important;}
+.map-overlay{display:none;position:fixed;inset:0;z-index:9500;background:#000;}.map-overlay.open{display:block;}
 #mapCloseBtn{position:fixed;top:16px;right:16px;background:#1f2937;color:white;border:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;z-index:8100;display:none;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,.3);}
 .map-hint{font-size:11px;color:#9ca3af;margin-top:5px;text-align:right;}
 
@@ -240,6 +240,8 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
 
 /* ── RESPONSIVE — MOBILE FIRST ── */
 @media(max-width:700px){
+  body{overflow-x:hidden;}
+  .biz-main{overflow-x:hidden;}
   /* Stack to single column */
   .biz-grid{grid-template-columns:1fr;}
   .biz-right{order:-1;}
@@ -298,7 +300,8 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
   <div class="lb-count" id="lbCount"></div>
 </div>
 
-<button id="mapCloseBtn">✕ Close Map</button>
+<button id="mapCloseBtn" onclick="closeFs()">✕ Close Map</button>
+<div class="map-overlay" id="mapOverlay" onclick="closeFs()"></div>
 
 <!-- HEADER -->
 <header>
@@ -504,8 +507,10 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
       {% if business.lat and business.lng %}
       <div class="info-card" style="padding:14px;">
         <div class="info-card-title">Location</div>
-        <div id="map"></div>
-        <p class="map-hint">Double-tap to fullscreen</p>
+        <div class="map-container" ondblclick="openFs()" id="mapContainer">
+          <div id="map"></div>
+        </div>
+        <p class="map-hint">💡 Double-tap map to fullscreen · Tap anywhere to close</p>
         <a class="hbtn hbtn-dir"
            href="https://www.google.com/maps/dir/?api=1&destination={{ business.lat }},{{ business.lng }}"
            target="_blank"
@@ -580,13 +585,41 @@ if(navigator.geolocation){
   });
 }
 var isFs=false;
-var mel=document.getElementById('map'),cb=document.getElementById('mapCloseBtn');
-mel.addEventListener('dblclick',openFs);
+var cb=document.getElementById('mapCloseBtn');
+var mc=document.getElementById('mapContainer');
+
+// Double-tap for touch
 var lt=0;
-mel.addEventListener('touchend',function(e){var n=Date.now();if(n-lt<300){e.preventDefault();openFs();}lt=n;});
-cb.addEventListener('click',closeFs);
-function openFs(){if(isFs)return;mel.classList.add('map-fullscreen');cb.style.display='block';isFs=true;setTimeout(function(){map.invalidateSize();},200);}
-function closeFs(){mel.classList.remove('map-fullscreen');cb.style.display='none';isFs=false;setTimeout(function(){map.invalidateSize();},200);}
+if(mc){
+  mc.addEventListener('touchend',function(e){
+    var n=Date.now();
+    if(n-lt<350){e.preventDefault();openFs();}
+    lt=n;
+  });
+}
+if(cb) cb.addEventListener('click',closeFs);
+
+function openFs(){
+  if(isFs)return;
+  // Move map into a fullscreen overlay
+  var overlay=document.getElementById('mapOverlay');
+  overlay.appendChild(document.getElementById('map'));
+  overlay.classList.add('open');
+  cb.style.display='block';
+  isFs=true;
+  document.body.style.overflow='hidden';
+  setTimeout(function(){map.invalidateSize();},200);
+}
+function closeFs(){
+  var overlay=document.getElementById('mapOverlay');
+  // Move map back into container
+  document.getElementById('mapContainer').appendChild(document.getElementById('map'));
+  overlay.classList.remove('open');
+  cb.style.display='none';
+  isFs=false;
+  document.body.style.overflow='';
+  setTimeout(function(){map.invalidateSize();},200);
+}
 {% else %}var isFs=false;{% endif %}
 
 /* ── KEYBOARD ── */
