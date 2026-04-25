@@ -21,6 +21,16 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
+# Custom JSON encoder handles datetime objects from PostgreSQL
+class SafeJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        from datetime import datetime, date
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        return super().default(obj)
+
+app.json_encoder = SafeJSONEncoder
+
 @app.template_filter('dateformat')
 def dateformat(value, fmt='%Y-%m-%d'):
     if not value:
@@ -415,10 +425,13 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def business_to_dict(b):
-    """Convert a db row to a plain dict safely."""
-    if hasattr(b, 'keys'):
-        return dict(b)
-    return dict(b)
+    """Convert a db row to a plain dict, converting datetime to strings."""
+    from datetime import datetime, date
+    d = dict(b)
+    for k, v in d.items():
+        if isinstance(v, (datetime, date)):
+            d[k] = v.isoformat()
+    return d
 
 
 # ─────────────────────────────────────────────────────────────────────
