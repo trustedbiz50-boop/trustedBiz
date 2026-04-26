@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="{{ business.description or business.name + ' on TrustedBiz — Uganda local business directory' }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- MapLibre GL JS -->
+<link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;overflow-x:hidden;}
@@ -102,23 +102,10 @@ h1.biz-name{font-size:clamp(20px,4vw,36px);font-weight:900;color:white;line-heig
 .info-label{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.3px;}
 .info-value{font-size:13px;font-weight:600;color:#1f2937;word-break:break-word;}
 
-/* MAP — simple, no overflow tricks */
-#map{width:100%;height:230px;border-radius:9px;display:block;cursor:pointer;}
+/* MAP — MapLibre */
+#map{width:100%;height:230px;border-radius:9px;display:block;border:1.5px solid #e8eaf0;overflow:hidden;}
 .map-hint{font-size:11px;color:#9ca3af;margin-top:5px;text-align:right;}
-
-/* MAP FULLSCREEN — proper fixed overlay, nothing clips it */
-#mapFsOverlay{
-  display:none;position:fixed;
-  top:0;left:0;right:0;bottom:0;
-  z-index:9100;background:#000;
-}
-#mapFsOverlay.open{display:block;}
-#mapCloseBtn{
-  position:fixed;top:14px;right:14px;
-  background:rgba(0,0,0,.8);color:white;border:none;
-  padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;
-  cursor:pointer;z-index:9200;display:none;font-family:inherit;
-}
+.maplibregl-popup-content{border-radius:8px!important;padding:10px 12px!important;font-family:'Plus Jakarta Sans','Segoe UI',sans-serif!important;}
 
 /* REVIEWS */
 .review-item{padding:14px 0;border-bottom:1px solid #f3f4f6;}
@@ -151,7 +138,6 @@ h1.biz-name{font-size:clamp(20px,4vw,36px);font-weight:900;color:white;line-heig
 footer{background:white;border-top:1px solid #e8eaf0;padding:22px;text-align:center;color:#9ca3af;font-size:13px;}
 footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
 
-/* MOBILE */
 @media(max-width:700px){
   .biz-grid{grid-template-columns:1fr;}
   .biz-right{order:-1;}
@@ -181,9 +167,6 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
   <div class="lb-count" id="lbCount"></div>
 </div>
 
-<button id="mapCloseBtn" onclick="closeFs()">✕ Close Map</button>
-<div class="map-overlay" id="mapOverlay" onclick="closeFs()"></div>
-
 <!-- HEADER -->
 <header>
   <a href="/" class="logo">
@@ -197,9 +180,7 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
 <div class="biz-hero">
   <div class="biz-hero-inner">
     <div class="breadcrumb">
-      <a href="/">Home</a><span>›</span>
-      <a href="/?query={{ business.category }}">{{ business.category }}</a><span>›</span>
-      {{ business.name }}
+      <a href="/">Home</a> › <a href="/?query={{ business.category }}">{{ business.category }}</a> › {{ business.name }}
     </div>
     <div class="biz-badges">
       <span class="badge badge-cat">{{ business.category }}</span>
@@ -223,16 +204,16 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.563 4.14 1.547 5.874L.057 23.6a.75.75 0 00.92.92l5.726-1.49A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.68-.497-5.22-1.367l-.374-.22-3.895 1.013 1.013-3.895-.22-.374A10 10 0 1112 22z"/></svg>
         WhatsApp
       </a>
+      {% if business.lat and business.lng %}
       <a class="hbtn hbtn-dir"
          href="https://www.google.com/maps/dir/?api=1&destination={{ business.lat }},{{ business.lng }}"
          target="_blank">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
         Directions
       </a>
+      {% endif %}
       {% if business.is_premium and business.slug %}
-      <a class="hbtn hbtn-site" href="/site/{{ business.slug }}" target="_blank">
-        🌐 View Website
-      </a>
+      <a class="hbtn hbtn-site" href="/site/{{ business.slug }}" target="_blank">🌐 View Website</a>
       {% endif %}
       <button class="hbtn hbtn-share" onclick="shareThis()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -242,7 +223,6 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
   </div>
 </div>
 
-<!-- PREMIUM WEBSITE BANNER — only shows for premium businesses -->
 {% if business.is_premium and business.slug %}
 <div class="premium-site-banner">
   <div class="psb-left">
@@ -253,12 +233,8 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
     </div>
   </div>
   <div class="psb-actions">
-    <a href="/site/{{ business.slug }}" target="_blank" class="psb-visit">
-      Visit Website →
-    </a>
-    <button class="psb-copy" onclick="copyPremiumLink()">
-      📋 Copy Link
-    </button>
+    <a href="/site/{{ business.slug }}" target="_blank" class="psb-visit">Visit Website →</a>
+    <button class="psb-copy" onclick="copyPremiumLink()">📋 Copy Link</button>
     <span class="psb-copied" id="psbCopied">✅ Copied!</span>
   </div>
 </div>
@@ -267,7 +243,7 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
 <div class="biz-main">
   <div class="biz-grid">
 
-    <!-- LEFT COLUMN -->
+    <!-- LEFT -->
     <div class="biz-left">
 
       <!-- GALLERY -->
@@ -276,8 +252,9 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
         {% set imgs = business.photos.split(',') %}
         <div class="gallery-grid">
           {% for img in imgs[:3] %}
+          {% set src = photo_url(img.strip()) %}
           <div class="g-slot {% if loop.first %}main{% endif %}" onclick="openLb({{ loop.index0 }})">
-            <img src="{{ photo_url(img.strip()) }}" alt="{{ business.name }} photo {{ loop.index }}">
+            <img src="{{ src }}" alt="{{ business.name }} photo {{ loop.index }}">
             {% if loop.last and imgs|length > 3 %}
             <div class="more-overlay">+{{ imgs|length - 3 }}</div>
             {% endif %}
@@ -314,7 +291,7 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
             <span class="reviewer-name">{{ r.reviewer_name or 'Anonymous' }}</span>
             <span class="rev-stars">{% for i in range(1,6) %}{% if i <= r.rating %}★{% else %}☆{% endif %}{% endfor %}</span>
           </div>
-          <div class="rev-date">{{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '' }}</div>
+          <div class="rev-date">{{ r.created_at|dateformat if r.created_at else '' }}</div>
           {% if r.comment %}<div class="rev-text">{{ r.comment }}</div>{% endif %}
         </div>
         {% endfor %}
@@ -330,210 +307,202 @@ footer a{color:#2b7a78;text-decoration:none;font-weight:600;}
               <input type="radio" name="rating" id="s2" value="2"><label for="s2">★</label>
               <input type="radio" name="rating" id="s1" value="1"><label for="s1">★</label>
             </div>
-            <textarea name="comment" class="review-textarea" placeholder="Share your experience…"></textarea>
+            <textarea name="comment" class="review-textarea" placeholder="Share your experience with this business…"></textarea>
             <button type="submit" class="submit-review">Submit Review</button>
           </form>
           {% else %}
           <div class="login-prompt">
-            <a href="/login?next=/business/{{ business.id }}">Login</a> or
-            <a href="/register">Register free</a> to leave a review.
+            <a href="/login">Login</a> to leave a review for this business.
           </div>
           {% endif %}
         </div>
       </div>
 
-    </div><!-- /biz-left -->
+    </div>
 
-    <!-- RIGHT COLUMN -->
+    <!-- RIGHT -->
     <div class="biz-right">
 
-      <!-- INFO CARD -->
+      <!-- CONTACT INFO -->
       <div class="info-card">
-        <div class="info-card-title">Business Info</div>
+        <div class="info-card-title">Contact Info</div>
+
+        {% if business.whatsapp %}
         <div class="info-row">
-          <div class="info-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+          <div>
+            <div class="info-label">WhatsApp</div>
+            <div class="info-value">+{{ business.whatsapp }}</div>
           </div>
-          <div><div class="info-label">WhatsApp</div><div class="info-value">+{{ business.whatsapp }}</div></div>
-        </div>
-        {% if business.hours %}
-        <div class="info-row">
-          <div class="info-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div><div class="info-label">Hours</div><div class="info-value">{{ business.hours }}</div></div>
         </div>
         {% endif %}
+
+        {% if business.hours %}
         <div class="info-row">
-          <div class="info-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-          </div>
+          <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
           <div>
-            <div class="info-label">Status</div>
-            <div class="info-value" style="color:{% if business.verified %}#16a34a{% else %}#6b7280{% endif %};">
-              {% if business.verified %}✔ Verified{% else %}Unverified{% endif %}
-            </div>
+            <div class="info-label">Hours</div>
+            <div class="info-value">{{ business.hours }}</div>
           </div>
         </div>
-        <a class="hbtn hbtn-wa"
-           href="https://wa.me/{{ business.whatsapp }}?text=Hello%2C+I+found+{{ business.name|replace(' ','+') }}+on+TrustedBiz!"
+        {% endif %}
+
+        {% if business.category %}
+        <div class="info-row">
+          <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+          <div>
+            <div class="info-label">Category</div>
+            <div class="info-value">{{ business.category }}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        <a href="https://wa.me/{{ business.whatsapp }}?text=Hello%2C+I+found+{{ business.name|replace(' ','+') }}+on+TrustedBiz!+I+need+help."
            target="_blank"
-           style="margin-top:12px;width:100%;justify-content:center;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.563 4.14 1.547 5.874L.057 23.6a.75.75 0 00.92.92l5.726-1.49A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.68-.497-5.22-1.367l-.374-.22-3.895 1.013 1.013-3.895-.22-.374A10 10 0 1112 22z"/></svg>
-          Message Now
+           style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;background:#22c55e;color:white;padding:12px;border-radius:9px;font-size:14px;font-weight:700;text-decoration:none;transition:background .2s;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.563 4.14 1.547 5.874L.057 23.6a.75.75 0 00.92.92l5.726-1.49A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.68-.497-5.22-1.367l-.374-.22-3.895 1.013 1.013-3.895-.22-.374A10 10 0 1112 22z"/></svg>
+          Send WhatsApp Message
         </a>
       </div>
 
-      <!-- MAP CARD -->
+      <!-- MAP -->
       {% if business.lat and business.lng %}
-      <div class="info-card" style="padding:14px;">
+      <div class="info-card">
         <div class="info-card-title">Location</div>
-        <div class="map-container" ondblclick="openFs()" id="mapContainer">
-          <div id="map"></div>
-        </div>
-        <p class="map-hint">💡 Double-tap map to fullscreen · Tap anywhere to close</p>
-        <a class="hbtn hbtn-dir"
-           href="https://www.google.com/maps/dir/?api=1&destination={{ business.lat }},{{ business.lng }}"
-           target="_blank"
-           style="margin-top:10px;width:100%;justify-content:center;font-size:13px;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-          Get Directions
-        </a>
+        <div id="map"></div>
+        <p class="map-hint">Click map to explore · <a href="https://www.google.com/maps/dir/?api=1&destination={{ business.lat }},{{ business.lng }}" target="_blank" style="color:#2b7a78;font-weight:600;text-decoration:none;">Open in Google Maps →</a></p>
       </div>
       {% endif %}
 
-      <!-- SHARE CARD -->
+      <!-- SHARE -->
       <div class="info-card">
         <div class="info-card-title">Share This Business</div>
-        <p style="font-size:12px;color:#6b7280;margin-bottom:10px;">Paste anywhere — WhatsApp, TikTok, Facebook, Instagram.</p>
         <div class="share-row">
           <div class="share-link" id="shareUrl">{{ request.url }}</div>
-          <button class="copy-btn" onclick="copyLink()">Copy</button>
+          <button class="copy-btn" onclick="copyUrl()">Copy</button>
         </div>
         <div class="copy-ok" id="copyOk">✅ Copied!</div>
         <a href="https://wa.me/?text=Check+out+{{ business.name|replace(' ','+') }}+on+TrustedBiz%3A+{{ request.url|replace('&','%26') }}"
            target="_blank" class="wa-share-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.563 4.14 1.547 5.874L.057 23.6a.75.75 0 00.92.92l5.726-1.49A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.68-.497-5.22-1.367l-.374-.22-3.895 1.013 1.013-3.895-.22-.374A10 10 0 1112 22z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.563 4.14 1.547 5.874L.057 23.6a.75.75 0 00.92.92l5.726-1.49A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.68-.497-5.22-1.367l-.374-.22-3.895 1.013 1.013-3.895-.22-.374A10 10 0 1112 22z"/></svg>
           Share on WhatsApp
         </a>
       </div>
 
-    </div><!-- /biz-right -->
+      <!-- REPORT -->
+      <div class="info-card" style="text-align:center;">
+        <a href="/report/{{ business.id }}"
+           style="color:#9ca3af;font-size:12px;text-decoration:none;"
+           onclick="return confirm('Report this business as fraudulent or incorrect?')">
+          🚩 Report this listing
+        </a>
+      </div>
+
+    </div>
   </div>
 </div>
 
 <footer>
-  <p style="margin-bottom:5px;">
-    <a href="/privacy">Privacy</a> ·
-    <a href="/terms">Terms</a> ·
-    <a href="/">TrustedBiz Home</a>
-  </p>
-  <p>© 2026 TrustedBiz · Uganda's trusted local business directory</p>
+  <p>© 2026 TrustedBiz · <a href="/">Home</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
 </footer>
 
 <script>
-/* ── LIGHTBOX ── */
-var allImgs=[{% if business.photos %}{% for img in business.photos.split(',') %}"{{ photo_url(img.strip()) }}",{% endfor %}{% endif %}];
-var lbI=0;
-function openLb(i){lbI=i;lbUpdate();document.getElementById('lightbox').classList.add('open');document.body.style.overflow='hidden';}
-function closeLb(){document.getElementById('lightbox').classList.remove('open');document.body.style.overflow='';}
-function lbNav(d){lbI=(lbI+d+allImgs.length)%allImgs.length;lbUpdate();}
-function lbUpdate(){
-  document.getElementById('lbImg').src=allImgs[lbI];
-  document.getElementById('lbCount').innerText=(lbI+1)+' / '+allImgs.length;
-  var t=document.getElementById('lbThumbs');t.innerHTML='';
-  allImgs.forEach(function(s,i){
-    var img=document.createElement('img');img.src=s;
-    if(i===lbI)img.classList.add('active');
-    img.onclick=function(){lbI=i;lbUpdate();};
-    t.appendChild(img);
+// ── LIGHTBOX ─────────────────────────────────────────────────────────
+var lbPhotos = [
+  {% if business.photos %}
+  {% set imgs = business.photos.split(',') %}
+  {% for img in imgs %}
+  "{{ photo_url(img.strip()) }}"{% if not loop.last %},{% endif %}
+  {% endfor %}
+  {% endif %}
+];
+var lbCurrent = 0;
+
+function openLb(i) {
+  lbCurrent = i;
+  lbShow();
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLb() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function lbNav(d) {
+  lbCurrent = (lbCurrent + d + lbPhotos.length) % lbPhotos.length;
+  lbShow();
+}
+function lbShow() {
+  document.getElementById('lbImg').src = lbPhotos[lbCurrent];
+  document.getElementById('lbCount').textContent = (lbCurrent + 1) + ' / ' + lbPhotos.length;
+  var thumbs = document.getElementById('lbThumbs');
+  thumbs.innerHTML = '';
+  lbPhotos.forEach(function(p, i) {
+    var img = document.createElement('img');
+    img.src = p;
+    if (i === lbCurrent) img.classList.add('active');
+    img.onclick = function() { lbCurrent = i; lbShow(); };
+    thumbs.appendChild(img);
   });
 }
-document.getElementById('lightbox').addEventListener('click',function(e){if(e.target===this)closeLb();});
-
-/* ── MAP ── */
-{% if business.lat and business.lng %}
-var bLat={{business.lat}},bLng={{business.lng}};
-var map=L.map('map').setView([bLat,bLng],14);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-L.marker([bLat,bLng]).addTo(map).bindPopup('<b>{{ business.name }}</b>').openPopup();
-if(navigator.geolocation){
-  navigator.geolocation.getCurrentPosition(function(p){
-    var ri=L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowSize:[41,41]});
-    L.marker([p.coords.latitude,p.coords.longitude],{icon:ri}).addTo(map).bindPopup('You are here');
-    var r=L.polyline([[p.coords.latitude,p.coords.longitude],[bLat,bLng]],{color:'#2b7a78',weight:3,dashArray:'8 10',opacity:.8}).addTo(map);
-    map.fitBounds(r.getBounds(),{padding:[40,40]});
-  });
-}
-var isFs=false;
-var cb=document.getElementById('mapCloseBtn');
-var mc=document.getElementById('mapContainer');
-
-// Double-tap for touch
-var lt=0;
-if(mc){
-  mc.addEventListener('touchend',function(e){
-    var n=Date.now();
-    if(n-lt<350){e.preventDefault();openFs();}
-    lt=n;
-  });
-}
-if(cb) cb.addEventListener('click',closeFs);
-
-function openFs(){
-  if(isFs)return;
-  // Move map into a fullscreen overlay
-  var overlay=document.getElementById('mapOverlay');
-  overlay.appendChild(document.getElementById('map'));
-  overlay.classList.add('open');
-  cb.style.display='block';
-  isFs=true;
-  document.body.style.overflow='hidden';
-  setTimeout(function(){map.invalidateSize();},200);
-}
-function closeFs(){
-  var overlay=document.getElementById('mapOverlay');
-  // Move map back into container
-  document.getElementById('mapContainer').appendChild(document.getElementById('map'));
-  overlay.classList.remove('open');
-  cb.style.display='none';
-  isFs=false;
-  document.body.style.overflow='';
-  setTimeout(function(){map.invalidateSize();},200);
-}
-{% else %}var isFs=false;{% endif %}
-
-/* ── KEYBOARD ── */
-document.addEventListener('keydown',function(e){
-  if(document.getElementById('lightbox').classList.contains('open')){
-    if(e.key==='ArrowRight')lbNav(1);
-    if(e.key==='ArrowLeft')lbNav(-1);
-    if(e.key==='Escape')closeLb();
-  }
-  if(e.key==='Escape'&&isFs)closeFs();
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  if (e.key === 'ArrowRight') lbNav(1);
+  if (e.key === 'ArrowLeft') lbNav(-1);
+  if (e.key === 'Escape') closeLb();
 });
 
-/* ── SHARE ── */
-function copyLink(){
-  navigator.clipboard.writeText(document.getElementById('shareUrl').textContent.trim()).then(function(){
-    var ok=document.getElementById('copyOk');
-    ok.style.display='block';
-    setTimeout(function(){ok.style.display='none';},2000);
+// ── MAP (MapLibre GL JS) ──────────────────────────────────────────────
+{% if business.lat and business.lng %}
+var bizLat = {{ business.lat }};
+var bizLng = {{ business.lng }};
+var bizName = {{ business.name | tojson }};
+
+var map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://tiles.openfreemap.org/styles/liberty',
+  center: [bizLng, bizLat],
+  zoom: 15,
+  attributionControl: false
+});
+
+map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+
+var popup = new maplibregl.Popup({ offset: 14 })
+  .setHTML('<div style="padding:8px 10px;font-family:\'Plus Jakarta Sans\',\'Segoe UI\',sans-serif;font-size:13px;font-weight:700;color:#1f2937;">' + bizName + '</div>');
+
+new maplibregl.Marker({ color: '#2b7a78' })
+  .setLngLat([bizLng, bizLat])
+  .setPopup(popup)
+  .addTo(map)
+  .togglePopup();
+{% endif %}
+
+// ── COPY URL ─────────────────────────────────────────────────────────
+function copyUrl() {
+  navigator.clipboard.writeText(document.getElementById('shareUrl').textContent).then(function() {
+    var ok = document.getElementById('copyOk');
+    ok.style.display = 'block';
+    setTimeout(function() { ok.style.display = 'none'; }, 2000);
   });
 }
-function copyPremiumLink(){
-  var url='{{ request.host_url }}site/{{ business.slug or "" }}';
-  navigator.clipboard.writeText(url).then(function(){
-    var el=document.getElementById('psbCopied');
-    el.style.display='inline';
-    setTimeout(function(){el.style.display='none';},2000);
+
+function copyPremiumLink() {
+  var link = window.location.origin + '/site/{{ business.slug or "" }}';
+  navigator.clipboard.writeText(link).then(function() {
+    var el = document.getElementById('psbCopied');
+    el.style.display = 'inline';
+    setTimeout(function() { el.style.display = 'none'; }, 2000);
   });
 }
-function shareThis(){
-  if(navigator.share){
-    navigator.share({title:'{{ business.name }}',url:window.location.href}).catch(function(){});
+
+function shareThis() {
+  if (navigator.share) {
+    navigator.share({ title: bizName, url: window.location.href });
   } else {
-    copyLink();
+    copyUrl();
+    alert('Link copied to clipboard!');
   }
 }
 </script>
