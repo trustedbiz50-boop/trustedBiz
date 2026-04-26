@@ -4,9 +4,9 @@
     <title>Add Your Business — TrustedBiz</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
     <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Plus Jakarta Sans','Segoe UI',sans-serif;background:#f4f6fb;color:#1f2937;}
@@ -22,13 +22,10 @@
     .page{max-width:620px;margin:28px auto;padding:0 20px 60px;}
     h2{font-size:22px;font-weight:800;color:#1f2937;margin-bottom:4px;}
     .page-sub{font-size:14px;color:#6b7280;margin-bottom:22px;}
-
     .flash{background:#fef3c7;border:1.5px solid #f59e0b;color:#92400e;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
-
     form{background:white;border-radius:16px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.07);border:1.5px solid #e8eaf0;}
     .section-divider{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#2b7a78;margin:24px 0 16px;padding-top:20px;border-top:1px solid #f3f4f6;}
     .section-divider:first-child{margin-top:0;padding-top:0;border-top:none;}
-
     .fg{margin-bottom:16px;}
     .fg label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;}
     .fg input,.fg textarea,.fg select{width:100%;padding:11px 14px;font-size:14px;border:1.5px solid #e5e7eb;border-radius:8px;outline:none;font-family:inherit;background:#fafafa;transition:border-color .2s,box-shadow .2s;}
@@ -36,7 +33,7 @@
     .fg textarea{resize:vertical;min-height:80px;}
     .fg-hint{font-size:12px;color:#9ca3af;margin-top:4px;}
 
-    /* PRICE GUARD SECTION */
+    /* PRICE GUARD */
     .price-guard-box{background:linear-gradient(135deg,#f0faf9,#e8f7f7);border:1.5px solid #a7d8d6;border-radius:12px;padding:20px;margin-bottom:16px;}
     .price-guard-box .pg-title{font-size:14px;font-weight:800;color:#1f2937;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
     .price-guard-box .pg-title span{background:#2b7a78;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:100px;letter-spacing:.5px;}
@@ -45,16 +42,15 @@
     .price-row .fg{flex:1;margin-bottom:0;}
     .price-row .fg input{border-color:#a7d8d6;}
     .price-row .fg input:focus{border-color:#2b7a78;}
-    .price-example{font-size:11px;color:#6b7280;margin-top:8px;font-style:italic;}
     .price-examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
     .price-chip{background:white;border:1px solid #d1ede9;color:#2b7a78;font-size:11px;font-weight:600;padding:4px 10px;border-radius:100px;cursor:pointer;transition:all .18s;}
     .price-chip:hover{background:#2b7a78;color:white;border-color:#2b7a78;}
 
-    /* MAP */
+    /* MAP — MapLibre */
     .locate-btn{display:inline-flex;align-items:center;gap:7px;background:#2b7a78;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s;margin-bottom:10px;}
     .locate-btn:hover{background:#205e5c;}
     .locate-btn:disabled{background:#9ca3af;cursor:not-allowed;}
-    #map{width:100%;height:270px;border-radius:10px;border:1.5px solid #e5e7eb;cursor:pointer;margin-bottom:6px;display:block;}
+    #map{width:100%;height:270px;border-radius:10px;border:1.5px solid #e5e7eb;margin-bottom:6px;display:block;overflow:hidden;}
     #map.map-fullscreen{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:8000!important;border-radius:0!important;border:none!important;}
     .map-hint{font-size:11.5px;color:#9ca3af;margin-bottom:10px;}
     .coords-display{font-size:12px;color:#374151;background:#f0faf9;border:1px solid #d1ede9;border-radius:6px;padding:7px 12px;margin-bottom:12px;}
@@ -79,8 +75,8 @@
 </header>
 
 <div class="page">
-    <h2>Add Your Business</h2>
-    <p class="page-sub">Fill in the details. Your listing goes live after admin review — usually within 24 hours.</p>
+    <h2>{% if editing %}Edit Business{% else %}Add Your Business{% endif %}</h2>
+    <p class="page-sub">{% if editing %}Update your business information below.{% else %}Fill in the details. Your listing goes live after admin review — usually within 24 hours.{% endif %}</p>
 
     {% with messages = get_flashed_messages() %}
     {% if messages %}{% for msg in messages %}
@@ -94,137 +90,114 @@
 
         <div class="fg">
             <label>Business Name *</label>
-            <input type="text" name="name" placeholder="e.g. Joe's Garage" required>
+            <input type="text" name="name" placeholder="e.g. Joe's Garage" required value="{{ editing.name if editing else '' }}">
         </div>
 
         <div class="fg">
             <label>Category *</label>
-            <input type="text" name="category" id="categoryInput" placeholder="e.g. mechanic, cafe, salon, pharmacy" required>
+            <input type="text" name="category" id="categoryInput" placeholder="e.g. mechanic, cafe, salon, pharmacy" required value="{{ editing.category if editing else '' }}">
             <div class="fg-hint">One word is best — helps with search and map icons.</div>
         </div>
 
         <div class="fg">
             <label>WhatsApp Number *</label>
-            <input type="text" name="whatsapp" placeholder="e.g. 256700123456" required>
+            <input type="text" name="whatsapp" placeholder="e.g. 256700123456" required value="{{ editing.whatsapp if editing else '' }}">
             <div class="fg-hint">Include country code, no + or spaces.</div>
         </div>
 
         <div class="fg">
             <label>Description</label>
-            <textarea name="description" placeholder="Tell customers what you do and why they should choose you…"></textarea>
+            <textarea name="description" placeholder="Tell customers what you do and why they should choose you…">{{ editing.description if editing else '' }}</textarea>
         </div>
 
         <div class="fg">
             <label>Business Hours</label>
-            <input type="text" name="hours" placeholder="e.g. Mon–Sat 7am–7pm">
+            <input type="text" name="hours" placeholder="e.g. Mon–Sat 7am–7pm" value="{{ editing.hours if editing else '' }}">
         </div>
 
-        <!-- ── PRICE GUARD SECTION ── -->
-        <div class="section-divider">
-            Price Guard
-            <span style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:none;letter-spacing:0;margin-left:8px;">Helps customers trust you instantly</span>
-        </div>
+        <!-- PRICE GUARD -->
+        <div class="section-divider">Price Guard <span style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:none;letter-spacing:0;margin-left:8px;">Helps customers trust you instantly</span></div>
 
         <div class="price-guard-box">
-            <div class="pg-title">
-                🛡️ Your Hero Price
-                <span>NEW</span>
-            </div>
-            <p class="pg-sub">Tell customers your starting price for one main service. This powers TrustedBiz's Price Guard — showing users the average market price in their area so they know they're getting a fair deal. <strong>Businesses with prices listed get more trust and more views.</strong></p>
-
+            <div class="pg-title">🛡️ Your Hero Price <span>NEW</span></div>
+            <p class="pg-sub">Tell customers your starting price for one main service. Powers TrustedBiz Price Guard — showing users the average market price so they know they're getting a fair deal. <strong>Businesses with prices listed get more trust and more views.</strong></p>
             <div class="price-row">
                 <div class="fg">
-                    <label>What is it for? *</label>
-                    <input type="text" name="hero_price_label" id="priceLabelInput" placeholder="e.g. Plain plate of food">
+                    <label>What is it for?</label>
+                    <input type="text" name="hero_price_label" id="priceLabelInput" placeholder="e.g. Plain plate of food" value="{{ editing.hero_price_label if editing else '' }}">
                 </div>
                 <div class="fg" style="max-width:160px;">
-                    <label>Price in UGX *</label>
-                    <input type="number" name="hero_price" id="priceInput" placeholder="e.g. 4500" min="0" step="100">
+                    <label>Price in UGX</label>
+                    <input type="number" name="hero_price" id="priceInput" placeholder="e.g. 4500" min="0" step="100" value="{{ editing.hero_price if editing else '' }}">
                 </div>
             </div>
-
-            <div class="price-example">Examples based on category:</div>
             <div class="price-examples" id="priceExamples">
-                <div class="price-chip" onclick="setExample('Plain plate of food', 4500)">Food plate</div>
-                <div class="price-chip" onclick="setExample('Basic haircut', 5000)">Basic haircut</div>
-                <div class="price-chip" onclick="setExample('Oil change', 15000)">Oil change</div>
-                <div class="price-chip" onclick="setExample('Bag of cement', 38000)">Cement bag</div>
-                <div class="price-chip" onclick="setExample('Phone screen repair', 35000)">Screen repair</div>
-                <div class="price-chip" onclick="setExample('Boda ride (1km)', 1000)">Boda 1km</div>
+                <div class="price-chip" onclick="setExample('Plain plate of food',4500)">Food plate</div>
+                <div class="price-chip" onclick="setExample('Basic haircut',5000)">Basic haircut</div>
+                <div class="price-chip" onclick="setExample('Oil change',15000)">Oil change</div>
+                <div class="price-chip" onclick="setExample('Bag of cement',38000)">Cement bag</div>
+                <div class="price-chip" onclick="setExample('Phone screen repair',35000)">Screen repair</div>
+                <div class="price-chip" onclick="setExample('Boda ride (1km)',1000)">Boda 1km</div>
             </div>
         </div>
 
-        <!-- ── LOCATION ── -->
+        <!-- LOCATION -->
         <div class="section-divider">Location on Map *</div>
 
-        <button type="button" class="locate-btn" id="locateBtn" onclick="useMyLocation()">
-            📍 Use My Location
-        </button>
+        <button type="button" class="locate-btn" id="locateBtn" onclick="useMyLocation()">📍 Use My Location</button>
 
         <div id="map"></div>
         <p class="map-hint">💡 Tap the map to pin your location · Double-tap to fullscreen</p>
         <div class="coords-display" id="coordsDisplay">📍 Tap the map or use "Use My Location"</div>
-        <input type="hidden" id="lat" name="lat">
-        <input type="hidden" id="lng" name="lng">
+        <input type="hidden" id="lat" name="lat" value="{{ editing.lat if editing else '' }}">
+        <input type="hidden" id="lng" name="lng" value="{{ editing.lng if editing else '' }}">
 
-        <!-- ── PHOTOS ── -->
+        <!-- PHOTOS -->
+        {% if not editing %}
         <div class="section-divider">Photos</div>
-
         <div class="fg">
             <label>Add Photos (up to 4)</label>
             <input type="file" name="photos" accept="image/*" multiple>
-            <div class="fg-hint">Clear photos of your business, products, or services get 3x more clicks.</div>
+            <div class="fg-hint">Clear photos get 3x more clicks.</div>
         </div>
+        {% endif %}
 
-        <button type="submit" class="submit-btn">Submit for Review →</button>
+        <button type="submit" class="submit-btn">{% if editing %}Save Changes →{% else %}Submit for Review →{% endif %}</button>
     </form>
 </div>
 
 <script>
-// Auto-suggest price label based on category
 var catSuggestions = {
-    "cafe": ["Cup of coffee", "Full breakfast", "Juice"],
-    "coffee": ["Cup of coffee", "Cappuccino"],
-    "restaurant": ["Plain plate of food", "Chicken meal", "Special plate"],
-    "salon": ["Basic haircut", "Hair wash & blow", "Braiding (simple)"],
-    "barber": ["Basic cut", "Full shave", "Kids cut"],
-    "mechanic": ["Oil change", "Tyre change", "Service check"],
-    "plumber": ["Tap repair", "Pipe fitting", "Drain unblock"],
-    "electrician": ["Socket installation", "Bulb replacement"],
-    "pharmacy": ["Paracetamol strip", "Cough syrup", "Blood pressure test"],
-    "hardware": ["Bag of cement", "50kg sand", "Paint (litre)"],
-    "phone repair": ["Screen replacement", "Battery change", "Charging port fix"],
-    "gym": ["Monthly membership", "Daily entry", "Personal training session"],
-    "supermarket": ["Bread loaf", "1 litre milk", "Sugar (2kg)"],
-    "hotel": ["Single room (night)", "Conference room (hour)"],
+    "cafe":["Cup of coffee","Full breakfast","Juice"],
+    "coffee":["Cup of coffee","Cappuccino"],
+    "restaurant":["Plain plate of food","Chicken meal","Special plate"],
+    "salon":["Basic haircut","Hair wash & blow","Braiding (simple)"],
+    "barber":["Basic cut","Full shave","Kids cut"],
+    "mechanic":["Oil change","Tyre change","Service check"],
+    "plumber":["Tap repair","Pipe fitting","Drain unblock"],
+    "electrician":["Socket installation","Bulb replacement"],
+    "pharmacy":["Paracetamol strip","Cough syrup","Blood pressure test"],
+    "hardware":["Bag of cement","50kg sand","Paint (litre)"],
+    "gym":["Monthly membership","Daily entry","Personal training session"],
+    "supermarket":["Bread loaf","1 litre milk","Sugar (2kg)"],
+    "hotel":["Single room (night)","Conference room (hour)"],
 };
 
 document.getElementById('categoryInput').addEventListener('input', function() {
     var cat = this.value.toLowerCase().trim();
     var examples = document.getElementById('priceExamples');
     examples.innerHTML = '';
-    var found = false;
     for (var key in catSuggestions) {
         if (cat.includes(key) || key.includes(cat)) {
             catSuggestions[key].forEach(function(label) {
                 var chip = document.createElement('div');
                 chip.className = 'price-chip';
                 chip.textContent = label;
-                chip.onclick = (function(l) { return function() { setExample(l, ''); }; })(label);
+                chip.onclick = (function(l) { return function() { setExample(l,''); }; })(label);
                 examples.appendChild(chip);
             });
-            found = true;
             break;
         }
-    }
-    if (!found) {
-        ['Main service', 'Basic package', 'Standard item'].forEach(function(label) {
-            var chip = document.createElement('div');
-            chip.className = 'price-chip';
-            chip.textContent = label;
-            chip.onclick = (function(l) { return function() { setExample(l, ''); }; })(label);
-            examples.appendChild(chip);
-        });
     }
 });
 
@@ -234,27 +207,57 @@ function setExample(label, price) {
     document.getElementById('priceLabelInput').focus();
 }
 
-// MAP
+// MAP — MapLibre GL JS
 var defaultLat = 0.3476, defaultLng = 32.5825;
-var map = L.map('map').setView([defaultLat, defaultLng], 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+var editLat = parseFloat('{{ editing.lat if editing else 0 }}') || defaultLat;
+var editLng = parseFloat('{{ editing.lng if editing else 0 }}') || defaultLng;
+
+var map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [editLng, editLat],
+    zoom: 13,
+    attributionControl: false
+});
+map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+
 var marker = null;
 
 function setMarker(lat, lng) {
     lat = parseFloat(lat).toFixed(6);
     lng = parseFloat(lng).toFixed(6);
-    if (marker) { marker.setLatLng([lat, lng]); }
-    else { marker = L.marker([lat, lng]).addTo(map).bindPopup('Your business location').openPopup(); }
+    if (marker) {
+        marker.setLngLat([lng, lat]);
+    } else {
+        marker = new maplibregl.Marker({ color: '#2b7a78', draggable: true })
+            .setLngLat([lng, lat])
+            .addTo(map);
+        marker.on('dragend', function() {
+            var pos = marker.getLngLat();
+            document.getElementById('lat').value = pos.lat.toFixed(6);
+            document.getElementById('lng').value = pos.lng.toFixed(6);
+            document.getElementById('coordsDisplay').innerText = '📍 Location set: ' + pos.lat.toFixed(6) + ', ' + pos.lng.toFixed(6);
+        });
+    }
     document.getElementById('lat').value = lat;
     document.getElementById('lng').value = lng;
     document.getElementById('coordsDisplay').innerText = '📍 Location set: ' + lat + ', ' + lng;
 }
 
-map.on('click', function(e) { setMarker(e.latlng.lat, e.latlng.lng); });
+// If editing and has coords, show existing pin
+{% if editing and editing.lat and editing.lng %}
+setMarker({{ editing.lat }}, {{ editing.lng }});
+{% endif %}
 
+map.on('click', function(e) { setMarker(e.lngLat.lat, e.lngLat.lng); });
+
+// Try get location on load
 if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(function(p) {
-        map.setView([p.coords.latitude, p.coords.longitude], 15);
+        {% if not (editing and editing.lat) %}
+        map.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 });
+        {% endif %}
     });
 }
 
@@ -265,7 +268,7 @@ function useMyLocation() {
         alert('Geolocation not available.'); btn.disabled = false; btn.textContent = '📍 Use My Location'; return;
     }
     navigator.geolocation.getCurrentPosition(function(p) {
-        map.setView([p.coords.latitude, p.coords.longitude], 16);
+        map.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 });
         setMarker(p.coords.latitude, p.coords.longitude);
         btn.disabled = false; btn.textContent = '📍 Use My Location';
     }, function() {
@@ -274,18 +277,16 @@ function useMyLocation() {
     });
 }
 
-// Fullscreen map
+// Fullscreen
 var isFs = false;
 var mapEl = document.getElementById('map');
 var closeBtn = document.getElementById('mapCloseBtn');
 mapEl.addEventListener('dblclick', openFs);
 var lt = 0;
-mapEl.addEventListener('touchend', function(e) {
-    var n = Date.now(); if (n - lt < 300) { e.preventDefault(); openFs(); } lt = n;
-});
+mapEl.addEventListener('touchend', function(e) { var n=Date.now(); if(n-lt<300){e.preventDefault();openFs();} lt=n; });
 closeBtn.addEventListener('click', closeFs);
-function openFs() { if(isFs)return; mapEl.classList.add('map-fullscreen'); closeBtn.style.display='block'; isFs=true; setTimeout(function(){map.invalidateSize();},200); }
-function closeFs() { mapEl.classList.remove('map-fullscreen'); closeBtn.style.display='none'; isFs=false; setTimeout(function(){map.invalidateSize();},200); }
+function openFs() { if(isFs)return; mapEl.classList.add('map-fullscreen'); closeBtn.style.display='block'; isFs=true; setTimeout(function(){map.resize();},200); }
+function closeFs() { mapEl.classList.remove('map-fullscreen'); closeBtn.style.display='none'; isFs=false; setTimeout(function(){map.resize();},200); }
 document.addEventListener('keydown', function(e) { if(e.key==='Escape'&&isFs) closeFs(); });
 </script>
 </body>
