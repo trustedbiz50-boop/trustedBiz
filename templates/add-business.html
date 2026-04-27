@@ -18,7 +18,6 @@
     .logo-text span{color:#2b7a78;}
     .back-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;font-size:13px;color:#2b7a78;border:1.5px solid #2b7a78;padding:8px 16px;border-radius:8px;transition:all .18s;}
     .back-btn:hover{background:#2b7a78;color:white;}
-
     .page{max-width:620px;margin:28px auto;padding:0 20px 60px;}
     h2{font-size:22px;font-weight:800;color:#1f2937;margin-bottom:4px;}
     .page-sub{font-size:14px;color:#6b7280;margin-bottom:22px;}
@@ -29,15 +28,15 @@
     .fg{margin-bottom:16px;}
     .fg label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;}
     .fg input,.fg textarea,.fg select{width:100%;padding:11px 14px;font-size:14px;border:1.5px solid #e5e7eb;border-radius:8px;outline:none;font-family:inherit;background:#fafafa;transition:border-color .2s,box-shadow .2s;}
-    .fg input:focus,.fg textarea:focus,.fg select:focus{border-color:#2b7a78;box-shadow:0 0 0 3px rgba(43,122,120,.1);background:white;}
+    .fg input:focus,.fg textarea:focus{border-color:#2b7a78;box-shadow:0 0 0 3px rgba(43,122,120,.1);background:white;}
     .fg textarea{resize:vertical;min-height:80px;}
     .fg-hint{font-size:12px;color:#9ca3af;margin-top:4px;}
 
     /* PRICE GUARD */
     .price-guard-box{background:linear-gradient(135deg,#f0faf9,#e8f7f7);border:1.5px solid #a7d8d6;border-radius:12px;padding:20px;margin-bottom:16px;}
-    .price-guard-box .pg-title{font-size:14px;font-weight:800;color:#1f2937;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
-    .price-guard-box .pg-title span{background:#2b7a78;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:100px;letter-spacing:.5px;}
-    .price-guard-box .pg-sub{font-size:13px;color:#4b8b8a;margin-bottom:14px;line-height:1.5;}
+    .pg-title{font-size:14px;font-weight:800;color:#1f2937;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+    .pg-title span{background:#2b7a78;color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:100px;letter-spacing:.5px;}
+    .pg-sub{font-size:13px;color:#4b8b8a;margin-bottom:14px;line-height:1.5;}
     .price-row{display:flex;gap:10px;}
     .price-row .fg{flex:1;margin-bottom:0;}
     .price-row .fg input{border-color:#a7d8d6;}
@@ -46,15 +45,75 @@
     .price-chip{background:white;border:1px solid #d1ede9;color:#2b7a78;font-size:11px;font-weight:600;padding:4px 10px;border-radius:100px;cursor:pointer;transition:all .18s;}
     .price-chip:hover{background:#2b7a78;color:white;border-color:#2b7a78;}
 
-    /* MAP — MapLibre */
-    .locate-btn{display:inline-flex;align-items:center;gap:7px;background:#2b7a78;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s;margin-bottom:10px;}
-    .locate-btn:hover{background:#205e5c;}
-    .locate-btn:disabled{background:#9ca3af;cursor:not-allowed;}
-    #map{width:100%;height:270px;border-radius:10px;border:1.5px solid #e5e7eb;margin-bottom:6px;display:block;overflow:hidden;}
-    #map.map-fullscreen{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:8000!important;border-radius:0!important;border:none!important;}
+    /* LOCATION STATUS BAR */
+    .loc-status{display:flex;align-items:center;gap:10px;background:#f0faf9;border:1.5px solid #d1ede9;border-radius:9px;padding:11px 14px;margin-bottom:10px;font-size:13px;}
+    .loc-status .ls-icon{font-size:18px;flex-shrink:0;}
+    .loc-status .ls-msg{flex:1;color:#374151;font-weight:500;line-height:1.4;}
+    .loc-status .ls-msg strong{color:#2b7a78;}
+    .ls-spinner{width:16px;height:16px;border:2px solid #d1ede9;border-top-color:#2b7a78;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* MAP WRAPPER — relative so overlay works */
+    .map-wrap{position:relative;margin-bottom:6px;}
+
+    /* MAP */
+    #map{width:100%;height:270px;border-radius:10px;border:1.5px solid #e5e7eb;display:block;overflow:hidden;}
+
+    /* FULLSCREEN MAP */
+    #map.map-fs{
+      position:fixed!important;top:0!important;left:0!important;
+      width:100vw!important;height:100vh!important;
+      z-index:8000!important;border-radius:0!important;border:none!important;
+    }
+    /* Close button for fullscreen — always on top */
+    #fsCloseBtn{
+      position:fixed;top:14px;right:14px;
+      background:#1f2937;color:white;border:none;
+      padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;
+      cursor:pointer;z-index:9000;display:none;
+      font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,.35);
+    }
+
+    /* CHANGE LOCATION WARNING OVERLAY */
+    .loc-warn{
+      display:none;position:absolute;inset:0;z-index:20;
+      background:rgba(0,0,0,.55);border-radius:10px;
+      align-items:center;justify-content:center;
+    }
+    .loc-warn.show{display:flex;}
+    .loc-warn-box{
+      background:white;border-radius:14px;padding:26px 22px;
+      max-width:290px;width:90%;text-align:center;
+      box-shadow:0 16px 48px rgba(0,0,0,.3);
+    }
+    .loc-warn-box .warn-icon{font-size:32px;margin-bottom:10px;}
+    .loc-warn-box h4{font-size:16px;font-weight:800;color:#1f2937;margin-bottom:8px;}
+    .loc-warn-box p{font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:18px;}
+    .warn-btns{display:flex;gap:10px;}
+    .warn-keep{flex:1;padding:10px;background:#f3f4f6;color:#374151;font-size:13px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-family:inherit;transition:background .2s;}
+    .warn-keep:hover{background:#e5e7eb;}
+    .warn-move{flex:1;padding:10px;background:#2b7a78;color:white;font-size:13px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-family:inherit;transition:background .2s;}
+    .warn-move:hover{background:#205e5c;}
+
+    .coords-display{font-size:12px;color:#374151;background:#f0faf9;border:1px solid #d1ede9;border-radius:6px;padding:7px 12px;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+    .coords-display svg{width:13px;height:13px;stroke:#2b7a78;flex-shrink:0;}
     .map-hint{font-size:11.5px;color:#9ca3af;margin-bottom:10px;}
-    .coords-display{font-size:12px;color:#374151;background:#f0faf9;border:1px solid #d1ede9;border-radius:6px;padding:7px 12px;margin-bottom:12px;}
-    #mapCloseBtn{position:fixed;top:16px;right:16px;background:#1f2937;color:white;border:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;z-index:8100;display:none;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,.3);}
+
+    /* CUSTOM MAP MARKER — real pin shape not a dot */
+    .custom-pin{
+      display:flex;flex-direction:column;align-items:center;
+      cursor:grab;filter:drop-shadow(0 3px 6px rgba(0,0,0,.3));
+    }
+    .pin-head{
+      width:34px;height:34px;
+      background:#2b7a78;
+      border-radius:50% 50% 50% 0;
+      transform:rotate(-45deg);
+      border:3px solid white;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .pin-emoji{transform:rotate(45deg);font-size:15px;line-height:1;}
+    .pin-tail{width:4px;height:12px;background:#2b7a78;border-radius:0 0 4px 4px;}
 
     .submit-btn{width:100%;padding:14px;background:#2b7a78;color:white;font-size:15px;font-weight:800;border:none;border-radius:10px;cursor:pointer;transition:background .2s,transform .15s;font-family:inherit;margin-top:8px;}
     .submit-btn:hover{background:#205e5c;transform:translateY(-1px);}
@@ -64,7 +123,8 @@
 </head>
 <body>
 
-<button id="mapCloseBtn">✕ Close Map</button>
+<!-- Fullscreen close button — outside map div so always visible -->
+<button id="fsCloseBtn" onclick="closeFs()">✕ Close Map</button>
 
 <header>
     <a href="/" class="logo">
@@ -87,29 +147,24 @@
     <form method="POST" enctype="multipart/form-data">
 
         <div class="section-divider">Business Info</div>
-
         <div class="fg">
             <label>Business Name *</label>
             <input type="text" name="name" placeholder="e.g. Joe's Garage" required value="{{ editing.name if editing else '' }}">
         </div>
-
         <div class="fg">
             <label>Category *</label>
             <input type="text" name="category" id="categoryInput" placeholder="e.g. mechanic, cafe, salon, pharmacy" required value="{{ editing.category if editing else '' }}">
             <div class="fg-hint">One word is best — helps with search and map icons.</div>
         </div>
-
         <div class="fg">
             <label>WhatsApp Number *</label>
             <input type="text" name="whatsapp" placeholder="e.g. 256700123456" required value="{{ editing.whatsapp if editing else '' }}">
             <div class="fg-hint">Include country code, no + or spaces.</div>
         </div>
-
         <div class="fg">
             <label>Description</label>
             <textarea name="description" placeholder="Tell customers what you do and why they should choose you…">{{ editing.description if editing else '' }}</textarea>
         </div>
-
         <div class="fg">
             <label>Business Hours</label>
             <input type="text" name="hours" placeholder="e.g. Mon–Sat 7am–7pm" value="{{ editing.hours if editing else '' }}">
@@ -117,10 +172,9 @@
 
         <!-- PRICE GUARD -->
         <div class="section-divider">Price Guard <span style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:none;letter-spacing:0;margin-left:8px;">Helps customers trust you instantly</span></div>
-
         <div class="price-guard-box">
             <div class="pg-title">🛡️ Your Hero Price <span>NEW</span></div>
-            <p class="pg-sub">Tell customers your starting price for one main service. Powers TrustedBiz Price Guard — showing users the average market price so they know they're getting a fair deal. <strong>Businesses with prices listed get more trust and more views.</strong></p>
+            <p class="pg-sub">Tell customers your starting price for one main service. Powers TrustedBiz Price Guard. <strong>Businesses with prices listed get more trust and more views.</strong></p>
             <div class="price-row">
                 <div class="fg">
                     <label>What is it for?</label>
@@ -142,13 +196,37 @@
         </div>
 
         <!-- LOCATION -->
-        <div class="section-divider">Location on Map *</div>
+        <div class="section-divider">Your Business Location *</div>
 
-        <button type="button" class="locate-btn" id="locateBtn" onclick="useMyLocation()">📍 Use My Location</button>
+        <!-- Status bar -->
+        <div class="loc-status" id="locStatus">
+            <span class="ls-icon" id="locIcon">📡</span>
+            <span class="ls-msg" id="locMsg">Detecting your location automatically…</span>
+            <span class="ls-spinner" id="locSpinner"></span>
+        </div>
 
-        <div id="map"></div>
-        <p class="map-hint">💡 Tap the map to pin your location · Double-tap to fullscreen</p>
-        <div class="coords-display" id="coordsDisplay">📍 Tap the map or use "Use My Location"</div>
+        <div class="map-wrap">
+            <div id="map"></div>
+            <!-- Warning overlay when user tries to move pin after it is set -->
+            <div class="loc-warn" id="locWarn">
+                <div class="loc-warn-box">
+                    <div class="warn-icon">⚠️</div>
+                    <h4>Change Location?</h4>
+                    <p>Your business location is already set. Do you want to move the pin to a different spot?</p>
+                    <div class="warn-btns">
+                        <button type="button" class="warn-keep" onclick="cancelMove()">Keep Current</button>
+                        <button type="button" class="warn-move" onclick="confirmMove()">Yes, Move It</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="map-hint">💡 Your location is pinned automatically · Tap pin and drag to adjust · Double-tap map to fullscreen</p>
+        <div class="coords-display" id="coordsDisplay">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span id="coordsText">Waiting for location…</span>
+        </div>
+
         <input type="hidden" id="lat" name="lat" value="{{ editing.lat if editing else '' }}">
         <input type="hidden" id="lng" name="lng" value="{{ editing.lng if editing else '' }}">
 
@@ -167,127 +245,206 @@
 </div>
 
 <script>
-var catSuggestions = {
-    "cafe":["Cup of coffee","Full breakfast","Juice"],
-    "coffee":["Cup of coffee","Cappuccino"],
-    "restaurant":["Plain plate of food","Chicken meal","Special plate"],
-    "salon":["Basic haircut","Hair wash & blow","Braiding (simple)"],
-    "barber":["Basic cut","Full shave","Kids cut"],
-    "mechanic":["Oil change","Tyre change","Service check"],
-    "plumber":["Tap repair","Pipe fitting","Drain unblock"],
-    "electrician":["Socket installation","Bulb replacement"],
-    "pharmacy":["Paracetamol strip","Cough syrup","Blood pressure test"],
-    "hardware":["Bag of cement","50kg sand","Paint (litre)"],
-    "gym":["Monthly membership","Daily entry","Personal training session"],
-    "supermarket":["Bread loaf","1 litre milk","Sugar (2kg)"],
-    "hotel":["Single room (night)","Conference room (hour)"],
+// ── PRICE EXAMPLES ───────────────────────────────────────────────────
+var catSuggestions={
+  "cafe":["Cup of coffee","Full breakfast","Juice"],
+  "coffee":["Cup of coffee","Cappuccino"],
+  "restaurant":["Plain plate of food","Chicken meal","Special plate"],
+  "salon":["Basic haircut","Hair wash & blow","Braiding (simple)"],
+  "barber":["Basic cut","Full shave","Kids cut"],
+  "mechanic":["Oil change","Tyre change","Service check"],
+  "plumber":["Tap repair","Pipe fitting","Drain unblock"],
+  "electrician":["Socket installation","Bulb replacement"],
+  "pharmacy":["Paracetamol strip","Cough syrup","Blood pressure test"],
+  "hardware":["Bag of cement","50kg sand","Paint (litre)"],
+  "gym":["Monthly membership","Daily entry","Personal training session"],
+  "supermarket":["Bread loaf","1 litre milk","Sugar (2kg)"],
+  "hotel":["Single room (night)","Conference room (hour)"],
 };
-
-document.getElementById('categoryInput').addEventListener('input', function() {
-    var cat = this.value.toLowerCase().trim();
-    var examples = document.getElementById('priceExamples');
-    examples.innerHTML = '';
-    for (var key in catSuggestions) {
-        if (cat.includes(key) || key.includes(cat)) {
-            catSuggestions[key].forEach(function(label) {
-                var chip = document.createElement('div');
-                chip.className = 'price-chip';
-                chip.textContent = label;
-                chip.onclick = (function(l) { return function() { setExample(l,''); }; })(label);
-                examples.appendChild(chip);
-            });
-            break;
-        }
+document.getElementById('categoryInput').addEventListener('input',function(){
+  var cat=this.value.toLowerCase().trim();
+  var el=document.getElementById('priceExamples');
+  el.innerHTML='';
+  for(var k in catSuggestions){
+    if(cat.includes(k)||k.includes(cat)){
+      catSuggestions[k].forEach(function(label){
+        var c=document.createElement('div');c.className='price-chip';c.textContent=label;
+        c.onclick=(function(l){return function(){setExample(l,'');};})(label);
+        el.appendChild(c);
+      });break;
     }
+  }
 });
-
-function setExample(label, price) {
-    document.getElementById('priceLabelInput').value = label;
-    if (price) document.getElementById('priceInput').value = price;
-    document.getElementById('priceLabelInput').focus();
+function setExample(label,price){
+  document.getElementById('priceLabelInput').value=label;
+  if(price)document.getElementById('priceInput').value=price;
 }
 
-// MAP — MapLibre GL JS
-var defaultLat = 0.3476, defaultLng = 32.5825;
-var editLat = parseFloat('{{ editing.lat if editing else 0 }}') || defaultLat;
-var editLng = parseFloat('{{ editing.lng if editing else 0 }}') || defaultLng;
+// ── MAP SETUP ─────────────────────────────────────────────────────────
+var defaultLat=0.3476,defaultLng=32.5825;
+var locationLocked=false; // true once pin is placed
+var pendingLat=null,pendingLng=null;
 
-var map = new maplibregl.Map({
-    container: 'map',
-    style: 'https://tiles.openfreemap.org/styles/liberty',
-    center: [editLng, editLat],
-    zoom: 13,
-    attributionControl: false
-});
-map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
-
-var marker = null;
-
-function setMarker(lat, lng) {
-    lat = parseFloat(lat).toFixed(6);
-    lng = parseFloat(lng).toFixed(6);
-    if (marker) {
-        marker.setLngLat([lng, lat]);
-    } else {
-        marker = new maplibregl.Marker({ color: '#2b7a78', draggable: true })
-            .setLngLat([lng, lat])
-            .addTo(map);
-        marker.on('dragend', function() {
-            var pos = marker.getLngLat();
-            document.getElementById('lat').value = pos.lat.toFixed(6);
-            document.getElementById('lng').value = pos.lng.toFixed(6);
-            document.getElementById('coordsDisplay').innerText = '📍 Location set: ' + pos.lat.toFixed(6) + ', ' + pos.lng.toFixed(6);
-        });
-    }
-    document.getElementById('lat').value = lat;
-    document.getElementById('lng').value = lng;
-    document.getElementById('coordsDisplay').innerText = '📍 Location set: ' + lat + ', ' + lng;
-}
-
-// If editing and has coords, show existing pin
+// Pre-fill if editing
 {% if editing and editing.lat and editing.lng %}
-setMarker({{ editing.lat }}, {{ editing.lng }});
+var initLat={{editing.lat}},initLng={{editing.lng}},hasExisting=true;
+{% else %}
+var initLat=defaultLat,initLng=defaultLng,hasExisting=false;
 {% endif %}
 
-map.on('click', function(e) { setMarker(e.lngLat.lat, e.lngLat.lng); });
+var map=new maplibregl.Map({
+  container:'map',
+  style:'https://tiles.openfreemap.org/styles/liberty',
+  center:[initLng,initLat],
+  zoom:hasExisting?15:13,
+  attributionControl:false
+});
+map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
+map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
 
-// Try get location on load
-if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(function(p) {
-        {% if not (editing and editing.lat) %}
-        map.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 15 });
-        {% endif %}
-    });
+// ── CUSTOM PIN ELEMENT ─────────────────────────────────────────────
+function makePinEl(emoji){
+  var wrap=document.createElement('div');
+  wrap.className='custom-pin';
+  wrap.innerHTML='<div class="pin-head"><div class="pin-emoji">'+(emoji||'🏢')+'</div></div><div class="pin-tail"></div>';
+  return wrap;
 }
 
-function useMyLocation() {
-    var btn = document.getElementById('locateBtn');
-    btn.disabled = true; btn.textContent = '⏳ Getting location…';
-    if (!navigator.geolocation) {
-        alert('Geolocation not available.'); btn.disabled = false; btn.textContent = '📍 Use My Location'; return;
-    }
-    navigator.geolocation.getCurrentPosition(function(p) {
-        map.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 });
-        setMarker(p.coords.latitude, p.coords.longitude);
-        btn.disabled = false; btn.textContent = '📍 Use My Location';
-    }, function() {
-        alert('Could not get location. Tap the map to pin it manually.');
-        btn.disabled = false; btn.textContent = '📍 Use My Location';
+var marker=null;
+
+function placeMarker(lat,lng,fly){
+  if(marker){marker.setLngLat([lng,lat]);}
+  else{
+    marker=new maplibregl.Marker({element:makePinEl('🏢'),draggable:true})
+      .setLngLat([lng,lat]).addTo(map);
+
+    // Drag — if locked warn first, then allow after confirm
+    marker.on('dragstart',function(){
+      if(locationLocked){
+        // Snap back immediately, show warning
+        marker.setLngLat([
+          parseFloat(document.getElementById('lng').value),
+          parseFloat(document.getElementById('lat').value)
+        ]);
+        showWarn(null,null); // no pending coords yet
+      }
     });
+    marker.on('dragend',function(){
+      var p=marker.getLngLat();
+      if(locationLocked){
+        pendingLat=p.lat;pendingLng=p.lng;
+        showWarn(p.lat,p.lng);
+      } else {
+        saveCoords(p.lat,p.lng);
+      }
+    });
+  }
+  if(fly){map.flyTo({center:[lng,lat],zoom:16,speed:1.4});}
+  saveCoords(lat,lng);
+  locationLocked=true;
 }
 
-// Fullscreen
-var isFs = false;
-var mapEl = document.getElementById('map');
-var closeBtn = document.getElementById('mapCloseBtn');
-mapEl.addEventListener('dblclick', openFs);
-var lt = 0;
-mapEl.addEventListener('touchend', function(e) { var n=Date.now(); if(n-lt<300){e.preventDefault();openFs();} lt=n; });
-closeBtn.addEventListener('click', closeFs);
-function openFs() { if(isFs)return; mapEl.classList.add('map-fullscreen'); closeBtn.style.display='block'; isFs=true; setTimeout(function(){map.resize();},200); }
-function closeFs() { mapEl.classList.remove('map-fullscreen'); closeBtn.style.display='none'; isFs=false; setTimeout(function(){map.resize();},200); }
-document.addEventListener('keydown', function(e) { if(e.key==='Escape'&&isFs) closeFs(); });
+function saveCoords(lat,lng){
+  lat=parseFloat(lat).toFixed(6);lng=parseFloat(lng).toFixed(6);
+  document.getElementById('lat').value=lat;
+  document.getElementById('lng').value=lng;
+  document.getElementById('coordsText').textContent='📍 Location set: '+lat+', '+lng;
+}
+
+// Map click — warn if locked
+map.on('click',function(e){
+  if(locationLocked){
+    pendingLat=e.lngLat.lat;pendingLng=e.lngLat.lng;
+    showWarn(e.lngLat.lat,e.lngLat.lng);
+  } else {
+    placeMarker(e.lngLat.lat,e.lngLat.lng,false);
+  }
+});
+
+function showWarn(lat,lng){
+  if(lat!==null){pendingLat=lat;pendingLng=lng;}
+  document.getElementById('locWarn').classList.add('show');
+}
+function cancelMove(){
+  pendingLat=null;pendingLng=null;
+  document.getElementById('locWarn').classList.remove('show');
+  // Snap marker back
+  if(marker){
+    marker.setLngLat([
+      parseFloat(document.getElementById('lng').value),
+      parseFloat(document.getElementById('lat').value)
+    ]);
+  }
+}
+function confirmMove(){
+  document.getElementById('locWarn').classList.remove('show');
+  if(pendingLat!==null){
+    locationLocked=false; // temporarily unlock to allow move
+    placeMarker(pendingLat,pendingLng,true);
+    pendingLat=null;pendingLng=null;
+  }
+}
+
+// ── STATUS BAR HELPER ─────────────────────────────────────────────────
+function setStatus(icon,msg,spinner){
+  document.getElementById('locIcon').textContent=icon;
+  document.getElementById('locMsg').innerHTML=msg;
+  document.getElementById('locSpinner').style.display=spinner?'inline-block':'none';
+}
+
+// ── AUTO LOCATE ───────────────────────────────────────────────────────
+if(hasExisting){
+  // Editing — show existing pin, locked
+  placeMarker(initLat,initLng,false);
+  setStatus('📍','Location saved. <strong>Click map or drag pin</strong> if you need to change it.',false);
+} else {
+  // New submission — auto-detect immediately
+  setStatus('📡','Detecting your location…',true);
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      function(pos){
+        placeMarker(pos.coords.latitude,pos.coords.longitude,true);
+        setStatus('✅','<strong>Location detected!</strong> Your pin is on the map. Drag it to fine-tune if needed.',false);
+      },
+      function(){
+        setStatus('⚠️','Could not detect location. <strong>Tap the map to place your pin manually.</strong>',false);
+        locationLocked=false;
+      },
+      {timeout:10000,enableHighAccuracy:true}
+    );
+  } else {
+    setStatus('⚠️','Location not supported. <strong>Tap the map to place your pin.</strong>',false);
+    locationLocked=false;
+  }
+}
+
+// ── FULLSCREEN ────────────────────────────────────────────────────────
+var isFs=false;
+var mapEl=document.getElementById('map');
+var fsBtn=document.getElementById('fsCloseBtn');
+var lastTap=0;
+
+mapEl.addEventListener('dblclick',openFs);
+mapEl.addEventListener('touchend',function(e){
+  var now=Date.now();
+  if(now-lastTap<300){e.preventDefault();openFs();}
+  lastTap=now;
+});
+
+function openFs(){
+  if(isFs)return;
+  mapEl.classList.add('map-fs');
+  fsBtn.style.display='block';
+  isFs=true;
+  setTimeout(function(){map.resize();},200);
+}
+function closeFs(){
+  mapEl.classList.remove('map-fs');
+  fsBtn.style.display='none';
+  isFs=false;
+  setTimeout(function(){map.resize();},200);
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&isFs)closeFs();});
 </script>
 </body>
 </html>
