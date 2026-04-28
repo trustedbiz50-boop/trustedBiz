@@ -709,7 +709,11 @@ def report_business(biz_id):
         flash("Report submitted. Thank you.")
     return redirect(f'/business/{biz_id}')
 
+from flask import send_from_directory
 
+@app.route('/google2c13209b099aea62.html')
+def google_verification():
+    return send_from_directory('.', 'google2c13209b099aea62.html')
 # ─────────────────────────────────────────────────────────────────────
 # ROUTES — PREMIUM WEBSITE
 # ─────────────────────────────────────────────────────────────────────
