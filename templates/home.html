@@ -525,86 +525,223 @@ header{
   </div>
   <p>© 2026 TrustedBiz · Uganda's trusted local business directory · Pay via MTN MoMo & Airtel Money</p>
 </footer>
-
 <script>
+// ── DATA ────────────────────────────────────────────────────────────
 var allBusinesses = {{ businesses_json | safe }};
 var searchResults = [
   {% for b, distance in results %}
-  {"id":{{b['id']}},"name":"{{ b['name']|replace('"','\\\"') }}","category":"{{b['category']}}","whatsapp":"{{b['whatsapp']}}","lat":{{b['lat'] or 0}},"lng":{{b['lng'] or 0}},"photos":"{{b['photos'] or ''}}","is_premium":{{1 if b['is_premium'] else 0}}},
+  {
+    "id": {{ b['id'] }},
+    "name": {{ b['name'] | tojson }},
+    "category": {{ (b['category'] or '') | tojson }},
+    "whatsapp": {{ (b['whatsapp'] or '') | tojson }},
+    "lat": {{ b['lat'] or 0 }},
+    "lng": {{ b['lng'] or 0 }},
+    "photos": {{ (b['photos'] or '') | tojson }},
+    "is_premium": {{ 1 if b['is_premium'] else 0 }},
+    "verified": {{ 1 if b['verified'] else 0 }},
+    "description": {{ (b['description'] or '') | tojson }}
+  },
   {% endfor %}
 ];
-var defaultLat=0.3476,defaultLng=32.5825;
-var map,userMarker,markers={},isFs=false;
 
-const catIcons={
-  "cafe":"/static/icons/cafe.png","restaurant":"/static/icons/restaurant.png",
-  "salon":"/static/icons/salon.png","barber":"/static/icons/barber.png",
-  "mechanic":"/static/icons/mechanic.png","plumber":"/static/icons/plumbers.png",
-  "electrician":"/static/icons/electrician.png","gym":"/static/icons/gym.png",
-  "pharmacy":"/static/icons/pharmacy.png","hotel":"/static/icons/hotel.png",
-  "supermarket":"/static/icons/supermarket.png","mall":"/static/icons/mall.png",
-  "hardware":"/static/icons/hardware.png"
-};
-function getCatIcon(cat){
-  if(!cat)return null;
-  var k=cat.toLowerCase().trim();
-  if(k.endsWith("s"))k=k.slice(0,-1);
-  return catIcons[k]?L.icon({iconUrl:catIcons[k],iconSize:[34,34],iconAnchor:[17,34],popupAnchor:[0,-28]}):null;
+var defaultLat = 0.3476, defaultLng = 32.5825;
+var map, markers = {}, userMarkerEl = null;
+var isFs = false;
+
+// ── PHOTO URL HELPER ─────────────────────────────────────────────────
+// Handles both Cloudinary URLs (http...) and local filenames
+function resolvePhotoUrl(ref) {
+  if (!ref) return '';
+  ref = ref.trim();
+  if (ref.startsWith('http')) return ref;
+  return '/static/images/' + ref;
 }
-function initMap(uLat,uLng,list){
-  if(map){map.remove();markers={};}
-  map=L.map('map').setView([uLat,uLng],13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-  var yi=L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowSize:[41,41]});
-  userMarker=L.marker([uLat,uLng],{icon:yi}).addTo(map).bindPopup('<b>You are here</b>');
-  list.forEach(function(b){
-    if(!b.lat||!b.lng)return;
-    var pb=b.is_premium?'<span style="background:#f59e0b;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:4px;">⭐ Premium</span>':'';
-    var ph='';if(b.photos){var p=b.photos.split(',')[0].trim();if(p)ph='<img src="/static/images/'+p+'" style="width:100%;height:78px;object-fit:cover;border-radius:5px;margin-top:6px;">';}
-    var pop='<div style="font-family:\'Segoe UI\',sans-serif;min-width:155px;">'+'<b style="font-size:13px;">'+b.name+'</b>'+pb+'<br><span style="font-size:11px;color:#6b7280;">'+b.category+'</span>'+ph+'<div style="margin-top:8px;display:flex;gap:6px;"><a href="/business/'+b.id+'" style="background:#2b7a78;color:white;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600;text-decoration:none;">View</a><a href="https://wa.me/'+b.whatsapp+'" target="_blank" style="background:#22c55e;color:white;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600;text-decoration:none;">WhatsApp</a></div></div>';
-    var ic=getCatIcon(b.category);
-    var m=L.marker([b.lat,b.lng],ic?{icon:ic}:{}).addTo(map).bindPopup(pop);
-    markers[b.id]=m;
+
+// ── SHOW MORE ───────────────────────────────────────────────────────
+function showAllCards() {
+  document.querySelectorAll('.result-card').forEach(function(c) {
+    c.style.display = '';
   });
-  attachFs();
+  var wrap = document.getElementById('showMoreWrap');
+  if (wrap) wrap.style.display = 'none';
 }
-function focusMarker(id){
-  if(markers[id]){map.setView(markers[id].getLatLng(),16,{animate:true});markers[id].openPopup();}
+
+// ── MAP INIT (MapLibre GL JS + OpenFreeMap) ──────────────────────────
+function initMap(uLat, uLng, list) {
+  if (map) { map.remove(); markers = {}; }
+
+  map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [uLng, uLat],
+    zoom: 13,
+    attributionControl: false
+  });
+
+  map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+
+  // User location marker (red dot)
+  var userEl = document.createElement('div');
+  userEl.style.cssText = 'width:16px;height:16px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+  new maplibregl.Marker({ element: userEl })
+    .setLngLat([uLng, uLat])
+    .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML('<div style="padding:10px 12px;font-family:\'Plus Jakarta Sans\',sans-serif;font-weight:700;font-size:13px;color:#1f2937;">📍 You are here</div>'))
+    .addTo(map);
+
+  // Business markers
+  list.forEach(function(b) {
+    if (!b.lat || !b.lng) return;
+
+    // Get first photo — handle Cloudinary or local
+    var photoHtml = '';
+    if (b.photos) {
+      var firstPhoto = b.photos.split(',')[0].trim();
+      var photoSrc = resolvePhotoUrl(firstPhoto);
+      if (photoSrc) {
+        photoHtml = '<img src="' + photoSrc + '" style="width:100%;height:80px;object-fit:cover;display:block;" onerror="this.style.display=\'none\'">';
+      }
+    }
+
+    var premiumBadge = b.is_premium ? '<span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:10px;font-weight:800;padding:2px 7px;border-radius:4px;margin-left:5px;">⭐</span>' : '';
+    var verifiedBadge = b.verified ? '<span style="color:#16a34a;font-size:11px;margin-left:4px;">✔</span>' : '';
+
+    var popupHtml =
+      '<div style="font-family:\'Plus Jakarta Sans\',\'Segoe UI\',sans-serif;overflow:hidden;border-radius:10px;">' +
+      photoHtml +
+      '<div style="padding:10px 12px;">' +
+      '<div style="font-size:13px;font-weight:800;color:#1f2937;margin-bottom:3px;">' + b.name + premiumBadge + verifiedBadge + '</div>' +
+      '<div style="font-size:11px;color:#6b7280;margin-bottom:8px;">' + (b.category || '') + '</div>' +
+      '<div style="display:flex;gap:6px;">' +
+      '<a href="/business/' + b.id + '" style="flex:1;background:#2b7a78;color:white;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;text-align:center;">View</a>' +
+      '<a href="https://wa.me/' + b.whatsapp + '" target="_blank" style="background:#22c55e;color:white;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">WhatsApp</a>' +
+      '</div></div></div>';
+
+    // Marker element — teal dot, gold for premium
+    var el = document.createElement('div');
+    el.style.cssText = 'width:14px;height:14px;background:' + (b.is_premium ? '#f59e0b' : '#2b7a78') + ';border:2.5px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;transition:transform .15s;';
+    el.onmouseenter = function() { el.style.transform = 'scale(1.4)'; };
+    el.onmouseleave = function() { el.style.transform = 'scale(1)'; };
+
+    var popup = new maplibregl.Popup({ offset: 12, maxWidth: '240px' })
+      .setHTML(popupHtml);
+
+    var marker = new maplibregl.Marker({ element: el })
+      .setLngLat([b.lng, b.lat])
+      .setPopup(popup)
+      .addTo(map);
+
+    markers[b.id] = marker;
+  });
+
+  attachFullscreen();
 }
-function attachFs(){
-  var el=document.getElementById('map'),cb=document.getElementById('mapCloseBtn');
-  el.addEventListener('dblclick',openFs);
-  var lt=0;el.addEventListener('touchend',function(e){var n=Date.now();if(n-lt<300){e.preventDefault();openFs();}lt=n;});
-  cb.addEventListener('click',closeFs);
+
+function focusMarker(id) {
+  if (markers[id]) {
+    var lngLat = markers[id].getLngLat();
+    map.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: 16, speed: 1.2 });
+    markers[id].togglePopup();
+  }
 }
-function openFs(){if(isFs)return;document.getElementById('map').classList.add('map-fullscreen');document.getElementById('mapCloseBtn').style.display='block';isFs=true;setTimeout(function(){map.invalidateSize();},200);}
-function closeFs(){document.getElementById('map').classList.remove('map-fullscreen');document.getElementById('mapCloseBtn').style.display='none';isFs=false;setTimeout(function(){map.invalidateSize();},200);}
-document.addEventListener('keydown',function(e){if(e.key==='Escape'&&isFs)closeFs();});
-function reqLoc(){
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(
-      function(p){document.getElementById('lat').value=p.coords.latitude;document.getElementById('lng').value=p.coords.longitude;initMap(p.coords.latitude,p.coords.longitude,searchResults.length?searchResults:allBusinesses);},
-      function(){initMap(defaultLat,defaultLng,searchResults.length?searchResults:allBusinesses);},
-      {timeout:8000}
-    );
-  }else{initMap(defaultLat,defaultLng,searchResults.length?searchResults:allBusinesses);}
+
+// ── FULLSCREEN ───────────────────────────────────────────────────────
+function attachFullscreen() {
+  var el = document.getElementById('map');
+  var cb = document.getElementById('mapCloseBtn');
+  var lastTap = 0;
+
+  el.addEventListener('dblclick', openFs);
+  el.addEventListener('touchend', function(e) {
+    var now = Date.now();
+    if (now - lastTap < 300) { e.preventDefault(); openFs(); }
+    lastTap = now;
+  });
+  cb.addEventListener('click', closeFs);
 }
-window.onload=function(){
-  if(!localStorage.getItem('gpsAsked')){document.getElementById('gpsOverlay').style.display='flex';}
-  else{reqLoc();}
-  document.getElementById('gpsAllow').onclick=function(){localStorage.setItem('gpsAsked','1');document.getElementById('gpsOverlay').style.display='none';reqLoc();};
-  document.getElementById('gpsSkip').onclick=function(){localStorage.setItem('gpsAsked','1');document.getElementById('gpsOverlay').style.display='none';initMap(defaultLat,defaultLng,searchResults.length?searchResults:allBusinesses);};
-  var flash={{get_flashed_messages()|tojson}};
-  var notifs={{notifications|tojson}};
-  var t=document.getElementById('toast');
-  var msg=notifs.length?notifs[0].message:(flash.length?flash[0]:null);
-  if(msg){t.innerText=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},4000);}
-};
-document.getElementById('searchForm').addEventListener('submit',function(){
-  if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){document.getElementById('lat').value=p.coords.latitude;document.getElementById('lng').value=p.coords.longitude;});}
+
+function openFs() {
+  if (isFs) return;
+  document.getElementById('map').classList.add('map-fullscreen');
+  document.getElementById('mapCloseBtn').style.display = 'block';
+  isFs = true;
+  setTimeout(function() { map.resize(); }, 200);
+}
+
+function closeFs() {
+  document.getElementById('map').classList.remove('map-fullscreen');
+  document.getElementById('mapCloseBtn').style.display = 'none';
+  isFs = false;
+  setTimeout(function() { map.resize(); }, 200);
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && isFs) closeFs();
 });
 
-/* ── PRICE GUARD TOGGLE ── */
+// ── LOCATION ────────────────────────────────────────────────────────
+function reqLoc() {
+  var list = searchResults.length ? searchResults : allBusinesses;
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(p) {
+        document.getElementById('lat').value = p.coords.latitude;
+        document.getElementById('lng').value = p.coords.longitude;
+        initMap(p.coords.latitude, p.coords.longitude, list);
+      },
+      function() { initMap(defaultLat, defaultLng, list); },
+      { timeout: 8000 }
+    );
+  } else {
+    initMap(defaultLat, defaultLng, list);
+  }
+}
+
+// ── ON LOAD ──────────────────────────────────────────────────────────
+window.onload = function() {
+  if (!localStorage.getItem('gpsAsked')) {
+    document.getElementById('gpsOverlay').style.display = 'flex';
+  } else {
+    reqLoc();
+  }
+
+  document.getElementById('gpsAllow').onclick = function() {
+    localStorage.setItem('gpsAsked', '1');
+    document.getElementById('gpsOverlay').style.display = 'none';
+    reqLoc();
+  };
+  document.getElementById('gpsSkip').onclick = function() {
+    localStorage.setItem('gpsAsked', '1');
+    document.getElementById('gpsOverlay').style.display = 'none';
+    initMap(defaultLat, defaultLng, searchResults.length ? searchResults : allBusinesses);
+  };
+
+  // Flash / notification toast
+  var flash = {{ get_flashed_messages() | tojson }};
+  var notifs = {{ notifications | tojson }};
+  var t = document.getElementById('toast');
+  var msg = notifs.length ? notifs[0].message : (flash.length ? flash[0] : null);
+  if (msg) {
+    t.innerText = msg;
+    t.style.display = 'block';
+    setTimeout(function() { t.style.display = 'none'; }, 4500);
+  }
+};
+
+// Attach location to search form submit
+document.getElementById('searchForm').addEventListener('submit', function() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(p) {
+      document.getElementById('lat').value = p.coords.latitude;
+      document.getElementById('lng').value = p.coords.longitude;
+    });
+  }
+});
+
+// ── PRICE GUARD ───────────────────────────────────────────────────────
+var pgData = [];
+
 function togglePriceGuard() {
   var sec = document.getElementById('priceGuardSection');
   var btn = document.getElementById('pgHeroBtn');
@@ -621,43 +758,41 @@ function togglePriceGuard() {
       sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
     btn.textContent = '✕ Close Price Guide';
-    btn.style.background = 'rgba(255,255,255,.22)';
-    // Load data only on first open
     if (!pgData.length) {
-      fetch('/price-guard').then(function(r){return r.json();}).then(function(d){pgData=d;pgRender(d);}).catch(function(){});
+      fetch('/price-guard').then(function(r) { return r.json(); }).then(function(d) {
+        pgData = d; pgRender(d);
+      }).catch(function() {});
     }
   } else {
     sec.style.transition = 'opacity .25s';
     sec.style.opacity = '0';
     setTimeout(function() { sec.style.display = 'none'; }, 250);
     btn.textContent = '🛡️ Check Fair Prices';
-    btn.style.background = '';
   }
 }
 
-/* ── PRICE GUARD ── */
-var pgData=[];
-// Price data loads when user clicks Check Fair Prices
-
-function pgFilter(q){
-  q=(q||'').toLowerCase().trim();
-  if(!q){pgRender(pgData);return;}
-  var f=pgData.filter(function(d){return d.category.includes(q)||d.label.toLowerCase().includes(q);});
-  pgRender(f,q);
+function pgFilter(q) {
+  q = (q || '').toLowerCase().trim();
+  if (!q) { pgRender(pgData); return; }
+  var f = pgData.filter(function(d) {
+    return d.category.includes(q) || d.label.toLowerCase().includes(q);
+  });
+  pgRender(f, q);
 }
-function pgRender(data,q){
-  var el=document.getElementById('pgCards');
-  if(!data||!data.length){
-    el.innerHTML='<div class="pg-add-card"><p>No prices for <strong>'+(q||'this')+'</strong> yet.</p><a href="/add-business">+ Add Yours</a></div>';
+
+function pgRender(data, q) {
+  var el = document.getElementById('pgCards');
+  if (!data || !data.length) {
+    el.innerHTML = '<div class="pg-add-card"><p>No prices for <strong>' + (q || 'this') + '</strong> yet.</p><a href="/add-business">+ Add Yours</a></div>';
     return;
   }
-  var h='';
-  data.slice(0,10).forEach(function(d){
-    var num=Number(d.average).toLocaleString();
-    h+='<div class="pg-card"><div class="pg-card-cat">'+d.category+'</div><div class="pg-card-label">'+d.label+'</div><div class="pg-card-avg">'+num+'<small> UGX</small></div><div class="pg-card-count">'+d.count+' shop'+(d.count!==1?'s':'')+'</div></div>';
+  var h = '';
+  data.slice(0, 10).forEach(function(d) {
+    var num = Number(d.average).toLocaleString();
+    h += '<div class="pg-card"><div class="pg-card-cat">' + d.category + '</div><div class="pg-card-label">' + d.label + '</div><div class="pg-card-avg">' + num + '<small> UGX</small></div><div class="pg-card-count">' + d.count + ' shop' + (d.count !== 1 ? 's' : '') + '</div></div>';
   });
-  h+='<div class="pg-add-card"><p>Add your price and get discovered.</p><a href="/add-business">+ Add Yours</a></div>';
-  el.innerHTML=h;
+  h += '<div class="pg-add-card"><p>Add your price and get discovered.</p><a href="/add-business">+ Add Yours</a></div>';
+  el.innerHTML = h;
 }
 </script>
 </body>
