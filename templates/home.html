@@ -385,7 +385,6 @@ header{
   </a>
   <nav class="header-nav">
     {% if current_user %}
-      <span class="header-greeting">Hi, {{ current_user.name }} 👋</span>
       <a href="/dashboard" class="nav-dash">Dashboard</a>
       <a href="/logout" class="nav-logout">Logout</a>
     {% else %}
