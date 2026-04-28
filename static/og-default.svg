@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d2020"/>
+      <stop offset="60%" style="stop-color:#163535"/>
+      <stop offset="100%" style="stop-color:#1a3a3a"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2b7a78"/>
+      <stop offset="100%" style="stop-color:#14a8ac"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="30" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Glow circles -->
+  <circle cx="200" cy="315" r="280" fill="rgba(43,122,120,0.12)"/>
+  <circle cx="1000" cy="200" r="220" fill="rgba(20,168,172,0.08)"/>
+
+  <!-- Dot grid subtle -->
+  <g fill="rgba(255,255,255,0.03)">
+    <circle cx="100" cy="100" r="3"/><circle cx="300" cy="100" r="3"/><circle cx="500" cy="100" r="3"/><circle cx="700" cy="100" r="3"/><circle cx="900" cy="100" r="3"/><circle cx="1100" cy="100" r="3"/>
+    <circle cx="100" cy="300" r="3"/><circle cx="300" cy="300" r="3"/><circle cx="900" cy="300" r="3"/><circle cx="1100" cy="300" r="3"/>
+    <circle cx="100" cy="500" r="3"/><circle cx="300" cy="500" r="3"/><circle cx="500" cy="500" r="3"/><circle cx="700" cy="500" r="3"/><circle cx="900" cy="500" r="3"/><circle cx="1100" cy="500" r="3"/>
+  </g>
+
+  <!-- Big shield icon -->
+  <g transform="translate(100, 165)">
+    <path d="M150 20 L270 65 L270 175 C270 255 212 305 150 335 C88 305 30 255 30 175 L30 65 Z"
+          fill="url(#teal)" filter="url(#glow)" opacity="0.9"/>
+    <path d="M150 50 L248 88 L248 173 C248 244 200 288 150 315 C100 288 52 244 52 173 L52 88 Z"
+          fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+    <polyline points="95,180 133,218 215,130"
+              fill="none" stroke="white" stroke-width="18"
+              stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Main text -->
+  <text x="420" y="260"
+        font-family="'Helvetica Neue',Arial,sans-serif"
+        font-size="82" font-weight="900" fill="white" letter-spacing="-2">Trusted<tspan fill="#4ecdc4">Biz</tspan></text>
+
+  <!-- Tagline -->
+  <text x="420" y="320"
+        font-family="'Helvetica Neue',Arial,sans-serif"
+        font-size="28" font-weight="600" fill="rgba(255,255,255,0.6)" letter-spacing="1">Uganda's Trusted Local Business Directory</text>
+
+  <!-- Feature pills -->
+  <g transform="translate(420, 370)">
+    <rect rx="20" width="160" height="40" fill="rgba(43,122,120,0.4)" stroke="rgba(78,205,196,0.4)" stroke-width="1.5"/>
+    <text x="80" y="26" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-size="16" font-weight="700" fill="#4ecdc4">✔ Verified</text>
+
+    <rect x="178" rx="20" width="145" height="40" fill="rgba(43,122,120,0.4)" stroke="rgba(78,205,196,0.4)" stroke-width="1.5"/>
+    <text x="178" dx="72" y="26" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-size="16" font-weight="700" fill="#4ecdc4">⭐ Reviewed</text>
+
+    <rect x="341" rx="20" width="165" height="40" fill="rgba(43,122,120,0.4)" stroke="rgba(78,205,196,0.4)" stroke-width="1.5"/>
+    <text x="341" dx="82" y="26" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-size="16" font-weight="700" fill="#4ecdc4">📍 Near You</text>
+  </g>
+
+  <!-- URL -->
+  <text x="420" y="460"
+        font-family="'Helvetica Neue',Arial,sans-serif"
+        font-size="22" font-weight="600" fill="rgba(255,255,255,0.35)" letter-spacing="1">trustedbiz.onrender.com</text>
+
+  <!-- Right side map pin decoration -->
+  <g transform="translate(960, 200)" opacity="0.15">
+    <path d="M80 0 C45 0 20 25 20 55 C20 90 80 140 80 140 C80 140 140 90 140 55 C140 25 115 0 80 0Z" fill="#4ecdc4"/>
+    <circle cx="80" cy="53" r="22" fill="white"/>
+  </g>
+  <g transform="translate(1040, 340)" opacity="0.1">
+    <path d="M50 0 C28 0 12 16 12 34 C12 56 50 87 50 87 C50 87 88 56 88 34 C88 16 72 0 50 0Z" fill="#4ecdc4"/>
+    <circle cx="50" cy="33" r="14" fill="white"/>
+  </g>
+</svg>

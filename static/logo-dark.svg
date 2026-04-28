@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" width="320" height="72">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2b7a78"/>
+      <stop offset="100%" style="stop-color:#4ecdc4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon on dark -->
+  <rect x="0" y="2" width="68" height="68" rx="15" fill="none" stroke="rgba(78,205,196,0.3)" stroke-width="1.5"/>
+  <rect x="0" y="2" width="68" height="68" rx="15" fill="rgba(43,122,120,0.15)"/>
+  <path d="M34 10 L53 17 L53 35 C53 48 44 56 34 63 C24 56 15 48 15 35 L15 17 Z" fill="url(#g)"/>
+  <polyline points="23,36 31,44 47,26"
+            fill="none" stroke="white" stroke-width="5"
+            stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Trusted white -->
+  <text x="82" y="46"
+        font-family="'Helvetica Neue',Arial,sans-serif"
+        font-size="32" font-weight="900" fill="white" letter-spacing="-0.8">Trusted</text>
+
+  <!-- Biz teal -->
+  <text x="252" y="46"
+        font-family="'Helvetica Neue',Arial,sans-serif"
+        font-size="32" font-weight="900" fill="#4ecdc4" letter-spacing="-0.8">Biz</text>
+
+  <!-- Tagline -->
+  <text x="82" y="62"
+        font-family="'Helvetica Neue',Arial,sans-serif"
+        font-size="10" font-weight="700" fill="rgba(255,255,255,0.4)" letter-spacing="2.2">UGANDA'S TRUSTED DIRECTORY</text>
+</svg>
