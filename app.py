@@ -21,6 +21,7 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
+# Custom JSON encoder handles datetime objects from PostgreSQL
 class SafeJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         from datetime import datetime, date
@@ -37,9 +38,8 @@ def dateformat(value, fmt='%Y-%m-%d'):
     if hasattr(value, 'strftime'):
         return value.strftime(fmt)
     return str(value)[:10]
-
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -50,10 +50,11 @@ def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
 # ─────────────────────────────────────────────────────────────────────
-# DATABASE
+# DATABASE — PostgreSQL on Render, SQLite locally
 # ─────────────────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
+# Render gives postgres:// but psycopg2 needs postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -67,6 +68,7 @@ if USE_POSTGRES:
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
         return conn
 
+    # PostgreSQL uses %s placeholders, not ?
     PH = "%s"
 
 else:
@@ -87,6 +89,7 @@ else:
 
 
 def q(sql):
+    """Convert ? placeholders to %s for PostgreSQL."""
     if USE_POSTGRES:
         return sql.replace("?", "%s")
     return sql
@@ -215,7 +218,7 @@ except Exception as e:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# IMAGE STORAGE
+# IMAGE STORAGE — Cloudinary on Render, local otherwise
 # ─────────────────────────────────────────────────────────────────────
 CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
 USE_CLOUDINARY = bool(CLOUDINARY_URL)
@@ -230,6 +233,11 @@ LOCAL_UPLOAD.mkdir(parents=True, exist_ok=True)
 
 
 def save_photos(files):
+    """
+    Save uploaded photos.
+    - On Render with Cloudinary: upload to cloud, return URLs.
+    - Locally: save to static/images/, return filenames.
+    """
     results = []
     for photo in files:
         if not photo or not photo.filename:
@@ -241,6 +249,7 @@ def save_photos(files):
 
         try:
             if USE_CLOUDINARY:
+                # Upload to Cloudinary
                 upload = cloudinary.uploader.upload(
                     photo,
                     folder="trustedbiz",
@@ -250,8 +259,10 @@ def save_photos(files):
                          "crop": "limit", "quality": "auto:good"}
                     ]
                 )
+                # Store the full Cloudinary URL
                 results.append(upload["secure_url"])
             else:
+                # Save locally
                 ext = photo.filename.rsplit('.', 1)[1].lower()
                 fname = f"{secrets.token_hex(8)}.{ext}"
                 photo.save(str(LOCAL_UPLOAD / fname))
@@ -266,18 +277,17 @@ def save_photos(files):
 
 def photo_url(photo_ref):
     """
-    Returns correct URL for a photo ref.
-    Cloudinary URLs start with http — return as-is.
-    Local filenames get /static/images/ prefix.
+    Given a photo reference (either a Cloudinary URL or a local filename),
+    return the correct src URL for use in templates.
     """
     if not photo_ref:
         return ""
-    photo_ref = photo_ref.strip()
     if photo_ref.startswith("http"):
-        return photo_ref
-    return f"/static/images/{photo_ref}"
+        return photo_ref  # already a full Cloudinary URL
+    return f"/static/images/{photo_ref}"  # local filename
 
 
+# Make photo_url available in all templates
 app.jinja_env.globals['photo_url'] = photo_url
 
 
@@ -342,6 +352,7 @@ def db_fetchone(sql, params=()):
 
 
 def db_execute(sql, params=()):
+    """Run INSERT/UPDATE/DELETE. Commits. Returns None."""
     conn = get_db()
     try:
         if USE_POSTGRES:
@@ -367,9 +378,11 @@ def db_execute(sql, params=()):
 
 
 def db_insert(sql, params=()):
+    """INSERT and return last inserted id."""
     conn = get_db()
     try:
         if USE_POSTGRES:
+            # Add RETURNING id to get back the new id
             if "RETURNING" not in sql.upper():
                 sql = sql.rstrip(';') + " RETURNING id"
             cur = conn.cursor()
@@ -412,30 +425,13 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def business_to_dict(b):
+    """Convert a db row to a plain dict, converting datetime to strings."""
     from datetime import datetime, date
     d = dict(b)
     for k, v in d.items():
         if isinstance(v, (datetime, date)):
             d[k] = v.isoformat()
     return d
-
-
-def user_is_premium(user_id):
-    """Check if a user has at least one premium business (meaning they paid)."""
-    row = db_fetchone(
-        q("SELECT id FROM business WHERE owner_id=? AND is_premium=1 LIMIT 1"),
-        (user_id,)
-    )
-    return row is not None
-
-
-def user_business_count(user_id):
-    """Count how many businesses a user has submitted."""
-    row = db_fetchone(
-        q("SELECT COUNT(*) as c FROM business WHERE owner_id=?"),
-        (user_id,)
-    )
-    return row['c'] if row else 0
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -497,7 +493,10 @@ def home():
 
     return render_template('home.html',
         results=[(dict(b), d) for b, d in results],
-        businesses_json=json.dumps([business_to_dict(b) for b in all_biz]),
+        businesses_json=json.dumps([{
+            **business_to_dict(b),
+            'photo_display': photo_url((business_to_dict(b).get('photos') or '').split(',')[0].strip()) if business_to_dict(b).get('photos') else ''
+        } for b in all_biz]),
         current_user=get_current_user(),
         notifications=[dict(n) for n in notifications]
     )
@@ -565,6 +564,7 @@ def business(biz_id):
 
     bd = business_to_dict(b)
 
+    # Increment views
     db_execute(
         q("UPDATE business SET views = views + 1 WHERE id=?"), (biz_id,)
     )
@@ -588,7 +588,10 @@ def business(biz_id):
 
     return render_template('business.html',
         business=bd,
-        reviews=[dict(r) for r in reviews],
+        reviews=[{
+            **dict(r),
+            'created_at': (r['created_at'].strftime('%Y-%m-%d') if hasattr(r['created_at'], 'strftime') else str(r['created_at'] or '')[:10])
+        } for r in reviews],
         total_reviews=total_reviews,
         avg_rating=avg_rating,
         current_user=get_current_user()
@@ -598,25 +601,16 @@ def business(biz_id):
 @app.route('/add-business', methods=['GET', 'POST'])
 @login_required
 def add_business():
-    user_id = session['user_id']
-
-    # ── ONE BUSINESS LIMIT ───────────────────────────────────────────
-    # Free users can only have 1 business. Premium users are unlimited.
-    existing_count = user_business_count(user_id)
-    is_premium_user = user_is_premium(user_id)
-
-    if existing_count >= 1 and not is_premium_user:
-        # Redirect to upgrade page instead of showing the form
-        return redirect('/upgrade')
-    # ────────────────────────────────────────────────────────────────
+    user = get_current_user()
+    # Check if user already has a business and is not premium
+    existing_businesses = db_fetchall(
+        q("SELECT id FROM business WHERE owner_id=?"), (user['id'],)
+    )
+    if len(existing_businesses) >= 1 and not user['is_premium']:
+        flash("You already have a listing. Upgrade to Premium to add more businesses.")
+        return redirect('/dashboard')
 
     if request.method == 'POST':
-        # Re-check on POST too (in case someone bypasses the GET)
-        existing_count = user_business_count(user_id)
-        is_premium_user = user_is_premium(user_id)
-        if existing_count >= 1 and not is_premium_user:
-            return redirect('/upgrade')
-
         name        = request.form.get('name', '').strip()[:100]
         category    = request.form.get('category', '').strip()
         whatsapp    = request.form.get('whatsapp', '').strip()
@@ -625,6 +619,7 @@ def add_business():
         description = request.form.get('description', '').strip()
         hours       = request.form.get('hours', '').strip()
 
+        # Price Guard fields
         hero_price_label = request.form.get('hero_price_label', '').strip()
         hero_price_raw   = request.form.get('hero_price', '').strip()
         try:
@@ -648,7 +643,7 @@ def add_business():
                      VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?,?)"""),
                 (name, category, whatsapp, lat, lng,
                  ','.join(photos), description, hours,
-                 user_id, request.remote_addr,
+                 session['user_id'], request.remote_addr,
                  slug, hero_price, hero_price_label)
             )
             flash("Business submitted! It will appear after admin approval.")
@@ -660,15 +655,10 @@ def add_business():
     return render_template('add-business.html', current_user=get_current_user())
 
 
-@app.route('/upgrade')
-@login_required
-def upgrade():
-    return render_template('upgrade.html', current_user=get_current_user())
-
-
 @app.route('/review/<int:biz_id>', methods=['POST'])
 @login_required
 def add_review(biz_id):
+    # One review per user per business
     existing = db_fetchone(
         q("SELECT id FROM reviews WHERE business_id=? AND user_id=?"),
         (biz_id, session['user_id'])
@@ -689,6 +679,7 @@ def add_review(biz_id):
         (biz_id, session['user_id'], rating, comment)
     )
 
+    # Notify business owner
     b = db_fetchone(q("SELECT owner_id, name FROM business WHERE id=?"), (biz_id,))
     if b and b['owner_id']:
         db_insert(
@@ -754,10 +745,12 @@ def dashboard():
     )
     businesses = [dict(b) for b in rows]
 
+    # Stats the original dashboard template needs
     total_listings = len(businesses)
     live_count     = sum(1 for b in businesses if b.get('status') == 'approved')
     total_views    = sum(b.get('views') or 0 for b in businesses)
 
+    # Per-business review stats
     stats = {}
     for b in businesses:
         rev_rows = db_fetchall(
@@ -885,6 +878,7 @@ def price_guard():
 def admin():
     ADMIN_PASS = os.environ.get("ADMIN_PASS", "admin123")
 
+    # ── LOGIN CHECK ──────────────────────────────────────────────────
     if not session.get('admin_auth'):
         if request.method == 'POST' and 'admin_pass' in request.form:
             if request.form.get('admin_pass') == ADMIN_PASS:
@@ -896,6 +890,7 @@ def admin():
                 return render_template('admin_login.html')
         return render_template('admin_login.html')
 
+    # ── HANDLE FORM ACTIONS (approve/reject/verify/premium/delete) ───
     if request.method == 'POST' and 'action' in request.form:
         action = request.form.get('action', '')
         biz_id = request.form.get('id', '')
@@ -943,6 +938,7 @@ def admin():
 
         return redirect('/admin')
 
+    # ── LOAD ADMIN PAGE ──────────────────────────────────────────────
     businesses = db_fetchall(q("""
         SELECT b.*, u.name as owner_name
         FROM business b
@@ -1076,6 +1072,55 @@ def terms():
 def favicon():
     return '', 204
 
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ROUTES — SEO: robots.txt + sitemap.xml
+# ─────────────────────────────────────────────────────────────────────
+SITE_URL = os.environ.get("SITE_URL", "https://trustedbiz.onrender.com").rstrip("/")
+
+@app.route('/robots.txt')
+def robots_txt():
+    from flask import Response
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin\n"
+        "Disallow: /login\n"
+        "Disallow: /register\n"
+        "Disallow: /dashboard\n"
+        f"Sitemap: {SITE_URL}/sitemap.xml\n"
+    )
+    return Response(body, mimetype="text/plain")
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    from flask import Response
+    pages = []
+    # Static pages
+    for path, freq, pri in [
+        ('/', 'daily', '1.0'),
+        ('/privacy', 'monthly', '0.3'),
+        ('/terms', 'monthly', '0.3'),
+    ]:
+        pages.append((SITE_URL + path, freq, pri))
+    # All approved business pages
+    try:
+        businesses = db_fetchall(
+            q("SELECT id, name, slug, created_at FROM business WHERE status='approved'")
+        )
+        for b in businesses:
+            slug = b['slug'] or re.sub(r'[^a-z0-9]+', '-', (b['name'] or '').lower()).strip('-')
+            url  = f"{SITE_URL}/business/{b['id']}"
+            pages.append((url, 'weekly', '0.9'))
+    except Exception:
+        pass
+    xml = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for loc, freq, pri in pages:
+        xml.append(f'<url><loc>{loc}</loc><changefreq>{freq}</changefreq><priority>{pri}</priority></url>')
+    xml.append('</urlset>')
+    return Response('\n'.join(xml), mimetype='application/xml')
 
 # ─────────────────────────────────────────────────────────────────────
 # ERROR HANDLERS
