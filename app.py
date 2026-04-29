@@ -1137,6 +1137,19 @@ def not_found(e):
 def server_error(e):
     return render_template('404.html', current_user=get_current_user()), 500
 
+@app.route('/sitemap.xml')
+def sitemap():
+    businesses = db_fetchall(q("SELECT id, slug FROM business WHERE status='approved'"))
+    xml = '<?xml version="1.0" encoding="UTF-8"?>'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    xml += '<url><loc>https://trustedbiz.onrender.com/</loc></url>'
+    for b in businesses:
+        xml += f'<url><loc>https://trustedbiz.onrender.com/business/{b["id"]}</loc></url>'
+    xml += '</urlset>'
+    r = make_response(xml)
+    r.headers['Content-Type'] = 'application/xml'
+    return r
+
 
 # ─────────────────────────────────────────────────────────────────────
 # RUN
