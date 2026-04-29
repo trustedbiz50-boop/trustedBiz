@@ -392,31 +392,38 @@ function setStatus(icon,msg,spinner){
   document.getElementById('locSpinner').style.display=spinner?'inline-block':'none';
 }
 
-// ── AUTO LOCATE ───────────────────────────────────────────────────────
-if(hasExisting){
-  // Editing — show existing pin, locked
-  placeMarker(initLat,initLng,false);
-  setStatus('📍','Location saved. <strong>Click map or drag pin</strong> if you need to change it.',false);
-} else {
-  // New submission — auto-detect immediately
-  setStatus('📡','Detecting your location…',true);
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(
-      function(pos){
-        placeMarker(pos.coords.latitude,pos.coords.longitude,true);
-        setStatus('✅','<strong>Location detected!</strong> Your pin is on the map. Drag it to fine-tune if needed.',false);
-      },
-      function(){
-        setStatus('⚠️','Could not detect location. <strong>Tap the map to place your pin manually.</strong>',false);
-        locationLocked=false;
-      },
-      {timeout:10000,enableHighAccuracy:true}
-    );
+// ── AUTO LOCATE ─────────────────────────────────────────────────────
+// CRITICAL: wait for map style to fully load before adding markers
+map.on('load', function() {
+
+  if(hasExisting){
+    // Editing — restore existing pin
+    placeMarker(initLat,initLng,false);
+    setStatus('📍','Location saved. <strong>Click map or drag pin</strong> if you need to change it.',false);
   } else {
-    setStatus('⚠️','Location not supported. <strong>Tap the map to place your pin.</strong>',false);
-    locationLocked=false;
+    // New business — auto-detect GPS immediately
+    setStatus('📡','Detecting your location…',true);
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          // Pin drops exactly where they are standing
+          placeMarker(pos.coords.latitude,pos.coords.longitude,true);
+          setStatus('✅','<strong>Location found!</strong> Pin is on the map. Drag to fine-tune.',false);
+        },
+        function(err){
+          // GPS denied or failed — let them tap the map
+          setStatus('⚠️','Could not detect location. <strong>Tap the map to place your pin manually.</strong>',false);
+          locationLocked=false;
+        },
+        {timeout:10000,enableHighAccuracy:true,maximumAge:0}
+      );
+    } else {
+      setStatus('⚠️','GPS not supported. <strong>Tap the map to place your pin.</strong>',false);
+      locationLocked=false;
+    }
   }
-}
+
+}); // end map.on('load')
 
 // ── FULLSCREEN ────────────────────────────────────────────────────────
 var isFs=false;
