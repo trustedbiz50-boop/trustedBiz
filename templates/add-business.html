@@ -53,6 +53,10 @@
     .ls-spinner{width:16px;height:16px;border:2px solid #d1ede9;border-top-color:#2b7a78;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
     @keyframes spin{to{transform:rotate(360deg)}}
 
+    /* GPS DETECT BUTTON */
+    .gps-detect-btn{width:100%;padding:11px;background:#2b7a78;color:white;font-size:14px;font-weight:700;border:none;border-radius:9px;cursor:pointer;font-family:inherit;margin-bottom:10px;display:none;align-items:center;justify-content:center;gap:7px;transition:background .2s;}
+    .gps-detect-btn:hover{background:#205e5c;}
+
     /* MAP WRAPPER — relative so overlay works */
     .map-wrap{position:relative;margin-bottom:6px;}
 
@@ -200,10 +204,15 @@
 
         <!-- Status bar -->
         <div class="loc-status" id="locStatus">
-            <span class="ls-icon" id="locIcon">📡</span>
-            <span class="ls-msg" id="locMsg">Detecting your location automatically…</span>
-            <span class="ls-spinner" id="locSpinner"></span>
+            <span class="ls-icon" id="locIcon">📍</span>
+            <span class="ls-msg" id="locMsg">Tap the button below to detect your location, or tap the map to place your pin manually.</span>
+            <span class="ls-spinner" id="locSpinner" style="display:none;"></span>
         </div>
+
+        <!-- GPS detect button — user must tap, browser requires gesture -->
+        <button type="button" class="gps-detect-btn" id="gpsDetectBtn" onclick="detectGPS()">
+            📍 Detect My Location
+        </button>
 
         <div class="map-wrap">
             <div id="map"></div>
@@ -221,7 +230,7 @@
             </div>
         </div>
 
-        <p class="map-hint">💡 Your location is pinned automatically · Tap pin and drag to adjust · Double-tap map to fullscreen</p>
+        <p class="map-hint">💡 Tap "Detect My Location" or tap the map to place your pin · Drag pin to adjust · Double-tap map to fullscreen</p>
         <div class="coords-display" id="coordsDisplay">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
             <span id="coordsText">Waiting for location…</span>
@@ -282,10 +291,9 @@ function setExample(label,price){
 
 // ── MAP SETUP ─────────────────────────────────────────────────────────
 var defaultLat=0.3476,defaultLng=32.5825;
-var locationLocked=false; // true once pin is placed
+var locationLocked=false;
 var pendingLat=null,pendingLng=null;
 
-// Pre-fill if editing
 {% if editing and editing.lat and editing.lng %}
 var initLat={{editing.lat}},initLng={{editing.lng}},hasExisting=true;
 {% else %}
@@ -318,15 +326,13 @@ function placeMarker(lat,lng,fly){
     marker=new maplibregl.Marker({element:makePinEl('🏢'),draggable:true})
       .setLngLat([lng,lat]).addTo(map);
 
-    // Drag — if locked warn first, then allow after confirm
     marker.on('dragstart',function(){
       if(locationLocked){
-        // Snap back immediately, show warning
         marker.setLngLat([
           parseFloat(document.getElementById('lng').value),
           parseFloat(document.getElementById('lat').value)
         ]);
-        showWarn(null,null); // no pending coords yet
+        showWarn(null,null);
       }
     });
     marker.on('dragend',function(){
@@ -368,7 +374,6 @@ function showWarn(lat,lng){
 function cancelMove(){
   pendingLat=null;pendingLng=null;
   document.getElementById('locWarn').classList.remove('show');
-  // Snap marker back
   if(marker){
     marker.setLngLat([
       parseFloat(document.getElementById('lng').value),
@@ -379,7 +384,7 @@ function cancelMove(){
 function confirmMove(){
   document.getElementById('locWarn').classList.remove('show');
   if(pendingLat!==null){
-    locationLocked=false; // temporarily unlock to allow move
+    locationLocked=false;
     placeMarker(pendingLat,pendingLng,true);
     pendingLat=null;pendingLng=null;
   }
@@ -392,38 +397,49 @@ function setStatus(icon,msg,spinner){
   document.getElementById('locSpinner').style.display=spinner?'inline-block':'none';
 }
 
-// ── AUTO LOCATE ─────────────────────────────────────────────────────
-// CRITICAL: wait for map style to fully load before adding markers
-map.on('load', function() {
+// ── GPS DETECT — triggered by button tap (required by browsers) ───────
+function detectGPS(){
+  document.getElementById('gpsDetectBtn').style.display='none';
+  setStatus('📡','Detecting your location…',true);
+  if(!navigator.geolocation){
+    setStatus('⚠️','GPS not supported. <strong>Tap the map to place your pin.</strong>',false);
+    document.getElementById('gpsDetectBtn').style.display='flex';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      placeMarker(pos.coords.latitude,pos.coords.longitude,true);
+      setStatus('✅','<strong>Location found!</strong> Pin is on the map. Drag to fine-tune.',false);
+    },
+    function(err){
+      var msgs={
+        1:'Permission denied. <strong>Tap the map to place your pin manually.</strong>',
+        2:'Location unavailable. <strong>Tap the map to place your pin manually.</strong>',
+        3:'Timed out. <strong>Tap the map to place your pin manually.</strong>'
+      };
+      setStatus('⚠️',msgs[err.code]||'Could not detect location. <strong>Tap the map to place your pin.</strong>',false);
+      document.getElementById('gpsDetectBtn').style.display='flex';
+    },
+    {timeout:10000,enableHighAccuracy:true,maximumAge:0}
+  );
+}
 
+// ── MAP LOAD ──────────────────────────────────────────────────────────
+map.on('load',function(){
   if(hasExisting){
     // Editing — restore existing pin
     placeMarker(initLat,initLng,false);
     setStatus('📍','Location saved. <strong>Click map or drag pin</strong> if you need to change it.',false);
   } else {
-    // New business — auto-detect GPS immediately
-    setStatus('📡','Detecting your location…',true);
-    if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(
-        function(pos){
-          // Pin drops exactly where they are standing
-          placeMarker(pos.coords.latitude,pos.coords.longitude,true);
-          setStatus('✅','<strong>Location found!</strong> Pin is on the map. Drag to fine-tune.',false);
-        },
-        function(err){
-          // GPS denied or failed — let them tap the map
-          setStatus('⚠️','Could not detect location. <strong>Tap the map to place your pin manually.</strong>',false);
-          locationLocked=false;
-        },
-        {timeout:10000,enableHighAccuracy:true,maximumAge:0}
-      );
-    } else {
-      setStatus('⚠️','GPS not supported. <strong>Tap the map to place your pin.</strong>',false);
-      locationLocked=false;
-    }
+    // New business — show button, require user tap (browsers block auto-geolocation)
+    setStatus('📍','Tap the button below to detect your location, or tap the map to place your pin manually.',false);
+    document.getElementById('gpsDetectBtn').style.display='flex';
   }
+});
 
-}); // end map.on('load')
+map.on('error',function(){
+  setStatus('⚠️','Map failed to load. <strong>Tap the map to place your pin.</strong>',false);
+});
 
 // ── FULLSCREEN ────────────────────────────────────────────────────────
 var isFs=false;
