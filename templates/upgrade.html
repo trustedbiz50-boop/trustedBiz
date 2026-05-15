@@ -1,147 +1,356 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Upgrade Required — TrustedBiz</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f6fb; min-height: 100vh; display: flex; flex-direction: column; }
-    header { background: white; padding: 14px 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; }
-    header h1 { margin: 0; font-size: 22px; color: #1f2937; }
-    header a { text-decoration: none; font-weight: 600; color: #2b7a78; font-size: 14px; }
+<title>Upgrade to Premium — TrustedBiz</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans','Segoe UI',sans-serif;background:#f4f6fb;color:#1f2937;min-height:100vh;}
+header{background:white;padding:0 28px;height:62px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 1px 0 #e8eaf0,0 2px 12px rgba(0,0,0,.06);}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,#2b7a78,#14a8ac);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.logo-mark svg{width:18px;height:18px;fill:white;}
+.logo-text{font-size:19px;font-weight:800;color:#1f2937;letter-spacing:-.3px;}
+.logo-text span{color:#2b7a78;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;font-size:13px;color:#2b7a78;border:1.5px solid #2b7a78;padding:8px 16px;border-radius:8px;transition:all .18s;}
+.back-btn:hover{background:#2b7a78;color:white;}
 
-    .page { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
-    .box {
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-        padding: 44px 36px;
-        width: 100%;
-        max-width: 480px;
-        text-align: center;
-        border: 1.5px solid #f0f0f0;
-    }
-    .icon {
-        width: 64px; height: 64px;
-        background: linear-gradient(135deg, #085255, #2b7a78);
-        border-radius: 18px;
-        display: flex; align-items: center; justify-content: center;
-        margin: 0 auto 20px;
-    }
-    .icon svg { width: 32px; height: 32px; color: white; }
+.page{max-width:860px;margin:0 auto;padding:36px 20px 60px;}
 
-    h2 { font-size: 22px; font-weight: 700; color: #1f2937; margin: 0 0 10px; }
-    .sub { font-size: 15px; color: #6b7280; margin-bottom: 28px; line-height: 1.6; }
+/* HERO */
+.upgrade-hero{
+  background:linear-gradient(135deg,#0d2020 0%,#163535 50%,#1a3a3a 100%);
+  border-radius:20px;padding:48px 36px;text-align:center;
+  margin-bottom:32px;position:relative;overflow:hidden;
+}
+.upgrade-hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(43,122,120,.2) 0%,transparent 70%);
+}
+.upgrade-hero-inner{position:relative;z-index:2;}
+.uh-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);
+  color:#fbbf24;font-size:12px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;
+  padding:6px 16px;border-radius:100px;margin-bottom:18px;
+}
+.upgrade-hero h1{
+  font-size:clamp(26px,5vw,42px);font-weight:900;
+  color:white;line-height:1.15;letter-spacing:-.5px;margin-bottom:12px;
+}
+.upgrade-hero p{font-size:15px;color:rgba(255,255,255,.7);max-width:480px;margin:0 auto;line-height:1.7;}
 
-    .plan-card {
-        background: linear-gradient(135deg, #085255, #2b7a78);
-        border-radius: 14px;
-        padding: 24px;
-        color: white;
-        margin-bottom: 24px;
-        text-align: left;
-    }
-    .plan-name { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; opacity: .75; margin-bottom: 6px; }
-    .plan-price { font-size: 36px; font-weight: 800; margin-bottom: 4px; }
-    .plan-price span { font-size: 16px; font-weight: 400; opacity: .8; }
-    .plan-desc { font-size: 13px; opacity: .82; margin-bottom: 16px; }
-    .plan-features { list-style: none; padding: 0; margin: 0; }
-    .plan-features li { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; opacity: .9; }
-    .plan-features li svg { width: 14px; height: 14px; color: #4ade80; flex-shrink: 0; }
+/* PLANS GRID */
+.plans-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px;}
 
-    .btn-upgrade {
-        display: block;
-        width: 100%;
-        padding: 14px;
-        background: #2b7a78;
-        color: white;
-        font-size: 15px;
-        font-weight: 700;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        text-decoration: none;
-        margin-bottom: 12px;
-        transition: background .2s, transform .15s;
-        box-sizing: border-box;
-    }
-    .btn-upgrade:hover { background: #205e5c; transform: translateY(-1px); }
-    .btn-back {
-        display: block;
-        width: 100%;
-        padding: 12px;
-        background: #f3f4f6;
-        color: #374151;
-        font-size: 14px;
-        font-weight: 600;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        text-decoration: none;
-        transition: background .2s;
-        box-sizing: border-box;
-    }
-    .btn-back:hover { background: #e5e7eb; }
-    .coming-soon { font-size: 12px; color: #9ca3af; margin-top: 14px; }
+.plan-card{
+  background:white;border-radius:16px;
+  border:2px solid #e8eaf0;padding:28px 24px;
+  position:relative;overflow:hidden;
+  transition:border-color .2s,box-shadow .2s,transform .2s;
+}
+.plan-card:hover{border-color:#2b7a78;transform:translateY(-3px);box-shadow:0 8px 28px rgba(43,122,120,.14);}
+.plan-card.featured{border-color:#f59e0b;box-shadow:0 4px 20px rgba(245,158,11,.18);}
+.plan-card.featured:hover{border-color:#d97706;box-shadow:0 8px 28px rgba(245,158,11,.25);}
+.featured-ribbon{
+  position:absolute;top:0;right:0;
+  background:linear-gradient(135deg,#f59e0b,#d97706);
+  color:white;font-size:10px;font-weight:800;
+  padding:5px 14px 5px 20px;
+  clip-path:polygon(10px 0,100% 0,100% 100%,0 100%);
+  letter-spacing:.5px;
+}
+.plan-name{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:6px;}
+.plan-price{font-size:38px;font-weight:900;color:#1f2937;line-height:1;margin-bottom:2px;}
+.plan-price small{font-size:14px;font-weight:600;color:#9ca3af;}
+.plan-period{font-size:12px;color:#9ca3af;margin-bottom:20px;}
+.plan-features{list-style:none;margin-bottom:24px;}
+.plan-features li{
+  display:flex;align-items:flex-start;gap:9px;
+  font-size:13px;color:#374151;padding:6px 0;
+  border-bottom:1px solid #f3f4f6;line-height:1.4;
+}
+.plan-features li:last-child{border-bottom:none;}
+.plan-features li::before{
+  content:'✓';color:#2b7a78;font-weight:800;font-size:13px;
+  flex-shrink:0;margin-top:1px;
+}
+.plan-features li.pro-feature::before{content:'⭐';color:#f59e0b;}
 
-    @media(max-width: 480px) { .box { padding: 28px 18px; } }
-    </style>
+/* PAYMENT BUTTON */
+.pay-btn{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;padding:14px;border-radius:10px;
+  font-size:14px;font-weight:800;text-decoration:none;
+  transition:all .2s;border:none;cursor:pointer;font-family:inherit;
+}
+.pay-btn-basic{background:#2b7a78;color:white;}
+.pay-btn-basic:hover{background:#205e5c;transform:translateY(-1px);}
+.pay-btn-promax{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;}
+.pay-btn-promax:hover{filter:brightness(1.08);transform:translateY(-1px);}
+
+/* HOW TO PAY */
+.how-to-pay{
+  background:white;border-radius:16px;border:1.5px solid #e8eaf0;
+  padding:24px;margin-bottom:24px;
+}
+.htp-title{font-size:16px;font-weight:800;color:#1f2937;margin-bottom:4px;}
+.htp-sub{font-size:13px;color:#6b7280;margin-bottom:20px;}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;}
+.step{padding:14px 12px;border-right:1px solid #f3f4f6;text-align:center;}
+.step:last-child{border-right:none;}
+.step-num{width:32px;height:32px;background:#2b7a78;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;margin:0 auto 10px;}
+.step h4{font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px;}
+.step p{font-size:12px;color:#6b7280;line-height:1.5;}
+
+/* DGATEWAY SECTION (hidden until API key) */
+.dgateway-section{
+  background:#fefce8;border:1.5px solid #fde68a;
+  border-radius:12px;padding:16px;margin-top:16px;
+  font-size:13px;color:#92400e;
+}
+.dgateway-section h4{font-weight:700;margin-bottom:6px;}
+
+/* FAQ */
+.faq{background:white;border-radius:16px;border:1.5px solid #e8eaf0;padding:24px;margin-bottom:24px;}
+.faq h3{font-size:16px;font-weight:800;color:#1f2937;margin-bottom:16px;}
+.faq-item{padding:14px 0;border-bottom:1px solid #f3f4f6;}
+.faq-item:last-child{border-bottom:none;}
+.faq-q{font-size:14px;font-weight:700;color:#1f2937;margin-bottom:6px;}
+.faq-a{font-size:13px;color:#6b7280;line-height:1.6;}
+
+@media(max-width:700px){
+  .plans-grid{grid-template-columns:1fr;}
+  .steps{grid-template-columns:1fr 1fr;}
+  .upgrade-hero{padding:32px 20px;}
+  header{padding:0 16px;}
+  .page{padding:20px 14px 50px;}
+}
+@media(max-width:480px){
+  .steps{grid-template-columns:1fr;}
+  .step{border-right:none;border-bottom:1px solid #f3f4f6;}
+}
+</style>
 </head>
 <body>
 
 <header>
-    <h1>TrustedBiz</h1>
-    <a href="/dashboard">← Dashboard</a>
+  <a href="/" class="logo">
+    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+    <span class="logo-text">Trusted<span>Biz</span></span>
+  </a>
+  <a href="/dashboard" class="back-btn">← Dashboard</a>
 </header>
 
 <div class="page">
-    <div class="box">
 
-        <div class="icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-        </div>
-
-        <h2>Upgrade to Add More Listings</h2>
-        <p class="sub">You've used your 1 free business listing. Upgrade to add unlimited businesses and unlock premium features.</p>
-
-        <div class="plan-card">
-            <div class="plan-name">Pro Plan</div>
-            <div class="plan-price">UGX 7500 <span>/ month</span></div>
-            <div class="plan-desc">Everything you need to grow your business</div>
-            <ul class="plan-features">
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Unlimited business listings
-                </li>
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Featured placement in search results
-                </li>
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Priority verification badge
-                </li>
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Detailed analytics & view stats
-                </li>
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Upload up to 10 photos per listing
-                </li>
-            </ul>
-        </div>
-
-        <a href="https://wa.me/256753187966?text=Upgrade+to+Premium+on+TrustedBiz" class="btn-upgrade">Upgrade Now</a>
-
-        <a href="/dashboard" class="btn-back">Go Back to Dashboard</a>
-
-        <p class="coming-soon">💳 Payment integration coming soon. Contact us to upgrade manually.</p>
-
+  <!-- HERO -->
+  <div class="upgrade-hero">
+    <div class="upgrade-hero-inner">
+      <div class="uh-badge">⭐ Upgrade Your Business</div>
+      <h1>Get a Website That<br>Sells For You</h1>
+      <p>A real AI-generated website. Professional. Unique. Shareable anywhere. Starting at UGX 7,500/month — less than a plate of food.</p>
     </div>
+  </div>
+
+  <!-- FLASH -->
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}{% for msg in messages %}
+  <div style="background:#dcfce7;border:1.5px solid #16a34a;color:#166534;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;">{{ msg }}</div>
+  {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- PLANS -->
+  <div class="plans-grid">
+
+    <!-- BASIC -->
+    <div class="plan-card">
+      <div class="plan-name">Basic Plan</div>
+      <div class="plan-price">7,500 <small>UGX</small></div>
+      <div class="plan-period">per month · paid monthly</div>
+      <ul class="plan-features">
+        <li>Real AI-generated website</li>
+        <li>Your own shareable link</li>
+        <li>WhatsApp contact button</li>
+        <li>Google Maps directions</li>
+        <li>Photo gallery</li>
+        <li>Services &amp; pricing section</li>
+        <li>Customer reviews</li>
+        <li>Listed in TrustedBiz directory</li>
+      </ul>
+      {% if business %}
+      <a href="{{ basic_link }}" target="_blank" class="pay-btn pay-btn-basic">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.563 4.14 1.547 5.874L.057 23.6a.75.75 0 00.92.92l5.726-1.49A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.68-.497-5.22-1.367l-.374-.22-3.895 1.013 1.013-3.895-.22-.374A10 10 0 1112 22z"/></svg>
+        Pay via WhatsApp
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- PRO MAX -->
+    <div class="plan-card featured">
+      <div class="featured-ribbon">BEST VALUE</div>
+      <div class="plan-name">Pro Max Plan</div>
+      <div class="plan-price">15,000 <small>UGX</small></div>
+      <div class="plan-period">per month · paid monthly</div>
+      <ul class="plan-features">
+        <li>Everything in Basic PLUS:</li>
+        <li class="pro-feature">AI Ad Creator for events</li>
+        <li class="pro-feature">Custom domain assistance</li>
+        <li class="pro-feature">Priority search placement</li>
+        <li class="pro-feature">Price Guard featured images</li>
+        <li class="pro-feature">Multiple branches/campuses</li>
+        <li class="pro-feature">Up to 10 photos</li>
+        <li class="pro-feature">Advanced analytics</li>
+      </ul>
+      {% if business %}
+      <a href="{{ promax_link }}" target="_blank" class="pay-btn pay-btn-promax">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.563 4.14 1.547 5.874L.057 23.6a.75.75 0 00.92.92l5.726-1.49A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.68-.497-5.22-1.367l-.374-.22-3.895 1.013 1.013-3.895-.22-.374A10 10 0 1112 22z"/></svg>
+        Pay via WhatsApp
+      </a>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- HOW TO PAY -->
+  <div class="how-to-pay">
+    <div class="htp-title">💰 How to Pay</div>
+    <div class="htp-sub">Simple 4-step process. Takes less than 5 minutes.</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h4>Click Pay Button</h4>
+        <p>Click the WhatsApp button above for your chosen plan</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h4>Send Payment</h4>
+        <p>We send you our MTN/Airtel MoMo number. Send UGX 7,500 or 15,000</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h4>Send Screenshot</h4>
+        <p>Send us your payment screenshot or transaction ID on WhatsApp</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h4>Go Live!</h4>
+        <p>We activate your premium within minutes. Your website generates automatically</p>
+      </div>
+    </div>
+
+    <!-- DGATEWAY READY SECTION -->
+    {% if use_dgateway %}
+    <div style="margin-top:20px;padding-top:20px;border-top:1px solid #f3f4f6;">
+      <div style="font-size:14px;font-weight:700;color:#1f2937;margin-bottom:6px;">⚡ Pay Instantly with Mobile Money</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:14px;">Enter your phone number and we'll send a payment request directly to your phone.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <input type="tel" id="payPhone" placeholder="e.g. 0700123456" style="flex:1;padding:11px 14px;font-size:14px;border:1.5px solid #e5e7eb;border-radius:8px;outline:none;font-family:inherit;min-width:180px;">
+        <select id="payPlan" style="padding:11px 14px;font-size:14px;border:1.5px solid #e5e7eb;border-radius:8px;outline:none;font-family:inherit;">
+          <option value="basic">Basic — UGX 7,500</option>
+          <option value="promax">Pro Max — UGX 15,000</option>
+        </select>
+        <button onclick="initiatePay()" style="background:#2b7a78;color:white;padding:11px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Pay Now</button>
+      </div>
+      <div id="payStatus" style="margin-top:10px;font-size:13px;display:none;"></div>
+    </div>
+    {% else %}
+    <div class="dgateway-section" style="margin-top:16px;">
+      <h4>🔄 Automatic Payment Coming Soon</h4>
+      <p>We're setting up instant MTN/Airtel MoMo payments. For now, use the WhatsApp buttons above — it's quick and easy.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- FAQ -->
+  <div class="faq">
+    <h3>Frequently Asked Questions</h3>
+    <div class="faq-item">
+      <div class="faq-q">What happens if I miss a payment?</div>
+      <div class="faq-a">We'll contact you on WhatsApp first. Your website stays up until we reach you. We only deactivate after 2 missed months with no response.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I upgrade from Basic to Pro Max later?</div>
+      <div class="faq-a">Yes! You can upgrade anytime. Just pay the difference and we'll switch your plan within minutes.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Is my website unique or the same as others?</div>
+      <div class="faq-a">Every website is generated uniquely by AI based on your business name, category, description, and brand color. No two websites look alike.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I edit my website after it's generated?</div>
+      <div class="faq-a">Yes — from your dashboard you can update your description, colors, hours, photos, and regenerate your website anytime.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Do I need technical knowledge?</div>
+      <div class="faq-a">Zero. You fill in your business info, we handle everything else. Your website is ready in under a minute.</div>
+    </div>
+  </div>
+
 </div>
+
+<script>
+{% if use_dgateway %}
+function initiatePay(){
+  var phone = document.getElementById('payPhone').value.trim();
+  var plan  = document.getElementById('payPlan').value;
+  var status = document.getElementById('payStatus');
+  if(!phone){alert('Please enter your phone number');return;}
+
+  status.style.display='block';
+  status.style.color='#2b7a78';
+  status.textContent='⏳ Sending payment request to your phone…';
+
+  {% if business %}
+  fetch('/upgrade/{{ business.id }}/pay', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'phone='+encodeURIComponent(phone)+'&plan='+plan
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.success){
+      status.style.color='#16a34a';
+      status.textContent='✅ Payment request sent! Check your phone and confirm.';
+      // Poll for completion
+      if(data.transaction_id) pollPayment(data.transaction_id);
+    } else if(data.whatsapp){
+      window.open(data.whatsapp,'_blank');
+      status.style.color='#d97706';
+      status.textContent='Opening WhatsApp for payment…';
+    } else {
+      status.style.color='#dc2626';
+      status.textContent='Error: '+(data.message||'Try again');
+    }
+  })
+  .catch(function(e){
+    status.style.color='#dc2626';
+    status.textContent='Connection error. Please try again.';
+  });
+  {% endif %}
+}
+
+function pollPayment(txId){
+  var interval=setInterval(function(){
+    fetch('/payments/verify/'+txId)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.paid){
+        clearInterval(interval);
+        document.getElementById('payStatus').style.color='#16a34a';
+        document.getElementById('payStatus').textContent='✅ Payment confirmed! Activating your premium…';
+        setTimeout(function(){window.location.href='/dashboard';},2000);
+      }
+    });
+  },3000);
+  // Stop polling after 5 minutes
+  setTimeout(function(){clearInterval(interval);},300000);
+}
+{% endif %}
+</script>
 
 </body>
 </html>

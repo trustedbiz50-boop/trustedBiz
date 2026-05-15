@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Add Branch — TrustedBiz</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans','Segoe UI',sans-serif;background:#f4f6fb;color:#1f2937;}
+header{background:white;padding:0 28px;height:62px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:500;box-shadow:0 1px 0 #e8eaf0,0 2px 12px rgba(0,0,0,.06);}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,#2b7a78,#14a8ac);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.logo-mark svg{width:18px;height:18px;fill:white;}
+.logo-text{font-size:19px;font-weight:800;color:#1f2937;letter-spacing:-.3px;}
+.logo-text span{color:#2b7a78;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;font-size:13px;color:#2b7a78;border:1.5px solid #2b7a78;padding:8px 16px;border-radius:8px;transition:all .18s;}
+.back-btn:hover{background:#2b7a78;color:white;}
+.page{max-width:580px;margin:28px auto;padding:0 20px 60px;}
+h2{font-size:22px;font-weight:800;color:#1f2937;margin-bottom:4px;}
+.page-sub{font-size:14px;color:#6b7280;margin-bottom:22px;}
+.flash{background:#fef3c7;border:1.5px solid #f59e0b;color:#92400e;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+form{background:white;border-radius:16px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.07);border:1.5px solid #e8eaf0;}
+.divider{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#2b7a78;margin:20px 0 14px;padding-top:16px;border-top:1px solid #f3f4f6;}
+.divider:first-child{margin-top:0;padding-top:0;border-top:none;}
+.fg{margin-bottom:16px;}
+.fg label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;}
+.fg input,.fg textarea{width:100%;padding:11px 14px;font-size:14px;border:1.5px solid #e5e7eb;border-radius:8px;outline:none;font-family:inherit;background:#fafafa;transition:border-color .2s,box-shadow .2s;}
+.fg input:focus,.fg textarea:focus{border-color:#2b7a78;box-shadow:0 0 0 3px rgba(43,122,120,.1);background:white;}
+.fg-hint{font-size:12px;color:#9ca3af;margin-top:4px;}
+#map{width:100%;height:240px;border-radius:10px;border:1.5px solid #e5e7eb;display:block;margin-bottom:6px;}
+.coords-display{font-size:12px;color:#374151;background:#f0faf9;border:1px solid #d1ede9;border-radius:6px;padding:7px 12px;margin-bottom:12px;}
+.map-hint{font-size:11.5px;color:#9ca3af;margin-bottom:10px;}
+.submit-btn{width:100%;padding:13px;background:#2b7a78;color:white;font-size:15px;font-weight:800;border:none;border-radius:10px;cursor:pointer;transition:background .2s,transform .15s;font-family:inherit;margin-top:6px;}
+.submit-btn:hover{background:#205e5c;transform:translateY(-1px);}
+.info-banner{background:#f0faf9;border:1.5px solid #d1ede9;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#374151;line-height:1.6;}
+.info-banner strong{color:#2b7a78;}
+@media(max-width:600px){header{padding:0 16px;}.page{padding:0 14px 40px;margin-top:18px;}form{padding:18px;}}
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="logo">
+    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+    <span class="logo-text">Trusted<span>Biz</span></span>
+  </a>
+  <a href="/dashboard" class="back-btn">← Dashboard</a>
+</header>
+
+<div class="page">
+  <h2>Add Branch / Campus</h2>
+  <p class="page-sub">Adding a branch to <strong>{{ business.name }}</strong>. It will appear on your website automatically.</p>
+
+  <div class="info-banner">
+    🏢 <strong>Branches are powerful.</strong> Customers can see all your locations, get directions to the nearest one, and WhatsApp the right branch directly. Your website updates automatically.
+  </div>
+
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}{% for msg in messages %}
+  <div class="flash">{{ msg }}</div>
+  {% endfor %}{% endif %}
+  {% endwith %}
+
+  <form method="POST">
+    <div class="divider">Branch Details</div>
+
+    <div class="fg">
+      <label>Branch Name *</label>
+      <input type="text" name="name" placeholder="e.g. Ntinda Branch, Main Campus, City Centre" required>
+    </div>
+    <div class="fg">
+      <label>Physical Address</label>
+      <input type="text" name="address" placeholder="e.g. Plot 14, Ntinda Road, Kampala">
+    </div>
+    <div class="fg">
+      <label>Branch WhatsApp Number</label>
+      <input type="text" name="whatsapp" placeholder="256700000000">
+      <div class="fg-hint">Leave blank to use the main business number</div>
+    </div>
+    <div class="fg">
+      <label>Branch Hours</label>
+      <input type="text" name="hours" placeholder="e.g. Mon–Fri 8am–6pm">
+    </div>
+
+    <div class="divider">Branch Location on Map</div>
+    <div id="map"></div>
+    <p class="map-hint">💡 Tap the map to pin this branch location</p>
+    <div class="coords-display" id="coordsDisplay">📍 Tap the map to set location</div>
+    <input type="hidden" id="lat" name="lat">
+    <input type="hidden" id="lng" name="lng">
+
+    <button type="submit" class="submit-btn">Add Branch →</button>
+  </form>
+</div>
+
+<script>
+var defaultLat=0.3476, defaultLng=32.5825;
+var map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[defaultLng,defaultLat],zoom:13,attributionControl:false});
+map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+var marker=null;
+map.on('click',function(e){
+  var lat=e.lngLat.lat.toFixed(6), lng=e.lngLat.lng.toFixed(6);
+  if(marker){marker.setLngLat([lng,lat]);}
+  else{marker=new maplibregl.Marker({color:'#2b7a78',draggable:true}).setLngLat([lng,lat]).addTo(map);
+    marker.on('dragend',function(){var p=marker.getLngLat();save(p.lat.toFixed(6),p.lng.toFixed(6));});}
+  save(lat,lng);
+});
+function save(lat,lng){
+  document.getElementById('lat').value=lat;
+  document.getElementById('lng').value=lng;
+  document.getElementById('coordsDisplay').textContent='📍 Location set: '+lat+', '+lng;
+}
+if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){map.setView([p.coords.longitude,p.coords.latitude],14);});}
+</script>
+</body>
+</html>

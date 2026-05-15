@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Demo Generator — TrustedBiz Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',sans-serif;background:#0f111a;color:#e8eaf0;min-height:100vh;}
+header{background:#1a1d2e;padding:14px 28px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2e3148;}
+header h1{color:white;font-size:18px;font-weight:800;}
+header h1 span{color:#4ecdc4;}
+.header-links{display:flex;gap:10px;}
+.header-links a{color:#8890b8;text-decoration:none;font-size:13px;font-weight:600;padding:7px 14px;border-radius:8px;border:1px solid #2e3148;transition:all .2s;}
+.header-links a:hover{background:#2e3148;color:white;}
+
+.page{max-width:1200px;margin:0 auto;padding:28px 20px;}
+.page-title{font-size:24px;font-weight:800;color:white;margin-bottom:6px;}
+.page-sub{font-size:14px;color:#8890b8;margin-bottom:28px;}
+
+.layout{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;}
+
+/* FORM */
+.form-card{background:#1a1d2e;border-radius:14px;border:1px solid #2e3148;padding:24px;}
+.form-card h3{font-size:14px;font-weight:700;color:white;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid #2e3148;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:12px;font-weight:600;color:#8890b8;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
+.fg input,.fg textarea,.fg select{
+  width:100%;padding:10px 13px;font-size:14px;
+  background:#0f111a;border:1.5px solid #2e3148;
+  border-radius:8px;outline:none;color:#e8eaf0;
+  font-family:inherit;transition:border-color .2s;
+}
+.fg input:focus,.fg textarea:focus{border-color:#4ecdc4;}
+.fg textarea{resize:vertical;min-height:80px;}
+.fg-hint{font-size:11px;color:#6b7280;margin-top:4px;}
+.color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.cdot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .2s;}
+.cdot.active{border-color:white;}
+
+.submit-btn{
+  width:100%;padding:13px;
+  background:linear-gradient(135deg,#2b7a78,#14a8ac);
+  color:white;font-size:15px;font-weight:700;
+  border:none;border-radius:9px;cursor:pointer;
+  font-family:inherit;transition:filter .2s;margin-top:6px;
+}
+.submit-btn:hover{filter:brightness(1.1);}
+
+.loading-msg{
+  display:none;text-align:center;padding:20px;
+  color:#4ecdc4;font-size:14px;font-weight:600;
+}
+
+/* PREVIEW */
+.preview-area{background:#1a1d2e;border-radius:14px;border:1px solid #2e3148;overflow:hidden;}
+.preview-toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 18px;border-bottom:1px solid #2e3148;
+  background:#13162a;
+}
+.preview-toolbar h3{font-size:13px;font-weight:700;color:white;}
+.preview-actions{display:flex;gap:8px;}
+.pact-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:7px;font-size:12px;font-weight:700;
+  border:none;cursor:pointer;font-family:inherit;transition:all .2s;
+  text-decoration:none;
+}
+.btn-open{background:#4ecdc4;color:#0f111a;}
+.btn-open:hover{filter:brightness(1.1);}
+.btn-copy{background:#2e3148;color:#e8eaf0;}
+.btn-copy:hover{background:#3e4160;}
+
+.preview-frame{
+  width:100%;height:700px;
+  border:none;background:white;
+}
+.preview-empty{
+  height:500px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  color:#6b7280;text-align:center;padding:40px;
+}
+.preview-empty .big-icon{font-size:52px;margin-bottom:16px;}
+.preview-empty h3{font-size:18px;font-weight:700;color:#8890b8;margin-bottom:8px;}
+.preview-empty p{font-size:14px;line-height:1.6;max-width:320px;}
+
+/* Category chips */
+.cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.cat-chip{
+  padding:5px 12px;border-radius:100px;font-size:12px;font-weight:600;
+  background:#2e3148;color:#8890b8;cursor:pointer;border:none;
+  font-family:inherit;transition:all .2s;
+}
+.cat-chip:hover,.cat-chip.active{background:#2b7a78;color:white;}
+
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;}
+  .preview-frame{height:500px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Trusted<span>Biz</span> Admin</h1>
+  <div class="header-links">
+    <a href="/admin">← Back to Admin</a>
+    <a href="/" target="_blank">View Site</a>
+  </div>
+</header>
+
+<div class="page">
+  <div class="page-title">🎨 Demo Website Generator</div>
+  <div class="page-sub">Generate a demo website to show potential clients. Fill in their info, click Generate, and show them.</div>
+
+  <div class="layout">
+
+    <!-- FORM -->
+    <div class="form-card">
+      <h3>Business Information</h3>
+      <form method="POST" id="demoForm" onsubmit="showLoading()">
+
+        <div class="fg">
+          <label>Quick Category</label>
+          <div class="cat-chips">
+            <button type="button" class="cat-chip" onclick="fillCat('salon','Luxe Beauty Salon','Professional hair, nail & skin services. We make you look and feel your best.')">Salon</button>
+            <button type="button" class="cat-chip" onclick="fillCat('restaurant','Kampala Kitchen','Authentic Ugandan cuisine. Fresh ingredients, bold flavors, warm hospitality.')">Restaurant</button>
+            <button type="button" class="cat-chip" onclick="fillCat('mechanic','Pro Motors Garage','Expert car repair, servicing and diagnostics. We fix it right the first time.')">Mechanic</button>
+            <button type="button" class="cat-chip" onclick="fillCat('gym','FitZone Gym','Transform your body. State-of-the-art equipment, expert trainers, results guaranteed.')">Gym</button>
+            <button type="button" class="cat-chip" onclick="fillCat('pharmacy','LifeCare Pharmacy','Your health is our priority. Quality medicines, professional advice, fast service.')">Pharmacy</button>
+            <button type="button" class="cat-chip" onclick="fillCat('hotel','Grand Suites Hotel','Luxury accommodation in the heart of Kampala. Where comfort meets elegance.')">Hotel</button>
+            <button type="button" class="cat-chip" onclick="fillCat('school','Bright Minds Academy','Quality education that shapes futures. Nurturing excellence since 2010.')">School</button>
+            <button type="button" class="cat-chip" onclick="fillCat('electronics','TechHub Electronics','Latest gadgets, phones, TVs and accessories. Best prices in Kampala.')">Electronics</button>
+          </div>
+        </div>
+
+        <div class="fg">
+          <label>Business Name *</label>
+          <input type="text" name="name" id="f_name" placeholder="e.g. Luxe Beauty Salon" required value="{{ form_data.get('name','') }}">
+        </div>
+
+        <div class="fg">
+          <label>Category *</label>
+          <input type="text" name="category" id="f_cat" placeholder="e.g. salon, mechanic, restaurant" required value="{{ form_data.get('category','') }}">
+        </div>
+
+        <div class="fg">
+          <label>Description</label>
+          <textarea name="description" id="f_desc" placeholder="What does this business do? Why should customers choose them?">{{ form_data.get('description','') }}</textarea>
+          <div class="fg-hint">The AI uses this to write real content — the better the description, the better the website.</div>
+        </div>
+
+        <div class="fg">
+          <label>WhatsApp Number</label>
+          <input type="text" name="whatsapp" id="f_wa" placeholder="256700000000" value="{{ form_data.get('whatsapp','256700000000') }}">
+        </div>
+
+        <div class="fg">
+          <label>Business Hours</label>
+          <input type="text" name="hours" id="f_hours" placeholder="Mon–Sat 8am–7pm" value="{{ form_data.get('hours','Mon–Sat 8am–7pm') }}">
+        </div>
+
+        <div class="fg">
+          <label>Starting Price (optional)</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" name="hero_price_label" id="f_plabel" placeholder="e.g. Basic haircut" value="{{ form_data.get('hero_price_label','') }}" style="flex:1;">
+            <input type="number" name="hero_price" id="f_price" placeholder="UGX" value="{{ form_data.get('hero_price','') }}" style="width:110px;">
+          </div>
+        </div>
+
+        <div class="fg">
+          <label>Brand Color</label>
+          <div class="color-row">
+            <div class="cdot {% if form_data.get('brand_color','#2b7a78') == '#2b7a78' %}active{% endif %}" style="background:#2b7a78" data-c="#2b7a78" onclick="pickC(this)"></div>
+            <div class="cdot {% if form_data.get('brand_color') == '#e85d04' %}active{% endif %}" style="background:#e85d04" data-c="#e85d04" onclick="pickC(this)"></div>
+            <div class="cdot {% if form_data.get('brand_color') == '#c9a84c' %}active{% endif %}" style="background:#c9a84c" data-c="#c9a84c" onclick="pickC(this)"></div>
+            <div class="cdot {% if form_data.get('brand_color') == '#7c6af7' %}active{% endif %}" style="background:#7c6af7" data-c="#7c6af7" onclick="pickC(this)"></div>
+            <div class="cdot {% if form_data.get('brand_color') == '#ef4444' %}active{% endif %}" style="background:#ef4444" data-c="#ef4444" onclick="pickC(this)"></div>
+            <div class="cdot {% if form_data.get('brand_color') == '#111111' %}active{% endif %}" style="background:#111111" data-c="#111111" onclick="pickC(this)"></div>
+            <input type="color" id="customColor" onchange="pickCustom(this)"
+                   style="width:28px;height:28px;border-radius:50%;border:2px solid #2e3148;cursor:pointer;padding:1px;background:none;">
+          </div>
+          <input type="hidden" name="brand_color" id="f_color" value="{{ form_data.get('brand_color','#2b7a78') }}">
+        </div>
+
+        <button type="submit" class="submit-btn">✨ Generate Demo Website</button>
+        <div class="loading-msg" id="loadingMsg">
+          ⚡ Generating your website… this takes 15–30 seconds
+        </div>
+
+      </form>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="preview-area">
+      <div class="preview-toolbar">
+        <h3>
+          {% if demo_html %}
+            ✅ Demo ready — {{ form_data.get('name','Business') }}
+          {% else %}
+            Preview will appear here
+          {% endif %}
+        </h3>
+        {% if demo_html %}
+        <div class="preview-actions">
+          <button class="pact-btn btn-copy" onclick="copyHTML()">📋 Copy HTML</button>
+          <button class="pact-btn btn-open" onclick="openInTab()">🔗 Open Full Screen</button>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if demo_html %}
+      <iframe class="preview-frame" id="previewFrame" srcdoc="{{ demo_html | e }}"></iframe>
+      {% else %}
+      <div class="preview-empty">
+        <div class="big-icon">🎨</div>
+        <h3>Ready to Generate</h3>
+        <p>Fill in the business details on the left, click "Generate Demo Website" and see a premium $10,000-quality website appear here instantly.</p>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<script>
+{% if demo_html %}
+var demoHTML = {{ demo_html | tojson }};
+{% else %}
+var demoHTML = null;
+{% endif %}
+
+function fillCat(cat, name, desc){
+  document.getElementById('f_cat').value = cat;
+  document.getElementById('f_name').value = name;
+  document.getElementById('f_desc').value = desc;
+  document.querySelectorAll('.cat-chip').forEach(function(c){c.classList.remove('active');});
+  event.target.classList.add('active');
+}
+
+function pickC(el){
+  document.querySelectorAll('.cdot').forEach(function(d){d.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('f_color').value = el.dataset.c;
+}
+
+function pickCustom(el){
+  document.getElementById('f_color').value = el.value;
+  document.querySelectorAll('.cdot').forEach(function(d){d.classList.remove('active');});
+}
+
+function showLoading(){
+  document.getElementById('loadingMsg').style.display = 'block';
+  document.querySelector('.submit-btn').disabled = true;
+  document.querySelector('.submit-btn').textContent = 'Generating…';
+}
+
+function copyHTML(){
+  if(!demoHTML) return;
+  navigator.clipboard.writeText(demoHTML).then(function(){
+    alert('HTML copied to clipboard!');
+  });
+}
+
+function openInTab(){
+  if(!demoHTML) return;
+  var blob = new Blob([demoHTML], {type:'text/html'});
+  var url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+</script>
+
+</body>
+</html>

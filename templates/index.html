@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sabby — Instant Cross-Device Clipboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Cabinet+Grotesk:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --surface: #141418;
+    --border: #222228;
+    --accent: #00ff88;
+    --accent2: #00ccff;
+    --text: #f5f5f5;
+    --muted: #555560;
+    --danger: #ff4466;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Cabinet Grotesk', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(0,255,136,0.06) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -1px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .room-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 7px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    user-select: none;
+  }
+
+  .room-badge:hover { border-color: var(--accent); }
+
+  .room-badge .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.5); }
+    50% { box-shadow: 0 0 0 6px rgba(0,255,136,0); }
+  }
+
+  /* Hero */
+  .hero {
+    padding: 48px 0 32px;
+    text-align: center;
+  }
+
+  .hero h1 {
+    font-size: clamp(36px, 8vw, 60px);
+    font-weight: 900;
+    line-height: 1.0;
+    margin-bottom: 14px;
+    letter-spacing: -2px;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+    position: relative;
+  }
+
+  .hero p {
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.6;
+    max-width: 420px;
+    margin: 0 auto 32px;
+  }
+
+  /* Room entry */
+  .room-entry {
+    display: flex;
+    gap: 10px;
+    max-width: 420px;
+    margin: 0 auto 16px;
+  }
+
+  .room-entry input {
+    flex: 1;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+    text-transform: lowercase;
+  }
+
+  .room-entry input::placeholder { color: var(--muted); }
+  .room-entry input:focus { border-color: var(--accent); }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 22px;
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { transform: scale(1.04); box-shadow: 0 0 24px rgba(0,255,136,0.35); }
+
+  .random-link {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-bottom: 0;
+  }
+
+  .random-link:hover { color: var(--accent); }
+
+  /* Main editor area */
+  .editor-section {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    padding: 28px 0 40px;
+    gap: 16px;
+  }
+
+  .editor-section.visible { display: flex; }
+
+  .editor-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .room-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .room-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .room-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .status {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .status-dot.live { background: var(--accent); animation: pulse 2s infinite; }
+  .status-dot.syncing { background: var(--accent2); }
+
+  .editor-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .action-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 16px;
+    color: var(--text);
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* The textarea */
+  .paste-area {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    min-height: 260px;
+    resize: none;
+    width: 100%;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .paste-area:focus { border-color: rgba(0,255,136,0.4); }
+  .paste-area::placeholder { color: var(--muted); }
+
+  /* Share bar */
+  .share-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .share-url {
+    flex: 1;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .copy-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .copy-btn:hover { transform: scale(1.04); }
+  .copy-btn.copied { background: #00ccff; }
+
+  /* How it works */
+  .how-section {
+    padding: 32px 0 48px;
+    border-top: 1px solid var(--border);
+  }
+
+  .how-section h2 {
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+
+  .step:hover { border-color: rgba(0,255,136,0.3); }
+
+  .step-icon { font-size: 26px; margin-bottom: 10px; }
+  .step h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .step p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--accent);
+    color: #000;
+    padding: 12px 24px;
+    border-radius: 100px;
+    font-weight: 800;
+    font-size: 14px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 1000;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Change room modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .modal h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .modal p { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+
+  .modal input {
+    width: 100%;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    outline: none;
+    margin-bottom: 14px;
+    transition: border-color 0.2s;
+  }
+
+  .modal input:focus { border-color: var(--accent); }
+
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btns .btn { flex: 1; text-align: center; border-radius: 10px; }
+  .btn-ghost {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    color: var(--muted);
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+
+  /* Landing visible / editor hidden */
+  .landing { padding-bottom: 48px; }
+  .landing.hidden { display: none; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .editor-section.visible > * {
+    animation: fadeUp 0.3s ease forwards;
+  }
+
+  @media (max-width: 480px) {
+    .steps { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 36px; }
+    .editor-top { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="logo">sab<span>by</span></div>
+    <div class="room-badge" onclick="openModal()" id="room-badge" style="display:none;">
+      <span class="dot"></span>
+      <span id="badge-room">—</span>
+    </div>
+  </header>
+
+  <!-- LANDING -->
+  <div class="landing" id="landing">
+    <div class="hero">
+      <h1>Copy once.<br><em>Open anywhere.</em></h1>
+      <p>Paste text, links, or code into a room. Open the same room on any device. It's there — instantly. No account. No app. No friction.</p>
+
+      <div class="room-entry">
+        <input type="text" id="room-input" placeholder="enter room name..." maxlength="30" onkeydown="if(event.key==='Enter')joinRoom()" />
+        <button class="btn" onclick="joinRoom()">Open →</button>
+      </div>
+      <p class="random-link" onclick="joinRandom()">↗ Generate a random room for me</p>
+    </div>
+
+    <div class="how-section">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-icon">📋</div>
+          <h3>Paste anything</h3>
+          <p>Text, links, phone numbers, code snippets, OTPs — anything you can type.</p>
+        </div>
+        <div class="step">
+          <div class="step-icon">🔗</div>
+          <h3>Share the link</h3>
+          <p>Send the room URL to yourself or anyone. One click opens on any device.</p>
+        </div>
+        <div class="step">
+          <div class="step-icon">⚡</div>
+          <h3>Syncs instantly</h3>
+          <p>No refresh needed. Changes appear live on every connected device.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDITOR -->
+  <div class="editor-section" id="editor">
+
+    <div class="editor-top">
+      <div class="room-info">
+        <span class="room-label">room /</span>
+        <span class="room-name" id="room-display">—</span>
+        <div class="status">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">connecting...</span>
+        </div>
+      </div>
+      <div class="editor-actions">
+        <button class="action-btn" onclick="clearContent()">🗑 Clear</button>
+        <button class="action-btn" onclick="openModal()">⚙ Room</button>
+      </div>
+    </div>
+
+    <textarea
+      class="paste-area"
+      id="paste-area"
+      placeholder="Paste or type anything here — links, phone numbers, code, notes...&#10;&#10;Open this room on any other device to see it instantly."
+    ></textarea>
+
+    <div class="share-bar">
+      <div class="share-url" id="share-url">—</div>
+      <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy Link</button>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Change Room</h3>
+    <p>Enter a room name or generate a random one. Anyone with the same room name can see your content.</p>
+    <input type="text" id="modal-input" placeholder="room name..." maxlength="30" onkeydown="if(event.key==='Enter')confirmRoom()" />
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="confirmRoom()">Go →</button>
+    </div>
+    <p style="font-size:12px; color:var(--muted); margin-top:14px; text-align:center; cursor:pointer;" onclick="joinRandom()">↗ Random room</p>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+  const SUPABASE_URL = 'https://yfkwyzghtrauxrnfosph.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_DARgeTe281yJsFVwOAbBhQ_GaREDM3O';
+
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentRoom = null;
+  let subscription = null;
+  let typingTimer = null;
+  let isSyncing = false;
+
+  const adjectives = ['swift','bold','calm','dark','fast','gold','iron','jade','keen','loud','mint','neat','pure','rich','safe','teal','warm','wise','zeal','blue','cool','deep','epic','free','glad','huge','just','kind','lazy','main','nice','open','pink','quad','rose','slim','tall','unique','vast','wild','zero'];
+  const nouns = ['fox','oak','ray','sky','sun','bay','cat','dot','egg','gem','hat','ink','jar','key','log','map','net','orb','pen','quiz','rod','saw','top','urn','van','web','box','cup','dew','elf','fig','gap','hub','ice','joy','keg','lab','mix','nod','owl','pad','quo','rim','sea','tip','urn','vow','wax','yarn','zip'];
+
+  function randomRoom() {
+    const a = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const n = nouns[Math.floor(Math.random() * nouns.length)];
+    const num = Math.floor(Math.random() * 90) + 10;
+    return `${a}-${n}-${num}`;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  function setStatus(state) {
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    dot.className = 'status-dot';
+    if (state === 'live') { dot.classList.add('live'); txt.textContent = 'live'; }
+    else if (state === 'syncing') { dot.classList.add('syncing'); txt.textContent = 'syncing...'; }
+    else { txt.textContent = 'connecting...'; }
+  }
+
+  async function joinRoom(name) {
+    const input = document.getElementById('room-input');
+    const roomName = (name || input.value.trim().toLowerCase().replace(/\s+/g, '-') || randomRoom());
+    if (!roomName) return;
+
+    currentRoom = roomName;
+
+    // Update URL
+    history.pushState({}, '', '/' + roomName);
+
+    // UI switch
+    document.getElementById('landing').classList.add('hidden');
+    const editor = document.getElementById('editor');
+    editor.classList.add('visible');
+    document.getElementById('room-display').textContent = roomName;
+    document.getElementById('badge-room').textContent = roomName;
+    document.getElementById('room-badge').style.display = 'flex';
+    document.getElementById('share-url').textContent = window.location.href;
+
+    setStatus('connecting');
+
+    // Unsubscribe old
+    if (subscription) { await db.removeChannel(subscription); }
+
+    // Load existing content
+    const { data } = await db.from('rooms').select('content').eq('id', roomName).single();
+    if (data) {
+      document.getElementById('paste-area').value = data.content || '';
+    } else {
+      await db.from('rooms').insert({ id: roomName, content: '' });
+      document.getElementById('paste-area').value = '';
+    }
+
+    setStatus('live');
+
+    // Subscribe to realtime
+    subscription = db.channel('room:' + roomName)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'rooms',
+        filter: `id=eq.${roomName}`
+      }, (payload) => {
+        if (!isSyncing) {
+          const area = document.getElementById('paste-area');
+          const pos = area.selectionStart;
+          area.value = payload.new.content || '';
+          area.setSelectionRange(pos, pos);
+        }
+        setStatus('live');
+      })
+      .subscribe();
+
+    // Type listener
+    document.getElementById('paste-area').oninput = () => {
+      setStatus('syncing');
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(async () => {
+        isSyncing = true;
+        const content = document.getElementById('paste-area').value;
+        await db.from('rooms').update({ content, updated_at: new Date().toISOString() }).eq('id', roomName);
+        isSyncing = false;
+        setStatus('live');
+      }, 400);
+    };
+
+    document.getElementById('paste-area').focus();
+  }
+
+  function joinRandom() {
+    closeModal();
+    joinRoom(randomRoom());
+  }
+
+  async function clearContent() {
+    if (!currentRoom) return;
+    if (!confirm('Clear all content in this room?')) return;
+    document.getElementById('paste-area').value = '';
+    await db.from('rooms').update({ content: '', updated_at: new Date().toISOString() }).eq('id', currentRoom);
+    showToast('Cleared');
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'Copied ✓';
+      btn.classList.add('copied');
+      showToast('Link copied!');
+      setTimeout(() => { btn.textContent = 'Copy Link'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function openModal() {
+    document.getElementById('modal-input').value = currentRoom || '';
+    document.getElementById('modal').classList.add('open');
+    document.getElementById('modal-input').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+
+  function confirmRoom() {
+    const val = document.getElementById('modal-input').value.trim().toLowerCase().replace(/\s+/g, '-');
+    closeModal();
+    if (val) joinRoom(val);
+  }
+
+  // Check URL on load
+  window.addEventListener('load', () => {
+    const path = window.location.pathname.replace('/', '').trim();
+    if (path && path.length > 0) {
+      joinRoom(path);
+    }
+  });
+
+  // Close modal on overlay click
+  document.getElementById('modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+</script>
+
+</body>
+</html>
