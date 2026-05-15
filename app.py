@@ -33,6 +33,8 @@ ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
 ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "trustedbiz2026")
 ADMIN_WHATSAPP  = os.environ.get("ADMIN_WHATSAPP", "256753187966")
 
+from payments import payments_bp
+app.register_blueprint(payments_bp)
 def allowed_file(f):
     return '.' in f and f.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS
 
