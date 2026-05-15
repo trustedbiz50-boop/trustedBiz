@@ -256,7 +256,7 @@
             </div>
 
             <div class="biz-actions">
-                <a href="/site/{{ b.slug or b.id }}" target="_blank" class="btn btn-view">👁 View</a>
+                <a href="/admin/preview/{{ b.id }}" target="_blank" class="btn btn-view">👁 View</a>
 
                 {% if b.status == 'pending' %}
                 <form method="POST" style="display:inline;">
