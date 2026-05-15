@@ -200,7 +200,7 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get('admin'):
+        if not session.get('admin_auth'):
             return redirect('/admin/login')
         return f(*args, **kwargs)
     return decorated
@@ -811,14 +811,14 @@ def admin_login():
     if request.method == 'POST':
         if request.form.get('admin_pass') == ADMIN_PASSWORD:
             session.permanent = True
-            session['admin'] = True
+            session['admin_auth'] = True
             return redirect('/admin')
         flash("Wrong password.")
     return render_template('admin_login.html', current_user=None)
 
 @app.route('/admin/logout')
 def admin_logout():
-    session.pop('admin',None); return redirect('/')
+    session.pop('admin_auth',None); return redirect('/')
 
 # ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 @app.route('/admin', methods=['GET','POST'])
