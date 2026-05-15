@@ -200,7 +200,7 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get('admin'):
+        if not session.get('admin_auth'):
             return redirect('/admin/login')
         return f(*args, **kwargs)
     return decorated
@@ -816,12 +816,11 @@ def admin_login():
 
 @app.route('/admin/logout')
 def admin_logout():
-    session.pop('admin',None); return redirect('/')
+    session.pop('admin_auth',None); return redirect('/')
 
 # ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 @app.route('/admin', methods=['GET','POST'])
 def admin():
-    # ── LOGIN CHECK ──────────────────────────────────────────────────
     if not session.get('admin_auth'):
         if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_PASSWORD:
             session.permanent = True
@@ -926,6 +925,24 @@ def admin_demo():
         from ai_generator import generate_business_website
         demo_html = generate_business_website(form_data)
     return render_template('admin_demo.html', demo_html=demo_html, form_data=form_data, current_user=None)
+
+# ── ADMIN PREVIEW ────────────────────────────────────────────────────────────
+@app.route('/admin/preview/<int:biz_id>')
+@admin_required
+def admin_preview(biz_id):
+    biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
+    if not biz:
+        return "Business not found", 404
+    bd = biz_to_dict(biz)
+    branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
+    bd['branches'] = [dict(b) for b in branches]
+    ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
+    bd['ads'] = [dict(a) for a in ads]
+    if bd.get('generated_html'):
+        return bd['generated_html']
+    from ai_generator import generate_business_website
+    html = generate_business_website(bd)
+    return html
 
 # ── STATIC PAGES ──────────────────────────────────────────────────────────────
 @app.route('/privacy')
