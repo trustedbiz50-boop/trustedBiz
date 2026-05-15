@@ -250,8 +250,8 @@
                     {% else %}<span class="badge badge-rejected">✘ Rejected</span>{% endif %}
                     <br>
                     {% if b.description %}<strong>About:</strong> {{ b.description[:80] }}{% if b.description|length > 80 %}…{% endif %}<br>{% endif %}
-                    <strong>Added:</strong> {{ b.created_at|dateformat if b.created_at else '—' }}
-                    {% if b.last_payment_date %} &nbsp;|&nbsp; <strong>Last paid:</strong> {{ b.last_payment_date|dateformat }}{% endif %}
+                    <strong>Added:</strong> {{ b.created_at[:10] if b.created_at else '—' }}
+                    {% if b.last_payment_date %} &nbsp;|&nbsp; <strong>Last paid:</strong> {{ b.last_payment_date[:10] if b.last_payment_date else '—' }}{% endif %}
                 </div>
             </div>
 
