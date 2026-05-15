@@ -26,17 +26,15 @@ from werkzeug.utils import secure_filename
 # ── APP ───────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
 ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "trustedbiz2026")
 ADMIN_WHATSAPP  = os.environ.get("ADMIN_WHATSAPP", "256753187966")
 
-from payments import payments_bp
-app.register_blueprint(payments_bp)
 def allowed_file(f):
     return '.' in f and f.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -812,7 +810,9 @@ def upgrade_page(biz_id):
 def admin_login():
     if request.method == 'POST':
         if request.form.get('admin_pass') == ADMIN_PASSWORD:
-            session['admin'] = True; return redirect('/admin')
+            session.permanent = True
+            session['admin'] = True
+            return redirect('/admin')
         flash("Wrong password.")
     return render_template('admin_login.html', current_user=None)
 
