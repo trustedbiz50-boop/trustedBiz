@@ -27,6 +27,8 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
@@ -879,13 +881,13 @@ def admin():
         FROM business b
         LEFT JOIN users u ON u.id=b.owner_id
         LEFT JOIN reports r ON r.business_id=b.id
-        GROUP BY b.id ORDER BY b.created_at DESC
+        GROUP BY b.id, u.name ORDER BY b.created_at DESC
     """))
 
     try:
         late_alert = db_fetchall(q("""
             SELECT * FROM business WHERE is_premium=1
-            AND (last_payment_date IS NULL OR last_payment_date < date('now','-30 days'))
+            AND (last_payment_date IS NULL OR last_payment_date < CURRENT_DATE - INTERVAL '30 days')
             ORDER BY last_payment_date ASC
         """))
     except:
