@@ -27,8 +27,6 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = True
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
@@ -200,14 +198,8 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.args.get('t') or request.form.get('t') or session.get('admin_token')
-        valid = os.environ.get('ADMIN_PASSWORD', 'trustedbiz2026')
-        if token != valid and not session.get('admin_auth'):
+        if not session.get('admin'):
             return redirect('/admin/login')
-        if token == valid:
-            session.permanent = True
-            session['admin_auth'] = True
-            session['admin_token'] = token
         return f(*args, **kwargs)
     return decorated
 
@@ -815,23 +807,28 @@ def upgrade_page(biz_id):
 @app.route('/admin/login', methods=['GET','POST'])
 def admin_login():
     if request.method == 'POST':
-        pwd = request.form.get('admin_pass', '')
-        if pwd == ADMIN_PASSWORD:
-            session.permanent = True
-            session['admin_auth'] = True
-            from urllib.parse import quote
-            return redirect(f'/admin?t={quote(pwd)}')
+        if request.form.get('admin_pass') == ADMIN_PASSWORD:
+            session['admin'] = True; return redirect('/admin')
         flash("Wrong password.")
     return render_template('admin_login.html', current_user=None)
 
 @app.route('/admin/logout')
 def admin_logout():
-    session.pop('admin_auth',None); return redirect('/')
+    session.pop('admin',None); return redirect('/')
 
 # ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 @app.route('/admin', methods=['GET','POST'])
-@admin_required
 def admin():
+    # ── LOGIN CHECK ──────────────────────────────────────────────────
+    if not session.get('admin_auth'):
+        if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_PASSWORD:
+            session.permanent = True
+            session['admin_auth'] = True
+        else:
+            if request.method == 'POST':
+                flash("Wrong password.")
+            return render_template('admin_login.html', current_user=None)
+
     if request.method == 'POST':
         biz_id = request.form.get('id')
         action = request.form.get('action')
