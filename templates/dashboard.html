@@ -304,6 +304,7 @@
                 <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
                     <button type="submit" class="action-link link-regen">🔄 Regenerate Website</button>
                 </form>
+                <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
                 {% else %}
                 <a href="/upgrade/{{ b.id }}" class="action-link link-premium">⭐ Go Premium</a>
                 {% endif %}
