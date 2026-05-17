@@ -185,7 +185,9 @@ function pgFilter(query) {
         return;
     }
     var filtered = pgAllData.filter(function(d) {
-        return d.category.includes(query) || d.label.toLowerCase().includes(query);
+        return d.category.toLowerCase().includes(query) || 
+               d.label.toLowerCase().includes(query) ||
+               (d.ai_name && d.ai_name.toLowerCase().includes(query));
     });
     pgRender(filtered, query);
 }
@@ -206,12 +208,18 @@ function pgRender(data, query) {
     data.slice(0, 12).forEach(function(d, i) {
         var isBest = i === 0 && d.count >= 3;
         var formatted = 'UGX ' + Number(d.average).toLocaleString();
+        // Pick first image if available
+        var imgHtml = '';
+        if (d.images && d.images.length > 0) {
+            imgHtml = '<img src="' + d.images[0].src + '" alt="' + d.label + '" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;">';
+        }
         html +=
             '<div class="pg-card' + (isBest ? ' best-value' : '') + '">' +
+            imgHtml +
             '<div class="pg-card-cat">' + d.category + '</div>' +
             '<div class="pg-card-label">' + d.label + '</div>' +
-            '<div class="pg-card-avg">' + formatted.replace('UGX ', '') + ' <span>UGX</span></div>' +
-            '<div class="pg-card-count">Based on ' + d.count + ' shop' + (d.count !== 1 ? 's' : '') + '</div>' +
+            '<div class="pg-card-avg">' + formatted.replace('UGX ', '') + ' <span>UGX avg</span></div>' +
+            '<div class="pg-card-count">From ' + d.count + ' shop' + (d.count !== 1 ? 's' : '') + '</div>' +
             (isBest ? '<div class="pg-card-tag">Most Reported</div>' : '') +
             '</div>';
     });

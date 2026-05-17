@@ -211,6 +211,11 @@
                     <input type="number" name="hero_price" id="priceInput" placeholder="e.g. 4500" min="0" step="100" value="{{ editing.hero_price if editing else '' }}">
                 </div>
             </div>
+            <div class="fg" style="margin-top:10px;">
+                <label>📸 Photo of this item <span style="font-weight:400;color:#9ca3af;font-size:11px;">Optional but recommended — appears in Price Guard widget</span></label>
+                <input type="file" name="hero_price_image" accept="image/*" style="margin-top:4px;">
+                <div style="font-size:11px;color:#9ca3af;margin-top:4px;">A clear photo of the product/service helps customers trust your price. E.g. photo of the food, haircut result, etc.</div>
+            </div>
             <div class="price-examples" id="priceExamples">
                 <button type="button" class="price-chip" onclick="setPrice('Plain plate of food',4500)">Food plate</button>
                 <button type="button" class="price-chip" onclick="setPrice('Basic haircut',5000)">Basic haircut</button>
