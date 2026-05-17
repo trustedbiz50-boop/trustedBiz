@@ -162,7 +162,10 @@ header{background:white;padding:0 28px;height:62px;display:flex;justify-content:
         <li class="muted">No priority placement</li>
         <li class="muted">No photo gallery</li>
       </ul>
-      <a href="/dashboard" class="plan-btn btn-free">Start Free →</a>
+      <form method="POST" action="/choose-plan">
+      <input type="hidden" name="plan" value="free">
+      <button type="submit" class="plan-btn btn-free">Start Free →</button>
+    </form>
       <div class="free-note">Upgrade anytime from your dashboard</div>
     </div>
 
@@ -181,9 +184,10 @@ header{background:white;padding:0 28px;height:62px;display:flex;justify-content:
         <li>Customer reviews</li>
         <li>Listed in TrustedBiz directory</li>
       </ul>
-      <a href="/dashboard" class="plan-btn btn-basic">
-        Choose Basic
-      </a>
+      <form method="POST" action="/choose-plan">
+      <input type="hidden" name="plan" value="basic">
+      <button type="submit" class="plan-btn btn-basic">Choose Basic →</button>
+    </form>
     </div>
 
     <!-- PRO MAX -->
@@ -202,9 +206,10 @@ header{background:white;padding:0 28px;height:62px;display:flex;justify-content:
         <li class="pro">Advanced analytics</li>
         <li class="pro">Custom domain assistance</li>
       </ul>
-      <a href="/dashboard" class="plan-btn btn-promax">
-        Choose Pro Max ⭐
-      </a>
+      <form method="POST" action="/choose-plan">
+      <input type="hidden" name="plan" value="promax">
+      <button type="submit" class="plan-btn btn-promax">Choose Pro Max ⭐</button>
+    </form>
     </div>
 
   </div>

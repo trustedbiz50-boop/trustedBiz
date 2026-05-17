@@ -305,6 +305,9 @@
                     <button type="submit" class="action-link link-regen">🔄 Regenerate Website</button>
                 </form>
                 <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
+                {% elif chosen_plan == 'promax' %}
+                <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
+                <a href="/upgrade/{{ b.id }}" class="action-link" style="background:#e8f7f7;color:#2b7a78;">⚡ Activate Plan</a>
                 {% else %}
                 <a href="/upgrade/{{ b.id }}" class="action-link link-premium">⭐ Go Premium</a>
                 {% endif %}
@@ -318,8 +321,9 @@
         {% set has_biz = businesses|length > 0 %}
         {% set first_biz = businesses[0] if has_biz else None %}
         {% set is_premium = first_biz and first_biz.is_premium %}
+        {% set on_paid_plan = chosen_plan in ['basic','promax'] %}
 
-        {% if is_premium and first_biz %}
+        {% if (is_premium or on_paid_plan) and first_biz %}
         <!-- PREMIUM: website builder -->
         <div class="website-card">
             <h3>🌐 Your Business Website</h3>
@@ -351,6 +355,17 @@
 
         {% else %}
         <!-- NOT PREMIUM -->
+        {% if chosen_plan in ['basic','promax'] %}
+        <div class="upgrade-banner" style="background:linear-gradient(135deg,#0d3b2e,#1a4a3a);">
+            <div>
+                <h3>✅ {{ chosen_plan|replace('promax','Pro Max')|replace('basic','Basic') }} Plan Selected</h3>
+                <p>Your plan is being activated. Contact us on WhatsApp to complete payment and go live.</p>
+            </div>
+            <a href="https://wa.me/{{ current_user.whatsapp if current_user and current_user.whatsapp else '256753187966' }}?text=Hi+TrustedBiz!+I+chose+{{ chosen_plan }}+plan+and+want+to+activate+it." target="_blank" class="btn-upgrade">
+                💬 Activate on WhatsApp →
+            </a>
+        </div>
+        {% else %}
         <div class="upgrade-banner">
             <div>
                 <h3>⭐ Get Your Premium Website</h3>
@@ -362,6 +377,7 @@
             </a>
             {% endif %}
         </div>
+        {% endif %}
 
         <div class="website-card">
             <h3>What You Get</h3>
