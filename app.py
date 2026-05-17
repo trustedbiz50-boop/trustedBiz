@@ -27,8 +27,6 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = True
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
@@ -200,7 +198,7 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get('admin_auth'):
+        if not session.get('admin'):
             return redirect('/admin/login')
         return f(*args, **kwargs)
     return decorated
@@ -816,20 +814,12 @@ def admin_login():
 
 @app.route('/admin/logout')
 def admin_logout():
-    session.pop('admin_auth',None); return redirect('/')
+    session.pop('admin',None); return redirect('/')
 
 # ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 @app.route('/admin', methods=['GET','POST'])
+@admin_required
 def admin():
-    if not session.get('admin_auth'):
-        if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_PASSWORD:
-            session.permanent = True
-            session['admin_auth'] = True
-        else:
-            if request.method == 'POST':
-                flash("Wrong password.")
-            return render_template('admin_login.html', current_user=None)
-
     if request.method == 'POST':
         biz_id = request.form.get('id')
         action = request.form.get('action')
@@ -880,13 +870,13 @@ def admin():
         FROM business b
         LEFT JOIN users u ON u.id=b.owner_id
         LEFT JOIN reports r ON r.business_id=b.id
-        GROUP BY b.id, u.name ORDER BY b.created_at DESC
+        GROUP BY b.id ORDER BY b.created_at DESC
     """))
 
     try:
         late_alert = db_fetchall(q("""
             SELECT * FROM business WHERE is_premium=1
-            AND (last_payment_date IS NULL OR last_payment_date < CURRENT_DATE - INTERVAL '30 days')
+            AND (last_payment_date IS NULL OR last_payment_date < date('now','-30 days'))
             ORDER BY last_payment_date ASC
         """))
     except:
@@ -926,23 +916,23 @@ def admin_demo():
         demo_html = generate_business_website(form_data)
     return render_template('admin_demo.html', demo_html=demo_html, form_data=form_data, current_user=None)
 
-# ── ADMIN PREVIEW ────────────────────────────────────────────────────────────
-@app.route('/admin/preview/<int:biz_id>')
-@admin_required
-def admin_preview(biz_id):
-    biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
-    if not biz:
-        return "Business not found", 404
-    bd = biz_to_dict(biz)
-    branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
-    bd['branches'] = [dict(b) for b in branches]
-    ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
-    bd['ads'] = [dict(a) for a in ads]
-    if bd.get('generated_html'):
-        return bd['generated_html']
-    from ai_generator import generate_business_website
-    html = generate_business_website(bd)
-    return html
+
+# ── ONE-TIME MIGRATION ────────────────────────────────────────────────────────
+@app.route('/admin/migrate-db')
+def migrate_db():
+    if not session.get('admin_auth'):
+        return redirect('/admin/login')
+    try:
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS last_payment_date DATE")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS payment_months_late INTEGER DEFAULT 0")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS slug TEXT")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS hero_price REAL")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS hero_price_label TEXT")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS generated_html TEXT")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#2b7a78'")
+        return "✅ Migration done! All columns added. You can remove this route now."
+    except Exception as e:
+        return f"Migration error: {e}"
 
 # ── STATIC PAGES ──────────────────────────────────────────────────────────────
 @app.route('/privacy')
