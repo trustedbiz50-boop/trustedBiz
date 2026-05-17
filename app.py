@@ -27,6 +27,8 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
@@ -157,7 +159,7 @@ def create_tables():
     if USE_POSTGRES:
         tables = [
         "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'pending', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'pending', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id SERIAL PRIMARY KEY, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id SERIAL PRIMARY KEY, business_id INTEGER, user_identifier TEXT)",
@@ -198,7 +200,7 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get('admin'):
+        if not session.get('admin_auth'):
             return redirect('/admin/login')
         return f(*args, **kwargs)
     return decorated
@@ -330,6 +332,8 @@ def price_guard_api():
             }
         grouped[key]['count'] += 1
         grouped[key]['average'] = (grouped[key]['average'] * (grouped[key]['count']-1) + float(r['price'] or 0)) / grouped[key]['count']
+        if r.get('ai_name') and r['ai_name'] != r['label']:
+            grouped[key]['ai_name'] = str(r['ai_name'])
         if r.get('image_ref'):
             grouped[key]['images'].append({
                 "src":      photo_url(r['image_ref']),
@@ -526,13 +530,6 @@ def login():
 def logout():
     session.clear(); return redirect('/')
 
-
-# ── CHOOSE PLAN ───────────────────────────────────────────────────────────────
-@app.route('/choose-plan')
-@login_required
-def choose_plan():
-    return render_template('choose-plan.html', current_user=get_current_user())
-
 # ── AI WEBSITE VIEW ───────────────────────────────────────────────────────────
 @app.route('/site/<slug>')
 def site(slug):
@@ -627,14 +624,55 @@ def add_business():
             """), (name,category,whatsapp,lat,lng,photos_str,description,hours,
                    color,slug,hero_price,hero_label,request.remote_addr,user['id']))
 
-            # Auto-add to price guard if price provided
+            # Auto-add to price guard with AI verification
             if hero_price and hero_label and biz_id:
                 hero_price_img = request.files.get('hero_price_image')
-                hero_img_ref = save_single_photo(hero_price_img) if hero_price_img and hero_price_img.filename else None
+                hero_img_ref = None
+                ai_name = hero_label
+                ai_verified = 0
+                if hero_price_img and hero_price_img.filename:
+                    hero_img_ref = save_single_photo(hero_price_img)
+                    client = get_anthropic_client()
+                    if client and hero_img_ref:
+                        try:
+                            import base64 as b64mod
+                            prompt = (
+                                "Look at this product image from a Uganda business. "
+                                "The seller calls it '" + hero_label + "' priced at UGX " + str(hero_price) + ". "
+                                "1. What is the proper name of what you see? "
+                                "2. Is UGX " + str(hero_price) + " a fair price in Uganda? "
+                                "3. Does the image match '" + hero_label + "'? "
+                                'Reply ONLY in JSON: {"ai_name":"proper name","fair_price":true,"matches":true,"reason":"short sentence"}'
+                            )
+                            if USE_CLOUDINARY and hero_img_ref.startswith("http"):
+                                ai_msg = client.messages.create(
+                                    model="claude-sonnet-4-20250514", max_tokens=300,
+                                    messages=[{"role":"user","content":[
+                                        {"type":"image","source":{"type":"url","url":hero_img_ref}},
+                                        {"type":"text","text":prompt}
+                                    ]}])
+                            else:
+                                img_path = LOCAL_UPLOAD / hero_img_ref
+                                with open(str(img_path),'rb') as imgf:
+                                    img_data = b64mod.standard_b64encode(imgf.read()).decode('utf-8')
+                                ext = hero_img_ref.rsplit('.',1)[-1].lower()
+                                mtype = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png","webp":"image/webp"}.get(ext,"image/jpeg")
+                                ai_msg = client.messages.create(
+                                    model="claude-sonnet-4-20250514", max_tokens=300,
+                                    messages=[{"role":"user","content":[
+                                        {"type":"image","source":{"type":"base64","media_type":mtype,"data":img_data}},
+                                        {"type":"text","text":prompt}
+                                    ]}])
+                            raw = re.sub(r'```json|```','',ai_msg.content[0].text.strip()).strip()
+                            ai_result = json.loads(raw)
+                            ai_name = ai_result.get('ai_name', hero_label)
+                            ai_verified = 1 if (ai_result.get('fair_price',True) and ai_result.get('matches',True)) else 0
+                        except Exception as ai_err:
+                            print(f"AI price verify error: {ai_err}")
                 db_insert(q("""
                     INSERT INTO price_guard_items (business_id,category,label,price,image_ref,ai_name,ai_verified)
-                    VALUES (?,?,?,?,?,?,0)
-                """), (biz_id, category, hero_label, float(hero_price), hero_img_ref, hero_label))
+                    VALUES (?,?,?,?,?,?,?)
+                """), (biz_id, category, hero_label, float(hero_price), hero_img_ref, ai_name, ai_verified))
 
             flash("Business submitted! Waiting for approval.")
             return redirect('/dashboard')
@@ -762,9 +800,11 @@ def dashboard():
     businesses   = [biz_to_dict(b) for b in businesses]
     total_views  = sum(b.get('views',0) or 0 for b in businesses)
     live_count   = sum(1 for b in businesses if b.get('status')=='approved')
+    chosen_plan = session.get('chosen_plan', 'free')
     return render_template('dashboard.html', businesses=businesses, stats=stats,
                            current_user=get_current_user(), total_listings=len(businesses),
-                           live_count=live_count, total_views=total_views)
+                           live_count=live_count, total_views=total_views,
+                           chosen_plan=chosen_plan)
 
 # ── DASHBOARD SET COLOR ───────────────────────────────────────────────────────
 @app.route('/dashboard/set-template/<int:biz_id>', methods=['POST'])
@@ -827,12 +867,20 @@ def admin_login():
 
 @app.route('/admin/logout')
 def admin_logout():
-    session.pop('admin',None); return redirect('/')
+    session.pop('admin_auth',None); return redirect('/')
 
 # ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 @app.route('/admin', methods=['GET','POST'])
-@admin_required
 def admin():
+    if not session.get('admin_auth'):
+        if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_PASSWORD:
+            session.permanent = True
+            session['admin_auth'] = True
+        else:
+            if request.method == 'POST':
+                flash("Wrong password.")
+            return render_template('admin_login.html', current_user=None)
+
     if request.method == 'POST':
         biz_id = request.form.get('id')
         action = request.form.get('action')
@@ -883,13 +931,13 @@ def admin():
         FROM business b
         LEFT JOIN users u ON u.id=b.owner_id
         LEFT JOIN reports r ON r.business_id=b.id
-        GROUP BY b.id ORDER BY b.created_at DESC
+        GROUP BY b.id, u.name ORDER BY b.created_at DESC
     """))
 
     try:
         late_alert = db_fetchall(q("""
             SELECT * FROM business WHERE is_premium=1
-            AND (last_payment_date IS NULL OR last_payment_date < date('now','-30 days'))
+            AND (last_payment_date IS NULL OR last_payment_date < CURRENT_DATE - INTERVAL '30 days')
             ORDER BY last_payment_date ASC
         """))
     except:
@@ -937,6 +985,86 @@ def privacy():
 @app.route('/terms')
 def terms():
     return render_template('terms.html', current_user=get_current_user())
+
+
+@app.route('/admin/migrate-db')
+@admin_required
+def migrate_db():
+    try:
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS last_payment_date DATE")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS payment_months_late INTEGER DEFAULT 0")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS free_trial_end DATE")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS slug TEXT")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS hero_price REAL")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS hero_price_label TEXT")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS generated_html TEXT")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#2b7a78'")
+        return "Migration done! All columns added."
+    except Exception as e:
+        return f"Migration error: {e}"
+
+
+@app.route('/admin/preview/<int:biz_id>')
+@admin_required
+def admin_preview(biz_id):
+    biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
+    if not biz:
+        return "Business not found", 404
+    bd = biz_to_dict(biz)
+    branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
+    bd['branches'] = [dict(b) for b in branches]
+    ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
+    bd['ads'] = [dict(a) for a in ads]
+    if bd.get('generated_html'):
+        return bd['generated_html']
+    from ai_generator import generate_business_website
+    html = generate_business_website(bd)
+    return html
+
+
+@app.route('/admin/check-payments')
+@admin_required
+def check_payments():
+    from datetime import date
+    overdue = db_fetchall(q(
+        "SELECT b.*, u.name as owner_name FROM business b "
+        "LEFT JOIN users u ON u.id=b.owner_id "
+        "WHERE b.is_premium=1 AND b.free_trial_end IS NOT NULL "
+        "AND b.free_trial_end < CURRENT_DATE "
+        "AND (b.last_payment_date IS NULL OR b.last_payment_date < b.free_trial_end) "
+        "ORDER BY b.free_trial_end ASC"
+    ))
+    reminded = 0
+    suspended = 0
+    for b in overdue:
+        trial_end = b['free_trial_end']
+        if hasattr(trial_end, 'date'):
+            trial_end = trial_end.date()
+        days_overdue = (date.today() - trial_end).days if trial_end else 0
+        if days_overdue > 14:
+            db_execute(q("UPDATE business SET is_premium=0,status='suspended' WHERE id=?"), (b['id'],))
+            if b['owner_id']:
+                db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
+                    (b['owner_id'], f"Your business has been suspended due to non-payment. Contact us on WhatsApp to reactivate."))
+            suspended += 1
+        else:
+            if b['owner_id']:
+                db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
+                    (b['owner_id'], f"Payment reminder: Your free month has ended. Pay UGX 7,500 or 15,000 via WhatsApp. You have {14 - days_overdue} days before suspension."))
+            reminded += 1
+    return f"Done. {reminded} reminded. {suspended} suspended."
+
+
+@app.route('/choose-plan', methods=['GET','POST'])
+@login_required
+def choose_plan():
+    if request.method == 'POST':
+        plan = request.form.get('plan','free')
+        session['chosen_plan'] = plan
+        if plan in ['basic','promax']:
+            flash(f"Great choice! Add your business then contact us on WhatsApp to activate.")
+        return redirect('/dashboard')
+    return render_template('choose-plan.html', current_user=get_current_user())
 
 @app.errorhandler(404)
 def not_found(e):
