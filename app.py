@@ -311,7 +311,7 @@ def price_guard_api():
                b.name as biz_name, b.slug, b.is_premium
         FROM price_guard_items p
         JOIN business b ON b.id = p.business_id
-        WHERE b.status='approved'
+        WHERE b.status='approved' AND (p.ai_verified=1 OR p.image_ref IS NULL)
         ORDER BY p.created_at DESC
         LIMIT 60
     """)
@@ -324,6 +324,7 @@ def price_guard_api():
             grouped[key] = {
                 "category": str(r['category'] or '').title(),
                 "label":    str(r['label'] or ''),
+                "ai_name":  str(r.get('ai_name') or r['label'] or ''),
                 "average":  0, "count": 0,
                 "images":   []
             }
@@ -628,10 +629,12 @@ def add_business():
 
             # Auto-add to price guard if price provided
             if hero_price and hero_label and biz_id:
+                hero_price_img = request.files.get('hero_price_image')
+                hero_img_ref = save_single_photo(hero_price_img) if hero_price_img and hero_price_img.filename else None
                 db_insert(q("""
-                    INSERT INTO price_guard_items (business_id,category,label,price,ai_name,ai_verified)
-                    VALUES (?,?,?,?,?,0)
-                """), (biz_id, category, hero_label, float(hero_price), hero_label))
+                    INSERT INTO price_guard_items (business_id,category,label,price,image_ref,ai_name,ai_verified)
+                    VALUES (?,?,?,?,?,?,0)
+                """), (biz_id, category, hero_label, float(hero_price), hero_img_ref, hero_label))
 
             flash("Business submitted! Waiting for approval.")
             return redirect('/dashboard')
