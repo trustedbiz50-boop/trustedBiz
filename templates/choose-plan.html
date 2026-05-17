@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Choose Your Plan — TrustedBiz</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans','Segoe UI',sans-serif;background:#f4f6fb;color:#1f2937;min-height:100vh;}
+header{background:white;padding:0 28px;height:62px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 1px 0 #e8eaf0,0 2px 12px rgba(0,0,0,.06);}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,#2b7a78,#14a8ac);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.logo-mark svg{width:18px;height:18px;fill:white;}
+.logo-text{font-size:19px;font-weight:800;color:#1f2937;letter-spacing:-.3px;}
+.logo-text span{color:#2b7a78;}
+.skip-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;font-size:13px;color:#6b7280;border:1.5px solid #e5e7eb;padding:8px 16px;border-radius:8px;transition:all .18s;}
+.skip-btn:hover{border-color:#2b7a78;color:#2b7a78;}
+
+.page{max-width:960px;margin:0 auto;padding:36px 20px 60px;}
+
+/* HERO */
+.hero{
+  background:linear-gradient(135deg,#0d2020 0%,#163535 50%,#1a3a3a 100%);
+  border-radius:20px;padding:48px 36px;text-align:center;
+  margin-bottom:32px;position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(43,122,120,.2) 0%,transparent 70%);
+}
+.hero-inner{position:relative;z-index:2;}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);
+  color:#fbbf24;font-size:12px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;
+  padding:6px 16px;border-radius:100px;margin-bottom:18px;
+}
+.hero h1{font-size:clamp(24px,5vw,38px);font-weight:900;color:white;line-height:1.15;letter-spacing:-.5px;margin-bottom:12px;}
+.hero p{font-size:15px;color:rgba(255,255,255,.7);max-width:480px;margin:0 auto;line-height:1.7;}
+
+/* FLASH */
+.flash{background:#dcfce7;border:1.5px solid #16a34a;color:#166534;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;}
+
+/* PLANS GRID */
+.plans-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:32px;}
+
+.plan-card{
+  background:white;border-radius:16px;
+  border:2px solid #e8eaf0;padding:28px 24px;
+  position:relative;overflow:hidden;
+  transition:border-color .2s,box-shadow .2s,transform .2s;
+  display:flex;flex-direction:column;
+}
+.plan-card:hover{border-color:#2b7a78;transform:translateY(-3px);box-shadow:0 8px 28px rgba(43,122,120,.14);}
+.plan-card.featured{border-color:#f59e0b;box-shadow:0 4px 20px rgba(245,158,11,.18);}
+.plan-card.featured:hover{border-color:#d97706;box-shadow:0 8px 28px rgba(245,158,11,.25);}
+.plan-card.free-card{border-color:#e8eaf0;}
+
+.featured-ribbon{
+  position:absolute;top:0;right:0;
+  background:linear-gradient(135deg,#f59e0b,#d97706);
+  color:white;font-size:10px;font-weight:800;
+  padding:5px 14px 5px 20px;
+  clip-path:polygon(10px 0,100% 0,100% 100%,0 100%);
+  letter-spacing:.5px;
+}
+.free-ribbon{
+  position:absolute;top:0;right:0;
+  background:linear-gradient(135deg,#6b7280,#4b5563);
+  color:white;font-size:10px;font-weight:800;
+  padding:5px 14px 5px 20px;
+  clip-path:polygon(10px 0,100% 0,100% 100%,0 100%);
+  letter-spacing:.5px;
+}
+
+.plan-name{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:6px;}
+.plan-price{font-size:38px;font-weight:900;color:#1f2937;line-height:1;margin-bottom:2px;}
+.plan-price small{font-size:14px;font-weight:600;color:#9ca3af;}
+.plan-price.free-price{font-size:32px;color:#2b7a78;}
+.plan-period{font-size:12px;color:#9ca3af;margin-bottom:20px;}
+.plan-features{list-style:none;margin-bottom:24px;flex:1;}
+.plan-features li{
+  display:flex;align-items:flex-start;gap:9px;
+  font-size:13px;color:#374151;padding:6px 0;
+  border-bottom:1px solid #f3f4f6;line-height:1.4;
+}
+.plan-features li:last-child{border-bottom:none;}
+.plan-features li::before{content:'✓';color:#2b7a78;font-weight:800;font-size:13px;flex-shrink:0;margin-top:1px;}
+.plan-features li.pro::before{content:'⭐';color:#f59e0b;}
+.plan-features li.muted{color:#9ca3af;}
+.plan-features li.muted::before{content:'✗';color:#d1d5db;}
+
+.plan-btn{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;padding:14px;border-radius:10px;
+  font-size:14px;font-weight:800;text-decoration:none;
+  transition:all .2s;border:none;cursor:pointer;font-family:inherit;
+  margin-top:auto;
+}
+.btn-free{background:#f3f4f6;color:#374151;border:2px solid #e5e7eb;}
+.btn-free:hover{background:#e5e7eb;transform:translateY(-1px);}
+.btn-basic{background:#2b7a78;color:white;}
+.btn-basic:hover{background:#205e5c;transform:translateY(-1px);}
+.btn-promax{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;}
+.btn-promax:hover{filter:brightness(1.08);transform:translateY(-1px);}
+
+.free-note{font-size:11px;color:#9ca3af;text-align:center;margin-top:8px;}
+
+@media(max-width:720px){
+  .plans-grid{grid-template-columns:1fr;}
+  .hero{padding:32px 20px;}
+  header{padding:0 16px;}
+  .page{padding:20px 14px 50px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">
+    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+    <span class="logo-text">Trusted<span>Biz</span></span>
+  </a>
+  <a href="/dashboard" class="skip-btn">Skip for now →</a>
+</header>
+
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-inner">
+      <div class="hero-badge">🎉 Welcome to TrustedBiz</div>
+      <h1>Choose Your Plan</h1>
+      <p>Start free for 30 days. Upgrade anytime to get your own AI-generated website and reach more customers.</p>
+    </div>
+  </div>
+
+  <!-- FLASH -->
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}{% for msg in messages %}
+  <div class="flash">{{ msg }}</div>
+  {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- PLANS -->
+  <div class="plans-grid">
+
+    <!-- FREE -->
+    <div class="plan-card free-card">
+      <div class="free-ribbon">FREE</div>
+      <div class="plan-name">Free Plan</div>
+      <div class="plan-price free-price">0 <small>UGX</small></div>
+      <div class="plan-period">30 days free · no card needed</div>
+      <ul class="plan-features">
+        <li>Listed in TrustedBiz directory</li>
+        <li>WhatsApp contact button</li>
+        <li>Customer reviews</li>
+        <li>Basic business profile</li>
+        <li class="muted">No AI-generated website</li>
+        <li class="muted">No priority placement</li>
+        <li class="muted">No photo gallery</li>
+      </ul>
+      <a href="/dashboard" class="plan-btn btn-free">Start Free →</a>
+      <div class="free-note">Upgrade anytime from your dashboard</div>
+    </div>
+
+    <!-- BASIC -->
+    <div class="plan-card">
+      <div class="plan-name">Basic Plan</div>
+      <div class="plan-price">7,500 <small>UGX</small></div>
+      <div class="plan-period">per month · paid via WhatsApp</div>
+      <ul class="plan-features">
+        <li>Real AI-generated website</li>
+        <li>Your own shareable link</li>
+        <li>WhatsApp contact button</li>
+        <li>Google Maps directions</li>
+        <li>Photo gallery</li>
+        <li>Services &amp; pricing section</li>
+        <li>Customer reviews</li>
+        <li>Listed in TrustedBiz directory</li>
+      </ul>
+      <a href="/dashboard" class="plan-btn btn-basic">
+        Choose Basic
+      </a>
+    </div>
+
+    <!-- PRO MAX -->
+    <div class="plan-card featured">
+      <div class="featured-ribbon">BEST VALUE</div>
+      <div class="plan-name">Pro Max Plan</div>
+      <div class="plan-price">15,000 <small>UGX</small></div>
+      <div class="plan-period">per month · paid via WhatsApp</div>
+      <ul class="plan-features">
+        <li>Everything in Basic PLUS:</li>
+        <li class="pro">AI Ad Creator for events</li>
+        <li class="pro">Priority search placement</li>
+        <li class="pro">Price Guard featured images</li>
+        <li class="pro">Multiple branches/campuses</li>
+        <li class="pro">Up to 10 photos</li>
+        <li class="pro">Advanced analytics</li>
+        <li class="pro">Custom domain assistance</li>
+      </ul>
+      <a href="/dashboard" class="plan-btn btn-promax">
+        Choose Pro Max ⭐
+      </a>
+    </div>
+
+  </div>
+
+  <p style="text-align:center;font-size:13px;color:#9ca3af;">
+    Basic and Pro Max plans are activated after WhatsApp payment confirmation. 
+    You can upgrade anytime from your dashboard.
+  </p>
+
+</div>
+</body>
+</html>
