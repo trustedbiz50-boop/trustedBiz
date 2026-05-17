@@ -27,8 +27,6 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = True
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
@@ -200,7 +198,7 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get('admin_auth'):
+        if not session.get('admin'):
             return redirect('/admin/login')
         return f(*args, **kwargs)
     return decorated
@@ -499,10 +497,13 @@ def register():
         if len(pwd) < 6: flash("Password must be at least 6 characters."); return render_template('register.html',current_user=None)
         if pwd != conf: flash("Passwords do not match."); return render_template('register.html',current_user=None)
         try:
-            db_insert(q("INSERT INTO users (name,email,password) VALUES (?,?,?)"),
+            user_id = db_insert(q("INSERT INTO users (name,email,password) VALUES (?,?,?)"),
                       (name,email,generate_password_hash(pwd)))
-            flash("Account created! Please login.")
-            return redirect('/login')
+            session.permanent = True
+            session['user_id'] = user_id
+            session['user_name'] = name
+            flash(f"Welcome {name}! Choose a plan to get started.")
+            return redirect('/choose-plan')
         except: flash("Email already registered.")
     return render_template('register.html', current_user=None)
 
@@ -523,6 +524,13 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear(); return redirect('/')
+
+
+# ── CHOOSE PLAN ───────────────────────────────────────────────────────────────
+@app.route('/choose-plan')
+@login_required
+def choose_plan():
+    return render_template('choose-plan.html', current_user=get_current_user())
 
 # ── AI WEBSITE VIEW ───────────────────────────────────────────────────────────
 @app.route('/site/<slug>')
@@ -816,20 +824,12 @@ def admin_login():
 
 @app.route('/admin/logout')
 def admin_logout():
-    session.pop('admin_auth',None); return redirect('/')
+    session.pop('admin',None); return redirect('/')
 
 # ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 @app.route('/admin', methods=['GET','POST'])
+@admin_required
 def admin():
-    if not session.get('admin_auth'):
-        if request.method == 'POST' and request.form.get('admin_pass') == ADMIN_PASSWORD:
-            session.permanent = True
-            session['admin_auth'] = True
-        else:
-            if request.method == 'POST':
-                flash("Wrong password.")
-            return render_template('admin_login.html', current_user=None)
-
     if request.method == 'POST':
         biz_id = request.form.get('id')
         action = request.form.get('action')
@@ -880,13 +880,13 @@ def admin():
         FROM business b
         LEFT JOIN users u ON u.id=b.owner_id
         LEFT JOIN reports r ON r.business_id=b.id
-        GROUP BY b.id, u.name ORDER BY b.created_at DESC
+        GROUP BY b.id ORDER BY b.created_at DESC
     """))
 
     try:
         late_alert = db_fetchall(q("""
             SELECT * FROM business WHERE is_premium=1
-            AND (last_payment_date IS NULL OR last_payment_date < CURRENT_DATE - INTERVAL '30 days')
+            AND (last_payment_date IS NULL OR last_payment_date < date('now','-30 days'))
             ORDER BY last_payment_date ASC
         """))
     except:
@@ -934,23 +934,6 @@ def privacy():
 @app.route('/terms')
 def terms():
     return render_template('terms.html', current_user=get_current_user())
-
-
-# ── ONE-TIME MIGRATION ────────────────────────────────────────────────────────
-@app.route('/admin/migrate-db')
-@admin_required
-def migrate_db():
-    try:
-        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS last_payment_date DATE")
-        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS payment_months_late INTEGER DEFAULT 0")
-        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS slug TEXT")
-        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS hero_price REAL")
-        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS hero_price_label TEXT")
-        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS generated_html TEXT")
-        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#2b7a78'")
-        return "Migration done! All columns added."
-    except Exception as e:
-        return f"Migration error: {e}"
 
 @app.errorhandler(404)
 def not_found(e):
