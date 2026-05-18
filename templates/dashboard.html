@@ -324,6 +324,7 @@
         {% set on_paid_plan = chosen_plan in ['basic','promax'] %}
 
         {% if (is_premium or on_paid_plan) and first_biz %}
+        {# PAID PLAN — show full features #}
         <!-- PREMIUM: website builder -->
         <div class="website-card">
             <h3>🌐 Your Business Website</h3>
@@ -356,16 +357,13 @@
         {% else %}
         <!-- NOT PREMIUM -->
         {% if chosen_plan == 'promax' %}
-        <div style="background:linear-gradient(135deg,#0d2020,#163535);border-radius:16px;padding:24px;margin-bottom:16px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div style="background:linear-gradient(135deg,#0d2020,#163535);border-radius:16px;padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
                 <span style="background:#f59e0b;color:white;font-size:11px;font-weight:800;padding:4px 10px;border-radius:100px;">PRO MAX</span>
                 <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:4px 10px;border-radius:100px;">&#127873; 1 Month FREE</span>
+                <span style="color:white;font-size:14px;font-weight:700;">Active Plan</span>
             </div>
-            <h3 style="color:white;font-size:17px;margin-bottom:6px;">Pro Max Plan Selected &#10003;</h3>
-            <p style="color:#8890b8;font-size:13px;margin-bottom:16px;">Add your business below then contact us on WhatsApp. We activate your free trial within minutes.</p>
-            <a href="https://wa.me/256753187966?text=Hi+TrustedBiz!+I+chose+Pro+Max+and+want+to+start+my+free+month." target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:9px;">
-                &#128172; Activate Free Trial on WhatsApp
-            </a>
+            <span style="color:#8890b8;font-size:12px;">Add business → we review → you go live</span>
         </div>
         <div style="background:white;border-radius:12px;border:1.5px solid #e8eaf0;padding:20px;margin-bottom:16px;">
             <div style="font-size:14px;font-weight:700;color:#1f2937;margin-bottom:12px;">&#11088; Your Pro Max Plan Includes:</div>
@@ -381,16 +379,13 @@
             </p>
         </div>
         {% elif chosen_plan == 'basic' %}
-        <div style="background:linear-gradient(135deg,#0d2020,#163535);border-radius:16px;padding:24px;margin-bottom:16px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div style="background:linear-gradient(135deg,#0d2020,#163535);border-radius:16px;padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
                 <span style="background:#2b7a78;color:white;font-size:11px;font-weight:800;padding:4px 10px;border-radius:100px;">BASIC</span>
                 <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:4px 10px;border-radius:100px;">&#127873; 1 Month FREE</span>
+                <span style="color:white;font-size:14px;font-weight:700;">Active Plan</span>
             </div>
-            <h3 style="color:white;font-size:17px;margin-bottom:6px;">Basic Plan Selected &#10003;</h3>
-            <p style="color:#8890b8;font-size:13px;margin-bottom:16px;">Add your business below then contact us on WhatsApp. We activate your free trial within minutes.</p>
-            <a href="https://wa.me/256753187966?text=Hi+TrustedBiz!+I+chose+Basic+plan+and+want+to+start+my+free+month." target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#2b7a78;color:white;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:9px;">
-                &#128172; Activate Free Trial on WhatsApp
-            </a>
+            <span style="color:#8890b8;font-size:12px;">Add business → we review → you go live</span>
         </div>
         <div style="background:white;border-radius:12px;border:1.5px solid #e8eaf0;padding:20px;margin-bottom:16px;">
             <div style="font-size:14px;font-weight:700;color:#1f2937;margin-bottom:12px;">&#10003; Your Basic Plan Includes:</div>
