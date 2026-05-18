@@ -1003,6 +1003,8 @@ def migrate_db():
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS hero_price_label TEXT")
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS generated_html TEXT")
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#2b7a78'")
+        db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0")
+        db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS chosen_plan TEXT DEFAULT 'free'")
         return "Migration done! All columns added."
     except Exception as e:
         return f"Migration error: {e}"
