@@ -801,8 +801,12 @@ def dashboard():
     total_views  = sum(b.get('views',0) or 0 for b in businesses)
     live_count   = sum(1 for b in businesses if b.get('status')=='approved')
     chosen_plan = session.get('chosen_plan', 'free')
+    current_user = get_current_user()
+    # Sync chosen_plan from user record if available
+    if current_user and current_user.get('is_premium') and chosen_plan == 'free':
+        chosen_plan = 'basic'  # at minimum basic if premium
     return render_template('dashboard.html', businesses=businesses, stats=stats,
-                           current_user=get_current_user(), total_listings=len(businesses),
+                           current_user=current_user, total_listings=len(businesses),
                            live_count=live_count, total_views=total_views,
                            chosen_plan=chosen_plan)
 
@@ -1061,8 +1065,11 @@ def choose_plan():
     if request.method == 'POST':
         plan = request.form.get('plan','free')
         session['chosen_plan'] = plan
-        if plan in ['basic','promax']:
-            flash(f"Great choice! Add your business then contact us on WhatsApp to activate.")
+        user_id = session.get('user_id')
+        if plan in ['basic','promax'] and user_id:
+            # Mark user as premium immediately — business approval is separate
+            db_execute(q("UPDATE users SET is_premium=1 WHERE id=?"), (user_id,))
+            flash("Welcome! Add your business and we will review and approve it.")
         return redirect('/dashboard')
     return render_template('choose-plan.html', current_user=get_current_user())
 
