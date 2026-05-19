@@ -938,10 +938,9 @@ def admin():
                 bd['branches'] = [dict(b) for b in branches]
                 ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
                 bd['ads'] = [dict(a) for a in ads]
-                from ai_generator import generate_business_website
-                html = generate_business_website(bd)
-                db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html,biz_id))
-                flash("Website regenerated!")
+                from ai_generator import generate_business_website_bg
+                generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
+                flash("Website regenerating in background — refresh in 30 seconds!")
         elif action == 'delete':
             db_execute(q("DELETE FROM business WHERE id=?"), (biz_id,))
 
@@ -1040,9 +1039,25 @@ def admin_preview(biz_id):
     bd['ads'] = [dict(a) for a in ads]
     if bd.get('generated_html'):
         return bd['generated_html']
-    from ai_generator import generate_business_website
-    html = generate_business_website(bd)
-    return html
+    from ai_generator import generate_business_website_bg, _fallback
+    fallback_html = _fallback(
+        str(bd.get('name') or 'Business'),
+        str(bd.get('category') or ''),
+        str(bd.get('description') or ''),
+        str(bd.get('whatsapp') or ''),
+        str(bd.get('hours') or 'Mon-Sat 8am-7pm'),
+        str(bd.get('brand_color') or '#2b7a78'),
+        [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
+        bd.get('lat') or 0, bd.get('lng') or 0,
+        bd.get('hero_price'), str(bd.get('hero_price_label') or ''),
+        bd.get('branches') or [], bd.get('ads') or [],
+        f"https://wa.me/{bd.get('whatsapp','')}",
+        ''
+    )
+    try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (fallback_html, biz_id))
+    except: pass
+    generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
+    return fallback_html
 
 
 @app.route('/admin/check-payments')
