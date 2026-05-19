@@ -136,10 +136,9 @@ def _ai_generate(client, biz, name, category, description, whatsapp,
         for ad in ads:
             ads_text += f"AD: '{ad.get('title','')}' — {ad.get('body','')}\n"
 
-    prompt = f"""You are a world-class web designer. Create a UNIQUE, premium business website.
-Quality level: $10,000 agency work. Think Vibram, PureCare, OLLY brand websites.
+    prompt = f"""You are a senior creative director at a $10,000/project web agency. Build a STUNNING, world-class business website for a Uganda business. This must look like Vibram, PureCare, OLLY, or CSWatch — not a template.
 
-BUSINESS:
+BUSINESS DATA:
 Name: {name}
 Category: {category}
 Description: {description}
@@ -148,38 +147,48 @@ Hours: {hours}
 Brand Color: {color}
 {price_text}
 {f"BRANCHES:{chr(10)}{branch_text}" if branch_text else ""}
-{f"ADS TO SHOW:{chr(10)}{ads_text}" if ads_text else ""}
+{f"PROMOTIONS:{chr(10)}{ads_text}" if ads_text else ""}
 
 DESIGN DIRECTION: {direction}
 
-STRICT RULES:
-1. MASSIVE bold typography — business name must be HUGE and full-width like the reference brands
-2. Hero background = CSS gradients + geometric shapes — NOT dependent on client photos
-3. Client photos go in gallery section ONLY
-4. Brand color {color} must dominate the entire design
-5. Use Google Fonts matching the design direction
-6. Smooth CSS animations (no JS libraries)
-7. Sticky navigation
-8. Fully mobile responsive
+CRITICAL DESIGN RULES — NEVER BREAK THESE:
+1. HERO BACKGROUND: Use ONLY pure CSS — dark gradients, geometric SVG shapes, animated particles, or abstract CSS art. NEVER use <img> tags in the hero. No photos as backgrounds.
+2. TYPOGRAPHY: Business name in the hero must be MASSIVE (clamp 60px to 120px), bold, full-width. Think billboard not heading.
+3. MOBILE FIRST: Every section must look perfect on a 390px wide phone screen. No horizontal scroll. Buttons must be thumb-friendly (min 48px height).
+4. BRAND COLOR: {color} must be used powerfully — not just as accents. Use it for backgrounds, gradients, glows.
+5. ANIMATIONS: CSS keyframe animations only — fade-up on scroll, pulsing CTAs, hover transforms. No JS animation libraries.
+6. HAMBURGER MENU: On mobile, nav links must collapse into a hamburger menu (pure CSS or minimal JS toggle).
+7. GALLERY PHOTOS: Client photos go ONLY in the gallery section using these exact img tags — never in hero or backgrounds:
+{photo_html if photo_html else "   No photos provided — use CSS gradient placeholder cards with category-relevant icons"}
+8. YEAR: Footer copyright must say 2026, NOT 2024 or 2025.
+9. FOOTER LINK: "Powered by TrustedBiz" must link to https://trustedbiz.co.ug
 
-SECTIONS (all required):
-a) HERO — fullscreen, huge business name, tagline from description, WhatsApp CTA
-b) ABOUT — description content, why choose them
-c) SERVICES — infer 4-6 services from category and description with icons
-d) GALLERY — show {len(photos)} client photos using these exact HTML img tags:
-{photo_html if photo_html else "   No photos — use styled placeholder divs with CSS gradients"}
-e) {f"PRICE — '{hero_label}' from UGX {int(float(hero_price)):,}" if hero_price else "PRICING — generic pricing section"}
-f) CONTACT — large WhatsApp button, hours, {f"Google Maps link: {map_link}" if map_link else "location section"}
-{f"g) BRANCHES — {branch_text}" if branch_text else ""}
-{f"h) ADS SECTION — show these active promotions prominently: {ads_text}" if ads_text else ""}
+REQUIRED SECTIONS IN ORDER:
+1. NAV — sticky, logo left, hamburger on mobile, WhatsApp CTA button right
+2. HERO — fullscreen 100vh, massive business name, powerful tagline from description, two CTAs: WhatsApp + {f"Get Directions" if map_link else "Learn More"}
+3. ABOUT — split layout on desktop, stacked on mobile. Description + 4 trust badges (hours, location, verified, WhatsApp)
+4. SERVICES — grid of 4-6 cards. Infer real services from category+description. Each card has icon, title, description.
+5. GALLERY — masonry-style photo grid. {f"Use these {len(photos)} photos: show all" if photos else "Use 3 CSS gradient placeholder cards"}
+6. {f"PRICING — hero price card: {hero_label} from UGX {int(float(hero_price)):,} with WhatsApp CTA" if hero_price else "WHY CHOOSE US — 3 compelling reasons with icons"}
+{f"7. PROMOTIONS — styled promo cards for: {ads_text}" if ads_text else ""}
+{f"{'8' if ads_text else '7'}. BRANCHES — location cards for: {branch_text}" if branch_text else ""}
+7. CONTACT — large WhatsApp CTA button, hours card, {f"embedded map directions button linking to {map_link}" if map_link else "call to action"}
+8. FOOTER — business name, tagline, hours, WhatsApp, © 2026 {name}, Powered by TrustedBiz (link to https://trustedbiz.co.ug)
 
+WHATSAPP BUTTON STYLE — use this exact green everywhere:
+background: #25D366; color: white; padding: 16px 32px; border-radius: 50px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px;
 WhatsApp link: {wa_link}
 {f"Directions link: {map_link}" if map_link else ""}
-Footer: "Powered by TrustedBiz" linking to https://trustedbiz.onrender.com
 
-GALLERY LIGHTBOX: Add JavaScript to open images fullscreen on click.
+TECHNICAL REQUIREMENTS:
+- Single HTML file. All CSS in <style>. All JS in <script> before </body>.
+- No external JS libraries (no jQuery, no GSAP). Google Fonts OK.
+- CSS custom properties for colors: --primary, --primary-rgb, --dark, --light
+- Smooth scroll behavior
+- Intersection Observer for scroll animations
+- Touch-friendly on mobile
 
-OUTPUT: Return ONLY the complete HTML. Start with <!DOCTYPE html>. All CSS in <style>. All JS in <script> before </body>. No external JS. No lorem ipsum. Real content only."""
+OUTPUT: Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown. No backticks. No explanation."""
 
     msg = client.messages.create(
         model="claude-sonnet-4-5",
@@ -404,7 +413,7 @@ footer a{{color:var(--c);text-decoration:none;font-weight:600;}}
 </section>
 <footer>
   <p style="margin-bottom:6px;">© 2026 {name}. All rights reserved.</p>
-  <p>Powered by <a href="https://trustedbiz.onrender.com" target="_blank">TrustedBiz</a> — Uganda's Trusted Business Directory</p>
+  <p>Powered by <a href="https://trustedbiz.co.ug" target="_blank">TrustedBiz</a> — Uganda's Trusted Business Directory</p>
 </footer>
 <script>
 {photos_js}
