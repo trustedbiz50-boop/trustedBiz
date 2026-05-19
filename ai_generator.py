@@ -158,8 +158,8 @@ DESIGN DIRECTION: {direction}
 
 CRITICAL DESIGN RULES — NEVER BREAK THESE:
 1. HERO BACKGROUND: Use ONLY pure CSS — dark gradients, geometric SVG shapes, animated particles, or abstract CSS art. NEVER use <img> tags in the hero. No photos as backgrounds.
-2. TYPOGRAPHY: Business name in the hero must be MASSIVE (clamp 60px to 120px), bold, full-width. Think billboard not heading.
-3. MOBILE FIRST: Every section must look perfect on a 390px wide phone screen. No horizontal scroll. Buttons must be thumb-friendly (min 48px height).
+2. TYPOGRAPHY: Business name in the hero must be MASSIVE (clamp(36px,10vw,110px)), bold. ALWAYS set overflow:hidden and word-break:break-word on the hero h1 — long names must NEVER overflow off screen edges on mobile.
+3. MOBILE FIRST: Every section must look perfect on a 390px wide phone screen. No horizontal scroll ever. Hero buttons MUST stack centered on mobile: wrap them in a div with display:flex; flex-direction:column; align-items:center; gap:12px — each button must have width:fit-content; min-width:220px; max-width:90%; — NEVER width:100% or display:block on hero buttons.
 4. BRAND COLOR: {color} must be used powerfully — not just as accents. Use it for backgrounds, gradients, glows.
 5. ANIMATIONS: CSS keyframe animations only — fade-up on scroll, pulsing CTAs, hover transforms. No JS animation libraries.
 6. HAMBURGER MENU: On mobile, nav links must collapse into a hamburger menu (pure CSS or minimal JS toggle).
@@ -181,7 +181,7 @@ REQUIRED SECTIONS IN ORDER:
 8. FOOTER — business name, tagline, hours, WhatsApp, © 2026 {name}, Powered by TrustedBiz (link to https://trustedbiz.co.ug)
 
 WHATSAPP BUTTON STYLE — use this exact green everywhere:
-background: #25D366; color: white; padding: 16px 32px; border-radius: 50px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px;
+background: #25D366; color: white; padding: 16px 32px; border-radius: 50px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; width: fit-content;
 WhatsApp link: {wa_link}
 {f"Directions link: {map_link}" if map_link else ""}
 
