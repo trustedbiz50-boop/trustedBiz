@@ -197,7 +197,7 @@ OUTPUT: Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown. No back
 
     msg = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=8000,
+        max_tokens=9000,
         messages=[{"role":"user","content":prompt}]
     )
     raw = msg.content[0].text if msg.content else ""
