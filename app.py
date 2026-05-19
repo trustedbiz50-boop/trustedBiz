@@ -563,11 +563,27 @@ def site(slug):
     if bd.get('generated_html'):
         return bd['generated_html']
 
-    from ai_generator import generate_business_website
-    html = generate_business_website(bd)
-    try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz['id']))
-    except Exception as e: print(f"Cache error: {e}")
-    return html
+    # Return fallback immediately, generate AI site in background
+    from ai_generator import generate_business_website, generate_business_website_bg
+    from ai_generator import _fallback
+    fallback_html = _fallback(
+        str(bd.get('name') or 'Business'),
+        str(bd.get('category') or ''),
+        str(bd.get('description') or ''),
+        str(bd.get('whatsapp') or ''),
+        str(bd.get('hours') or 'Mon-Sat 8am-7pm'),
+        str(bd.get('brand_color') or '#2b7a78'),
+        [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
+        bd.get('lat') or 0, bd.get('lng') or 0,
+        bd.get('hero_price'), str(bd.get('hero_price_label') or ''),
+        bd.get('branches') or [], bd.get('ads') or [],
+        f"https://wa.me/{bd.get('whatsapp','')}",
+        ''
+    )
+    try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (fallback_html, biz['id']))
+    except: pass
+    generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz['id'])
+    return fallback_html
 
 # ── REGENERATE ────────────────────────────────────────────────────────────────
 @app.route('/generate-site/<int:biz_id>', methods=['POST'])
@@ -580,11 +596,12 @@ def generate_site(biz_id):
     bd['branches'] = [dict(b) for b in branches]
     ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
     bd['ads'] = [dict(a) for a in ads]
-    from ai_generator import generate_business_website
-    html = generate_business_website(bd)
-    try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html,biz_id))
-    except Exception as e: print(f"Regen error: {e}")
-    flash("✅ Website regenerated!")
+    from ai_generator import generate_business_website_bg
+    try:
+        generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
+    except Exception as e:
+        print(f"Regen error: {e}")
+    flash("✅ Website regenerating in background...")
     return redirect('/dashboard')
 
 # ── ADD BUSINESS ──────────────────────────────────────────────────────────────

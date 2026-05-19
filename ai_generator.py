@@ -3,7 +3,7 @@ ai_generator.py — TrustedBiz AI Website Generator
 Add ANTHROPIC_API_KEY to environment variables and it works.
 Without the key it uses a high-quality fallback.
 """
-import os, re, json
+import os, re, json, threading
 
 def _client():
     key = os.environ.get("ANTHROPIC_API_KEY","")
@@ -91,6 +91,24 @@ def generate_business_website(biz):
     return _fallback(name, category, description, whatsapp, hours, color,
                      photos, lat, lng, hero_price, hero_label,
                      branches, ads, wa_link, map_link)
+
+
+
+def generate_business_website_bg(biz, db_execute, biz_id):
+    """Generate AI website in background thread — saves to DB when done."""
+    def _run():
+        try:
+            html = generate_business_website(biz)
+            if html and len(html) > 1000:
+                db_execute(
+                    "UPDATE business SET generated_html=? WHERE id=?",
+                    (html, biz_id)
+                )
+                print(f"BG AI generation done for biz_id={biz_id}")
+        except Exception as e:
+            print(f"BG AI generation error: {e}")
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
 
 
 def _ai_generate(client, biz, name, category, description, whatsapp,
