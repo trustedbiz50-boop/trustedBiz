@@ -563,9 +563,12 @@ def site(slug):
     if bd.get('generated_html'):
         return bd['generated_html']
 
-    # Return fallback immediately, generate AI site in background
-    from ai_generator import generate_business_website, generate_business_website_bg
+    # Generate AI site — bg function now blocks (up to 55s) so Render free tier
+    # completes the generation before the response is sent. Fallback is saved
+    # first so if AI times out the user still sees a proper page.
+    from ai_generator import generate_business_website_bg
     from ai_generator import _fallback
+    wa_link = f"https://wa.me/{bd.get('whatsapp','')}"
     fallback_html = _fallback(
         str(bd.get('name') or 'Business'),
         str(bd.get('category') or ''),
@@ -577,12 +580,19 @@ def site(slug):
         bd.get('lat') or 0, bd.get('lng') or 0,
         bd.get('hero_price'), str(bd.get('hero_price_label') or ''),
         bd.get('branches') or [], bd.get('ads') or [],
-        f"https://wa.me/{bd.get('whatsapp','')}",
-        ''
+        wa_link, ''
     )
+    # Save fallback first so DB always has something valid
     try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (fallback_html, biz['id']))
     except: pass
+    # This now blocks up to 55s — if AI succeeds it overwrites the fallback in DB
     generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz['id'])
+    # Re-read from DB to serve whatever was saved (AI result or fallback)
+    try:
+        fresh = db_fetchone(q("SELECT generated_html FROM business WHERE id=?"), (biz['id'],))
+        if fresh and fresh['generated_html']:
+            return fresh['generated_html']
+    except: pass
     return fallback_html
 
 # ── REGENERATE ────────────────────────────────────────────────────────────────
@@ -1057,6 +1067,11 @@ def admin_preview(biz_id):
     try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (fallback_html, biz_id))
     except: pass
     generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
+    try:
+        fresh = db_fetchone(q("SELECT generated_html FROM business WHERE id=?"), (biz_id,))
+        if fresh and fresh['generated_html']:
+            return fresh['generated_html']
+    except: pass
     return fallback_html
 
 

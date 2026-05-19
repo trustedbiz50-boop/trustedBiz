@@ -95,20 +95,36 @@ def generate_business_website(biz):
 
 
 def generate_business_website_bg(biz, db_execute, biz_id):
-    """Generate AI website in background thread — saves to DB when done."""
+    """Generate AI website — blocks with timeout so Render free tier completes it.
+    Uses a thread so we can apply a wall-clock timeout (55 s) without blocking
+    the caller forever. The fallback is already saved; if AI finishes in time,
+    it overwrites the fallback with the better result."""
+    result = {"html": None}
+
     def _run():
         try:
             html = generate_business_website(biz)
             if html and len(html) > 1000:
-                db_execute(
-                    "UPDATE business SET generated_html=? WHERE id=?",
-                    (html, biz_id)
-                )
-                print(f"BG AI generation done for biz_id={biz_id}")
+                result["html"] = html
         except Exception as e:
-            print(f"BG AI generation error: {e}")
+            print(f"AI generation error: {e}")
+
     t = threading.Thread(target=_run, daemon=True)
     t.start()
+    # Wait up to 55 seconds — Render free tier request timeout is ~60 s
+    t.join(timeout=55)
+
+    if result["html"]:
+        try:
+            db_execute(
+                "UPDATE business SET generated_html=? WHERE id=?",
+                (result["html"], biz_id)
+            )
+            print(f"AI generation done for biz_id={biz_id}")
+        except Exception as e:
+            print(f"DB save error: {e}")
+    else:
+        print(f"AI generation timed out or failed for biz_id={biz_id} — fallback kept")
 
 
 def _ai_generate(client, biz, name, category, description, whatsapp,
@@ -191,8 +207,8 @@ TECHNICAL REQUIREMENTS:
 OUTPUT: Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown. No backticks. No explanation."""
 
     msg = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=8000,
+        model="claude-haiku-4-5-20251001",
+        max_tokens=6000,
         messages=[{"role":"user","content":prompt}]
     )
     raw = msg.content[0].text if msg.content else ""
