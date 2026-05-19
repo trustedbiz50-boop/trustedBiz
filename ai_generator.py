@@ -164,7 +164,7 @@ GALLERY LIGHTBOX: Add JavaScript to open images fullscreen on click.
 OUTPUT: Return ONLY the complete HTML. Start with <!DOCTYPE html>. All CSS in <style>. All JS in <script> before </body>. No external JS. No lorem ipsum. Real content only."""
 
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5",
         max_tokens=8000,
         messages=[{"role":"user","content":prompt}]
     )

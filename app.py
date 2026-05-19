@@ -371,7 +371,7 @@ def ai_describe():
 
     try:
         msg = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5",
             max_tokens=300,
             messages=[{"role":"user","content":
                 f"Write a 3-sentence business description for a {category} business called '{name}' in Uganda. "
@@ -422,7 +422,7 @@ def ai_inspect_price():
         if USE_CLOUDINARY and image_ref.startswith("http"):
             # For Cloudinary we can't re-read easily — skip vision, just name check
             msg = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-5",
                 max_tokens=200,
                 messages=[{"role":"user","content":
                     f"A business called this product: '{label}' with price UGX {price}. "
@@ -441,7 +441,7 @@ def ai_inspect_price():
             media_type = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png","webp":"image/webp","gif":"image/gif"}.get(ext,"image/jpeg")
 
             msg = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-5",
                 max_tokens=250,
                 messages=[{"role":"user","content":[
                     {"type":"image","source":{"type":"base64","media_type":media_type,"data":img_data}},
@@ -646,7 +646,7 @@ def add_business():
                             )
                             if USE_CLOUDINARY and hero_img_ref.startswith("http"):
                                 ai_msg = client.messages.create(
-                                    model="claude-sonnet-4-20250514", max_tokens=300,
+                                    model="claude-sonnet-4-5", max_tokens=300,
                                     messages=[{"role":"user","content":[
                                         {"type":"image","source":{"type":"url","url":hero_img_ref}},
                                         {"type":"text","text":prompt}
@@ -658,7 +658,7 @@ def add_business():
                                 ext = hero_img_ref.rsplit('.',1)[-1].lower()
                                 mtype = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png","webp":"image/webp"}.get(ext,"image/jpeg")
                                 ai_msg = client.messages.create(
-                                    model="claude-sonnet-4-20250514", max_tokens=300,
+                                    model="claude-sonnet-4-5", max_tokens=300,
                                     messages=[{"role":"user","content":[
                                         {"type":"image","source":{"type":"base64","media_type":mtype,"data":img_data}},
                                         {"type":"text","text":prompt}
@@ -754,7 +754,7 @@ def manage_ads(biz_id):
             if client and len(body) < 20 and title:
                 try:
                     msg = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model="claude-sonnet-4-5",
                         max_tokens=120,
                         messages=[{"role":"user","content":
                             f"Write a short, exciting 2-sentence ad announcement for a {biz['category']} business "
