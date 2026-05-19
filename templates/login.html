@@ -33,6 +33,10 @@
     .auth-footer{text-align:center;margin-top:22px;font-size:14px;color:#6b7280;}
     .auth-footer a{color:#2b7a78;font-weight:600;text-decoration:none;}
     @media(max-width:480px){.auth-box{padding:28px 20px;}header{padding:0 16px;}}
+    .pw-wrap{position:relative;display:flex;align-items:center;}
+    .pw-wrap input{flex:1;padding-right:44px;}
+    .pw-toggle{position:absolute;right:10px;background:none;border:none;cursor:pointer;font-size:16px;color:#9ca3af;padding:4px;line-height:1;transition:color .2s;}
+    .pw-toggle:hover{color:#2b7a78;}
     </style>
 </head>
 <body>
@@ -60,11 +64,18 @@
         {% endfor %}{% endif %}{% endwith %}
         <form method="POST">
             <div class="form-group"><label>Email Address</label><input type="email" name="email" placeholder="you@email.com" required></div>
-            <div class="form-group"><label>Password</label><input type="password" name="password" placeholder="Enter your password" required></div>
+            <div class="form-group"><label>Password</label><div class="pw-wrap"><input type="password" name="password" id="pw1" placeholder="Enter your password" required><button type="button" class="pw-toggle" onclick="togglePw('pw1',this)" aria-label="Show password">👁</button></div></div>
             <button type="submit" class="submit-btn">Login</button>
         </form>
         <div class="auth-footer">Don't have an account? <a href="/register">Create one free</a></div>
     </div>
 </div>
+<script>
+function togglePw(id, btn) {
+  var inp = document.getElementById(id);
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁'; }
+}
+</script>
 </body>
 </html>
