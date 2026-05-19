@@ -301,9 +301,6 @@
                 <a href="/edit-business/{{ b.id }}" class="action-link link-edit">✏️ Edit</a>
                 <a href="/add-branch/{{ b.id }}" class="action-link link-branch">🏢 Add Branch</a>
                 {% if b.is_premium %}
-                <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
-                    <button type="submit" class="action-link link-regen">🔄 Regenerate Website</button>
-                </form>
                 <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
                 {% elif chosen_plan == 'promax' %}
                 <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
@@ -334,24 +331,6 @@
                 <button class="copy-btn" onclick="copyLink()">📋 Copy</button>
             </div>
             <div class="copy-ok" id="copyOk">✅ Copied!</div>
-        </div>
-
-        <div class="website-card">
-            <h3>🎨 Customize Your Website</h3>
-            <p>Change your brand color and regenerate your website instantly. The AI will redesign it around your new color.</p>
-            <form method="POST" action="/dashboard/set-template/{{ first_biz.id }}">
-                <div class="color-row">
-                    <div class="cdot {% if first_biz.brand_color == '#2b7a78' %}active{% endif %}" style="background:#2b7a78" data-c="#2b7a78" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#e85d04' %}active{% endif %}" style="background:#e85d04" data-c="#e85d04" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#7c6af7' %}active{% endif %}" style="background:#7c6af7" data-c="#7c6af7" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#c9a84c' %}active{% endif %}" style="background:#c9a84c" data-c="#c9a84c" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#ef4444' %}active{% endif %}" style="background:#ef4444" data-c="#ef4444" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#111111' %}active{% endif %}" style="background:#111111" data-c="#111111" onclick="pickC(this)"></div>
-                    <input type="color" id="customColor" onchange="pickCustom(this)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e5e7eb;cursor:pointer;padding:1px;">
-                </div>
-                <input type="hidden" name="brand_color" id="selColor" value="{{ first_biz.brand_color or '#2b7a78' }}">
-                <button type="submit" style="background:#2b7a78;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s;">💾 Save &amp; Regenerate</button>
-            </form>
         </div>
 
         {% else %}
