@@ -1135,9 +1135,49 @@ def choose_plan():
 @app.errorhandler(404)
 def not_found(e):
     return render_template('404.html', current_user=get_current_user()), 404 
-  @app.route('/google2c13209b099aea62.html')
+@app.route('/google2c13209b099aea62.html')
 def google_verify():
     return "google-site-verification: google2c13209b099aea62"
+
+
+@app.route('/sitemap.xml')
+def sitemap():
+    urls = [
+        '/',
+        '/price-guard',
+        '/privacy',
+        '/terms'
+    ]
+
+    businesses = db_fetchall(
+        q("SELECT slug FROM business WHERE status='approved'")
+    )
+
+    for biz in businesses:
+        urls.append(f"/site/{biz['slug']}")
+
+    xml = '<?xml version="1.0" encoding="UTF-8"?>'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+
+    for url in urls:
+        xml += f'<url><loc>https://trustedbiz.co.ug{url}</loc></url>'
+
+    xml += '</urlset>'
+
+    return app.response_class(
+        xml,
+        mimetype='application/xml'
+    )
+
+
+@app.route('/robots.txt')
+def robots():
+    return """
+User-agent: *
+Allow: /
+
+Sitemap: https://trustedbiz.co.ug/sitemap.xml
+""", 200, {'Content-Type': 'text/plain'}
 
 # ── RUN ───────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
