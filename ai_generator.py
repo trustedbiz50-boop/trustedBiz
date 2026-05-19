@@ -195,15 +195,39 @@ TECHNICAL REQUIREMENTS:
 
 OUTPUT: Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown. No backticks. No explanation."""
 
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=9000,
-        messages=[{"role":"user","content":prompt}]
-    )
-    raw = msg.content[0].text if msg.content else ""
-    raw = re.sub(r'^```html\s*','',raw.strip(),flags=re.IGNORECASE)
-    raw = re.sub(r'^```\s*','',raw.strip())
-    raw = re.sub(r'\s*```$','',raw.strip())
+    messages = [{"role": "user", "content": prompt}]
+    full_text = ""
+    max_rounds = 4  # safety cap on continuation calls
+
+    for round_num in range(max_rounds):
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=9000,
+            messages=messages
+        )
+        chunk = msg.content[0].text if msg.content else ""
+        full_text += chunk
+
+        # If the model finished naturally, we're done
+        if msg.stop_reason != "max_tokens":
+            break
+
+        # Model was cut off — ask it to continue exactly where it stopped
+        print(f"AI generation hit max_tokens on round {round_num + 1}, continuing...")
+        messages.append({"role": "assistant", "content": chunk})
+        messages.append({"role": "user", "content": "Continue exactly from where you stopped. Output only the remaining HTML, no preamble."})
+    else:
+        print("Warning: AI generation hit max continuation rounds — HTML may be incomplete.")
+
+    raw = full_text
+    raw = re.sub(r'^```html\s*', '', raw.strip(), flags=re.IGNORECASE)
+    raw = re.sub(r'^```\s*', '', raw.strip())
+    raw = re.sub(r'\s*```$', '', raw.strip())
+
+    # Ensure the HTML is properly closed
+    if raw and '</html>' not in raw[-500:]:
+        raw = raw.rstrip() + '\n</body>\n</html>'
+
     return raw.strip()
 
 
