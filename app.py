@@ -582,17 +582,20 @@ def site(slug):
         bd.get('branches') or [], bd.get('ads') or [],
         wa_link, ''
     )
-    # Save fallback first so DB always has something valid
+    # Save fallback immediately so the page always loads fast
     try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (fallback_html, biz['id']))
     except: pass
-    # This now blocks up to 55s — if AI succeeds it overwrites the fallback in DB
-    generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz['id'])
-    # Re-read from DB to serve whatever was saved (AI result or fallback)
-    try:
-        fresh = db_fetchone(q("SELECT generated_html FROM business WHERE id=?"), (biz['id'],))
-        if fresh and fresh['generated_html']:
-            return fresh['generated_html']
-    except: pass
+    # Fire AI generation in background — never blocks the HTTP response
+    import threading as _threading
+    _biz_id = biz['id']
+    _db_fn  = lambda sql, params: db_execute(q(sql), params)
+    _t = _threading.Thread(
+        target=generate_business_website_bg,
+        args=(bd, _db_fn, _biz_id),
+        daemon=True
+    )
+    _t.start()
+    # Serve the fallback immediately; AI result will be there on next visit
     return fallback_html
 
 # ── REGENERATE ────────────────────────────────────────────────────────────────
@@ -949,8 +952,15 @@ def admin():
                 ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
                 bd['ads'] = [dict(a) for a in ads]
                 from ai_generator import generate_business_website_bg
-                generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
-                flash("Website regenerating in background — refresh in 30 seconds!")
+                import threading as _threading
+                _db_fn = lambda sql, params: db_execute(q(sql), params)
+                _t = _threading.Thread(
+                    target=generate_business_website_bg,
+                    args=(bd, _db_fn, int(biz_id)),
+                    daemon=True
+                )
+                _t.start()
+                flash("✅ Regenerating in background — refresh the site in 60 seconds!")
         elif action == 'delete':
             db_execute(q("DELETE FROM business WHERE id=?"), (biz_id,))
 
