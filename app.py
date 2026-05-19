@@ -1134,7 +1134,10 @@ def choose_plan():
 
 @app.errorhandler(404)
 def not_found(e):
-    return render_template('404.html', current_user=get_current_user()), 404
+    return render_template('404.html', current_user=get_current_user()), 404 
+  @app.route('/google2c13209b099aea62.html')
+def google_verify():
+    return "google-site-verification: google2c13209b099aea62"
 
 # ── RUN ───────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
