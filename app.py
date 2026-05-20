@@ -125,7 +125,7 @@ def _email_submitted(name, email, biz_name):
     <p style="font-size:16px;color:#333;">Hi <strong>{name}</strong>,</p>
     <p style="color:#555;line-height:1.7;">We've received your listing for <strong>{biz_name}</strong>. Our team will review and approve it within 24 hours. You'll get another email the moment it goes live.</p>
     <div style="text-align:center;margin:24px 0;">
-      <a href="https://trustedbiz.co.ug/dashboard" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">View Dashboard →</a>
+      <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center"><a href="https://trustedbiz.co.ug/dashboard" style="display:inline-block;background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;mso-padding-alt:0;">View Dashboard →</a></td></tr></table>
     </div>
   </div>
   <div style="background:#f8f8f8;padding:16px;text-align:center;font-size:12px;color:#aaa;">
