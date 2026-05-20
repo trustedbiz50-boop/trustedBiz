@@ -24,34 +24,44 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 # ── EMAIL ─────────────────────────────────────────────────────────────────────
-import smtplib, threading
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import threading, urllib.request
 
-_MAIL_HOST = os.environ.get("MAIL_HOST", "smtp-relay.brevo.com")
-_MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
-_MAIL_USER = os.environ.get("MAIL_USER", "")
-_MAIL_PASS = os.environ.get("MAIL_PASS", "")
-_MAIL_FROM = os.environ.get("MAIL_FROM", "TrustedBiz <hello@trustedbiz.co.ug>")
+_BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+_MAIL_FROM     = os.environ.get("MAIL_FROM", "TrustedBiz <hello@trustedbiz.co.ug>")
 
 def _send_email(to, subject, html):
-    """Send email in background thread — never blocks a request."""
-    if not _MAIL_PASS:
-        print(f"[EMAIL] MAIL_PASS not set — skipping email to {to}")
+    """Send email via Brevo HTTP API in background thread — never blocks a request."""
+    if not _BREVO_API_KEY:
+        print(f"[EMAIL] BREVO_API_KEY not set — skipping email to {to}")
         return
     def _run():
         try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"]    = _MAIL_FROM
-            msg["To"]      = to
-            msg.attach(MIMEText(html, "html"))
-            with smtplib.SMTP(_MAIL_HOST, _MAIL_PORT) as s:
-                s.ehlo()
-                s.starttls()
-                s.login(_MAIL_USER, _MAIL_PASS)
-                s.sendmail(_MAIL_FROM, to, msg.as_string())
-            print(f"[EMAIL] Sent '{subject}' → {to}")
+            if "<" in _MAIL_FROM:
+                fname, femail = _MAIL_FROM.split("<")
+                fname  = fname.strip()
+                femail = femail.strip("> ")
+            else:
+                fname  = "TrustedBiz"
+                femail = _MAIL_FROM.strip()
+
+            payload = json.dumps({
+                "sender":  {"name": fname, "email": femail},
+                "to":      [{"email": to}],
+                "subject": subject,
+                "htmlContent": html
+            }).encode("utf-8")
+
+            req = urllib.request.Request(
+                "https://api.brevo.com/v3/smtp/email",
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "api-key":      _BREVO_API_KEY,
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                print(f"[EMAIL] Sent '{subject}' → {to} (status {resp.status})")
         except Exception as e:
             print(f"[EMAIL] Failed to send to {to}: {e}")
     threading.Thread(target=_run, daemon=True).start()
