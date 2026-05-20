@@ -23,6 +23,107 @@ from flask import (Flask, render_template, request, redirect,
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
+# ── EMAIL ─────────────────────────────────────────────────────────────────────
+import smtplib, threading
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+_MAIL_HOST = os.environ.get("MAIL_HOST", "smtp-relay.brevo.com")
+_MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
+_MAIL_USER = os.environ.get("MAIL_USER", "")
+_MAIL_PASS = os.environ.get("MAIL_PASS", "")
+_MAIL_FROM = os.environ.get("MAIL_FROM", "TrustedBiz <hello@trustedbiz.co.ug>")
+
+def _send_email(to, subject, html):
+    """Send email in background thread — never blocks a request."""
+    if not _MAIL_PASS:
+        print(f"[EMAIL] MAIL_PASS not set — skipping email to {to}")
+        return
+    def _run():
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"]    = _MAIL_FROM
+            msg["To"]      = to
+            msg.attach(MIMEText(html, "html"))
+            with smtplib.SMTP(_MAIL_HOST, _MAIL_PORT) as s:
+                s.ehlo()
+                s.starttls()
+                s.login(_MAIL_USER, _MAIL_PASS)
+                s.sendmail(_MAIL_FROM, to, msg.as_string())
+            print(f"[EMAIL] Sent '{subject}' → {to}")
+        except Exception as e:
+            print(f"[EMAIL] Failed to send to {to}: {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+def _email_welcome(name, email):
+    _send_email(email, "Welcome to TrustedBiz! 🎉", f"""
+<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
+<div style="max-width:560px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+  <div style="background:#2b7a78;padding:32px;text-align:center;">
+    <h1 style="color:white;margin:0;font-size:28px;">Welcome to TrustedBiz!</h1>
+    <p style="color:rgba(255,255,255,.8);margin:8px 0 0;">Uganda's Trusted Business Directory</p>
+  </div>
+  <div style="padding:32px;">
+    <p style="font-size:16px;color:#333;">Hi <strong>{name}</strong>,</p>
+    <p style="color:#555;line-height:1.7;">Your account is ready. You can now list your business and get a free AI-generated website that customers can find on Google.</p>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="https://trustedbiz.co.ug/add-business" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Add Your Business →</a>
+    </div>
+    <p style="color:#888;font-size:13px;">If you didn't create this account, ignore this email.</p>
+  </div>
+  <div style="background:#f8f8f8;padding:16px;text-align:center;font-size:12px;color:#aaa;">
+    © 2026 TrustedBiz · <a href="https://trustedbiz.co.ug" style="color:#2b7a78;">trustedbiz.co.ug</a>
+  </div>
+</div>
+</body></html>""")
+
+def _email_approved(name, email, biz_name, biz_slug):
+    biz_url = f"https://trustedbiz.co.ug/site/{biz_slug}"
+    _send_email(email, f"✅ {biz_name} is now LIVE on TrustedBiz!", f"""
+<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
+<div style="max-width:560px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+  <div style="background:#22c55e;padding:32px;text-align:center;">
+    <h1 style="color:white;margin:0;font-size:26px;">Your Business is Live! 🎉</h1>
+  </div>
+  <div style="padding:32px;">
+    <p style="font-size:16px;color:#333;">Hi <strong>{name}</strong>,</p>
+    <p style="color:#555;line-height:1.7;"><strong>{biz_name}</strong> has been approved and is now live on TrustedBiz. Customers in Uganda can find you right now.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0;">
+      <p style="margin:0;color:#166534;font-size:14px;">🌐 Your business page:</p>
+      <a href="{biz_url}" style="color:#2b7a78;font-weight:700;word-break:break-all;">{biz_url}</a>
+    </div>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="{biz_url}" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">View Your Page →</a>
+    </div>
+    <p style="color:#555;font-size:14px;">Share this link on WhatsApp, Facebook, and anywhere your customers are!</p>
+  </div>
+  <div style="background:#f8f8f8;padding:16px;text-align:center;font-size:12px;color:#aaa;">
+    © 2026 TrustedBiz · <a href="https://trustedbiz.co.ug" style="color:#2b7a78;">trustedbiz.co.ug</a>
+  </div>
+</div>
+</body></html>""")
+
+def _email_submitted(name, email, biz_name):
+    _send_email(email, f"📋 {biz_name} submitted — we're reviewing it", f"""
+<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
+<div style="max-width:560px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+  <div style="background:#2b7a78;padding:32px;text-align:center;">
+    <h1 style="color:white;margin:0;font-size:24px;">Business Received! 📋</h1>
+  </div>
+  <div style="padding:32px;">
+    <p style="font-size:16px;color:#333;">Hi <strong>{name}</strong>,</p>
+    <p style="color:#555;line-height:1.7;">We've received your listing for <strong>{biz_name}</strong>. Our team will review and approve it within 24 hours. You'll get another email the moment it goes live.</p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="https://trustedbiz.co.ug/dashboard" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">View Dashboard →</a>
+    </div>
+  </div>
+  <div style="background:#f8f8f8;padding:16px;text-align:center;font-size:12px;color:#aaa;">
+    © 2026 TrustedBiz · <a href="https://trustedbiz.co.ug" style="color:#2b7a78;">trustedbiz.co.ug</a>
+  </div>
+</div>
+</body></html>""")
+
 # ── APP ───────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
@@ -507,6 +608,7 @@ def register():
             session.permanent = True
             session['user_id'] = user_id
             session['user_name'] = name
+            _email_welcome(name, email)
             flash(f"Welcome {name}! Choose a plan to get started.")
             return redirect('/choose-plan')
         except: flash("Email already registered.")
@@ -705,6 +807,7 @@ def add_business():
                 """), (biz_id, category, hero_label, float(hero_price), hero_img_ref, ai_name, ai_verified))
 
             flash("Business submitted! Waiting for approval.")
+            _email_submitted(user['name'], user['email'], name)
             return redirect('/dashboard')
         except Exception as e:
             print(e); flash("Error submitting. Please try again.")
@@ -925,6 +1028,11 @@ def admin():
             if owner and owner.get('owner_id'):
                 db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
                           (owner['owner_id'], "✅ Your business is now live on TrustedBiz!"))
+                # Send approval email
+                biz_row = db_fetchone(q("SELECT name, slug FROM business WHERE id=?"), (biz_id,))
+                user_row = db_fetchone(q("SELECT name, email FROM users WHERE id=?"), (owner['owner_id'],))
+                if biz_row and user_row:
+                    _email_approved(user_row['name'], user_row['email'], biz_row['name'], biz_row['slug'])
         elif action == 'reject':
             db_execute(q("UPDATE business SET status='rejected' WHERE id=?"), (biz_id,))
         elif action == 'verify':
