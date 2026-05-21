@@ -301,6 +301,9 @@
                 <a href="/edit-business/{{ b.id }}" class="action-link link-edit">✏️ Edit</a>
                 <a href="/add-branch/{{ b.id }}" class="action-link link-branch">🏢 Add Branch</a>
                 {% if b.is_premium %}
+                <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
+                    <button type="submit" class="action-link link-regen" onclick="showGenerating(this.form)">⚡ Build Website</button>
+                </form>
                 <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
                 {% elif chosen_plan == 'promax' %}
                 <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
@@ -331,6 +334,24 @@
                 <button class="copy-btn" onclick="copyLink()">📋 Copy</button>
             </div>
             <div class="copy-ok" id="copyOk">✅ Copied!</div>
+        </div>
+
+        <div class="website-card">
+            <h3>🎨 Customize Your Website</h3>
+            <p>Change your brand color and regenerate your website instantly. The AI will redesign it around your new color.</p>
+            <form method="POST" action="/dashboard/set-template/{{ first_biz.id }}">
+                <div class="color-row">
+                    <div class="cdot {% if first_biz.brand_color == '#2b7a78' %}active{% endif %}" style="background:#2b7a78" data-c="#2b7a78" onclick="pickC(this)"></div>
+                    <div class="cdot {% if first_biz.brand_color == '#e85d04' %}active{% endif %}" style="background:#e85d04" data-c="#e85d04" onclick="pickC(this)"></div>
+                    <div class="cdot {% if first_biz.brand_color == '#7c6af7' %}active{% endif %}" style="background:#7c6af7" data-c="#7c6af7" onclick="pickC(this)"></div>
+                    <div class="cdot {% if first_biz.brand_color == '#c9a84c' %}active{% endif %}" style="background:#c9a84c" data-c="#c9a84c" onclick="pickC(this)"></div>
+                    <div class="cdot {% if first_biz.brand_color == '#ef4444' %}active{% endif %}" style="background:#ef4444" data-c="#ef4444" onclick="pickC(this)"></div>
+                    <div class="cdot {% if first_biz.brand_color == '#111111' %}active{% endif %}" style="background:#111111" data-c="#111111" onclick="pickC(this)"></div>
+                    <input type="color" id="customColor" onchange="pickCustom(this)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e5e7eb;cursor:pointer;padding:1px;">
+                </div>
+                <input type="hidden" name="brand_color" id="selColor" value="{{ first_biz.brand_color or '#2b7a78' }}">
+                <button type="submit" style="background:#2b7a78;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s;" onclick="showGenerating(this.form)">💾 Save &amp; Build Website</button>
+            </form>
         </div>
 
         {% else %}
@@ -496,6 +517,42 @@ function pickCustom(el){
     document.getElementById('selColor').value=el.value;
     document.querySelectorAll('.cdot').forEach(function(d){d.classList.remove('active');});
 }
+</script>
+<div id="generating-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,13,13,.92);z-index:9999;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="text-align:center;color:white;padding:40px;">
+    <div style="font-size:48px;margin-bottom:20px;animation:spin 2s linear infinite;">⚙️</div>
+    <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;margin-bottom:12px;">Building Your Website...</h2>
+    <p style="color:rgba(255,255,255,.6);font-size:15px;margin-bottom:8px;">This takes about 30–60 seconds.</p>
+    <p style="color:rgba(255,255,255,.4);font-size:13px;">Please wait. Do not close this page.</p>
+    <div style="margin-top:28px;width:200px;height:4px;background:rgba(255,255,255,.1);border-radius:100px;overflow:hidden;">
+      <div id="progress-bar" style="height:100%;background:#2b7a78;border-radius:100px;width:0%;transition:width 60s linear;"></div>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+</style>
+<script>
+function showGenerating(form) {
+  var overlay = document.getElementById('generating-overlay');
+  overlay.style.display = 'flex';
+  setTimeout(function(){ document.getElementById('progress-bar').style.width = '90%'; }, 100);
+  // Auto-redirect to dashboard after 65 seconds
+  setTimeout(function(){ window.location.href = '/dashboard'; }, 65000);
+  return true;
+}
+// Show success flash if website was just built
+{% with messages = get_flashed_messages() %}{% if messages %}{% for msg in messages %}
+{% if 'being built' in msg or 'regenerating' in msg %}
+document.addEventListener('DOMContentLoaded', function() {
+  var banner = document.createElement('div');
+  banner.innerHTML = '{{ msg }}';
+  banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#2b7a78;color:white;padding:14px 28px;border-radius:10px;font-weight:700;font-size:14px;z-index:9998;box-shadow:0 4px 20px rgba(0,0,0,.2);';
+  document.body.appendChild(banner);
+  setTimeout(function(){ banner.remove(); }, 5000);
+});
+{% endif %}
+{% endfor %}{% endif %}{% endwith %}
 </script>
 </body>
 </html>
