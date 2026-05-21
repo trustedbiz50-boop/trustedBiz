@@ -808,17 +808,20 @@ def add_business():
         hero_price  = request.form.get('hero_price','').strip() or None
         hero_label  = request.form.get('hero_price_label','').strip()
         slug        = make_slug(name)
-        # Try client-compressed b64 first, fallback to raw file upload
+        # Photos are always sent as compressed base64 from the browser
         photos_b64_raw = request.form.get('photos_b64','').strip()
+        photos = []
         if photos_b64_raw:
             try:
                 import json as _json
                 photos = save_photos_b64(_json.loads(photos_b64_raw))
             except Exception as e:
                 print(f"B64 parse error: {e}")
-                photos = save_photos(request.files.getlist('photos'))
-        else:
-            photos = save_photos(request.files.getlist('photos'))
+        # Only fall back to raw files if zero b64 photos came through
+        if not photos:
+            raw_files = request.files.getlist('photos')
+            if raw_files and raw_files[0].filename:
+                photos = save_photos(raw_files)
         photos_str  = ",".join(photos)
 
         try:
