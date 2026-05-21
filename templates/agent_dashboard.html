@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agent Dashboard — TrustedBiz</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4f6fb;color:#1f2937;min-height:100vh;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#f0f2f8;color:#1f2937;min-height:100vh;}
 
 /* NAV */
-nav{background:white;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 0 #e8eaf0;position:sticky;top:0;z-index:100;}
+nav{background:white;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 0 #e8eaf0;position:sticky;top:0;z-index:200;}
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
 .logo-mark{width:34px;height:34px;background:linear-gradient(135deg,#2b7a78,#14a8ac);border-radius:9px;display:flex;align-items:center;justify-content:center;}
 .logo-mark svg{width:18px;height:18px;fill:white;}
@@ -21,71 +21,149 @@ nav{background:white;padding:0 24px;height:64px;display:flex;align-items:center;
 .logout-btn{font-size:13px;font-weight:700;color:#6b7280;text-decoration:none;padding:8px 14px;border:1.5px solid #e5e7eb;border-radius:8px;transition:all .18s;}
 .logout-btn:hover{border-color:#ef4444;color:#ef4444;}
 
-/* PAGE */
-.page{max-width:1000px;margin:0 auto;padding:28px 20px 60px;}
+.page{max-width:1040px;margin:0 auto;padding:28px 20px 80px;}
 
-/* HERO CARD */
+/* HERO */
 .hero-card{background:linear-gradient(135deg,#0d2020,#163535);border-radius:20px;padding:32px 28px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;}
 .hero-greet h2{font-size:22px;font-weight:900;color:white;margin-bottom:4px;}
-.hero-greet p{font-size:14px;color:rgba(255,255,255,.6);}
+.hero-greet p{font-size:14px;color:rgba(255,255,255,.55);}
 .code-box{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:12px;padding:14px 20px;text-align:center;}
 .code-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.45);margin-bottom:4px;}
 .code-val{font-size:26px;font-weight:900;color:#fbbf24;letter-spacing:2px;}
 .code-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;}
 
 /* STATS */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
-.stat-card{background:white;border-radius:14px;padding:20px;border:2px solid #e8eaf0;}
-.stat-icon{font-size:24px;margin-bottom:8px;}
-.stat-num{font-size:28px;font-weight:900;color:#1f2937;line-height:1;}
-.stat-label{font-size:12px;color:#9ca3af;margin-top:4px;font-weight:600;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat-card{background:white;border-radius:14px;padding:18px 16px;border:2px solid #e8eaf0;}
+.stat-icon{font-size:22px;margin-bottom:6px;}
+.stat-num{font-size:26px;font-weight:900;color:#1f2937;line-height:1;}
+.stat-label{font-size:12px;color:#9ca3af;margin-top:3px;font-weight:600;}
 .stat-card.highlight{border-color:#2b7a78;background:linear-gradient(135deg,#f0fdfa,#ccfbf1);}
 .stat-card.highlight .stat-num{color:#2b7a78;}
 
-/* SECTIONS */
+/* FLASH */
+.flash{background:#dcfce7;border:1.5px solid #16a34a;color:#166534;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;}
+.flash.error{background:#fee2e2;border-color:#f87171;color:#991b1b;}
+
+/* SECTION */
 .section-title{font-size:16px;font-weight:800;color:#1f2937;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 .section-title span{font-size:13px;font-weight:600;color:#9ca3af;}
 
-/* ADD BUSINESS FORM */
-.form-card{background:white;border-radius:16px;padding:28px;border:2px solid #e8eaf0;margin-bottom:24px;}
+/* ─── ADD BUSINESS WIZARD ─── */
+.wizard-card{background:white;border-radius:18px;border:2px solid #e8eaf0;margin-bottom:26px;overflow:hidden;}
+.wizard-header{padding:22px 28px 18px;border-bottom:2px solid #f3f4f6;}
+.wizard-header h3{font-size:17px;font-weight:900;color:#1f2937;margin-bottom:3px;}
+.wizard-header p{font-size:13px;color:#9ca3af;}
+
+/* STEP INDICATOR */
+.steps{display:flex;align-items:center;gap:0;padding:18px 28px;border-bottom:2px solid #f3f4f6;}
+.step{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#9ca3af;}
+.step.active{color:#2b7a78;}
+.step.done{color:#16a34a;}
+.step-num{width:26px;height:26px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0;}
+.step.done .step-num{background:#16a34a;border-color:#16a34a;color:white;}
+.step.active .step-num{background:#2b7a78;border-color:#2b7a78;color:white;}
+.step-line{flex:1;height:2px;background:#e8eaf0;margin:0 8px;}
+.step-line.done{background:#16a34a;}
+
+/* PLAN PICKER STEP */
+.step-body{padding:28px;}
+.plan-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.plan-opt{border:2px solid #e8eaf0;border-radius:14px;padding:22px 18px;cursor:pointer;transition:all .2s;position:relative;background:white;}
+.plan-opt:hover{border-color:#2b7a78;transform:translateY(-2px);box-shadow:0 6px 20px rgba(43,122,120,.1);}
+.plan-opt.selected{border-color:#2b7a78;background:#f0fdfa;box-shadow:0 6px 20px rgba(43,122,120,.15);}
+.plan-opt.featured{border-color:#f59e0b;}
+.plan-opt.featured.selected{border-color:#d97706;background:#fffbeb;}
+.plan-opt.featured:hover{border-color:#d97706;}
+.plan-tag{position:absolute;top:-1px;right:14px;background:#f59e0b;color:white;font-size:10px;font-weight:800;padding:3px 10px;border-radius:0 0 8px 8px;letter-spacing:.5px;}
+.plan-tag.free-tag{background:#6b7280;}
+.plan-name{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:6px;}
+.plan-price{font-size:26px;font-weight:900;color:#1f2937;margin-bottom:2px;line-height:1;}
+.plan-price small{font-size:13px;font-weight:600;color:#9ca3af;}
+.plan-period{font-size:11px;color:#9ca3af;margin-bottom:14px;}
+.plan-features{list-style:none;}
+.plan-features li{font-size:12px;color:#374151;padding:4px 0;display:flex;align-items:flex-start;gap:6px;line-height:1.4;}
+.plan-features li::before{content:'✓';color:#2b7a78;font-weight:900;font-size:11px;flex-shrink:0;margin-top:2px;}
+.plan-features li.no::before{content:'✗';color:#d1d5db;}
+.plan-features li.no{color:#9ca3af;}
+.plan-check{position:absolute;top:12px;left:12px;width:20px;height:20px;border-radius:50%;border:2px solid #e5e7eb;background:white;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .2s;}
+.plan-opt.selected .plan-check{background:#2b7a78;border-color:#2b7a78;color:white;}
+.plan-opt.featured.selected .plan-check{background:#f59e0b;border-color:#f59e0b;}
+
+.next-btn{background:#2b7a78;color:white;border:none;border-radius:10px;padding:13px 28px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;display:inline-flex;align-items:center;gap:8px;margin-top:20px;}
+.next-btn:hover{background:#205e5c;transform:translateY(-1px);}
+.next-btn:disabled{background:#9ca3af;cursor:not-allowed;transform:none;}
+.back-btn{background:none;border:2px solid #e5e7eb;color:#6b7280;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;display:inline-flex;align-items:center;gap:8px;}
+.back-btn:hover{border-color:#9ca3af;color:#374151;}
+
+/* FORM STEP */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 label{display:block;font-size:13px;font-weight:700;color:#374151;margin-bottom:5px;}
-input,select,textarea{width:100%;padding:11px 14px;border:2px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;color:#1f2937;outline:none;transition:border-color .18s;}
+label .opt{font-size:11px;font-weight:600;color:#9ca3af;margin-left:4px;}
+input,select,textarea{width:100%;padding:11px 14px;border:2px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;color:#1f2937;outline:none;transition:border-color .18s;background:white;}
 input:focus,select:focus,textarea:focus{border-color:#2b7a78;}
-textarea{resize:vertical;min-height:80px;}
+textarea{resize:vertical;min-height:90px;}
 .full{grid-column:1/-1;}
-.submit-btn{background:#2b7a78;color:white;border:none;border-radius:10px;padding:14px 28px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;display:inline-flex;align-items:center;gap:8px;}
-.submit-btn:hover{background:#205e5c;transform:translateY(-1px);}
+.form-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px;}
+.form-hint{font-size:12px;color:#9ca3af;}
+
+/* plan badge inside form */
+.plan-selected-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:100px;font-size:13px;font-weight:800;margin-bottom:18px;}
+.plan-selected-badge.free{background:#f3f4f6;color:#374151;border:1.5px solid #e5e7eb;}
+.plan-selected-badge.basic{background:#f0fdfa;color:#0f766e;border:1.5px solid #99f6e4;}
+.plan-selected-badge.promax{background:#fffbeb;color:#92400e;border:1.5px solid #fde68a;}
 
 /* BUSINESS LIST */
 .biz-list{display:flex;flex-direction:column;gap:12px;}
-.biz-card{background:white;border-radius:14px;padding:18px 20px;border:2px solid #e8eaf0;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-.biz-info h4{font-size:15px;font-weight:800;color:#1f2937;margin-bottom:2px;}
+.biz-card{background:white;border-radius:14px;padding:18px 20px;border:2px solid #e8eaf0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.biz-info h4{font-size:15px;font-weight:800;color:#1f2937;margin-bottom:3px;}
 .biz-info p{font-size:13px;color:#6b7280;}
-.biz-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.biz-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;}
 .status.pending{background:#fef9c3;color:#854d0e;}
 .status.approved{background:#dcfce7;color:#166534;}
 .status.rejected{background:#fee2e2;color:#991b1b;}
 .earning-badge{background:#f0fdfa;border:1px solid #99f6e4;color:#0f766e;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;}
+.plan-badge-sm{font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;}
+.plan-badge-sm.free{background:#f3f4f6;color:#6b7280;}
+.plan-badge-sm.basic{background:#dcfce7;color:#166534;}
+.plan-badge-sm.promax{background:#fffbeb;color:#92400e;}
+
+/* PASSCODE BOX */
+.passcode-box{background:linear-gradient(135deg,#0d2020,#163535);border-radius:12px;padding:16px 18px;margin-top:10px;width:100%;}
+.pc-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.45);margin-bottom:6px;}
+.pc-row{display:flex;align-items:center;gap:10px;}
+.pc-code{font-size:22px;font-weight:900;color:#fbbf24;letter-spacing:3px;font-family:monospace;}
+.pc-copy{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:white;font-size:11px;font-weight:700;padding:5px 12px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:all .2s;font-family:inherit;}
+.pc-copy:hover{background:rgba(255,255,255,.2);}
+.pc-link{font-size:11px;color:rgba(255,255,255,.5);margin-top:6px;word-break:break-all;}
+.pc-link a{color:#fbbf24;text-decoration:none;}
+.pc-note{font-size:11px;color:rgba(255,255,255,.4);margin-top:5px;}
+.view-site-btn{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:#2b7a78;font-weight:700;text-decoration:none;padding:6px 12px;border:1.5px solid #99f6e4;border-radius:8px;background:#f0fdfa;transition:all .18s;}
+.view-site-btn:hover{background:#ccfbf1;}
 
 /* EARNINGS */
 .earnings-card{background:white;border-radius:16px;padding:28px;border:2px solid #e8eaf0;margin-bottom:24px;}
 .earnings-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f3f4f6;font-size:14px;}
 .earnings-row:last-child{border-bottom:none;}
-.earnings-row .label{color:#6b7280;font-weight:600;}
-.earnings-row .value{font-weight:800;color:#1f2937;}
-.earnings-row .value.green{color:#16a34a;}
-.payout-btn{display:inline-flex;align-items:center;gap:8px;background:#25D366;color:white;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:800;text-decoration:none;transition:all .2s;width:fit-content;}
+.earnings-row .elabel{color:#6b7280;font-weight:600;}
+.earnings-row .evalue{font-weight:800;color:#1f2937;}
+.earnings-row .evalue.green{color:#16a34a;}
+.payout-btn{display:inline-flex;align-items:center;gap:8px;background:#25D366;color:white;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:800;text-decoration:none;transition:all .2s;}
 .payout-btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
 
-.flash{background:#dcfce7;border:1.5px solid #16a34a;color:#166534;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;}
-.flash.error{background:#fee2e2;border-color:#f87171;color:#991b1b;}
+/* HIDDEN STEP */
+.step-panel{display:none;}
+.step-panel.active{display:block;}
 
-@media(max-width:680px){
+@media(max-width:700px){
   .stats{grid-template-columns:1fr 1fr;}
+  .plan-picker{grid-template-columns:1fr;}
   .form-grid{grid-template-columns:1fr;}
   .hero-card{flex-direction:column;}
+  .steps{padding:14px 16px;}
+  .step span{display:none;}
+  .step-body{padding:20px 16px;}
 }
 </style>
 </head>
@@ -113,13 +191,13 @@ textarea{resize:vertical;min-height:80px;}
   <!-- HERO -->
   <div class="hero-card">
     <div class="hero-greet">
-      <h2>Welcome back, {{ agent.name }} 👋</h2>
+      <h2>Hi, {{ agent.name }} 👋</h2>
       <p>{{ agent.area }} · {{ agent.email }}</p>
     </div>
     <div class="code-box">
-      <div class="code-label">Your Referral Code</div>
+      <div class="code-label">Your Agent Code</div>
       <div class="code-val">{{ agent.code }}</div>
-      <div class="code-sub">Share this with business owners</div>
+      <div class="code-sub">Share with business owners</div>
     </div>
   </div>
 
@@ -138,102 +216,196 @@ textarea{resize:vertical;min-height:80px;}
     <div class="stat-card">
       <div class="stat-icon">⏳</div>
       <div class="stat-num">{{ stats.pending }}</div>
-      <div class="stat-label">Pending Approval</div>
+      <div class="stat-label">Pending</div>
     </div>
     <div class="stat-card highlight">
       <div class="stat-icon">💰</div>
       <div class="stat-num">{{ "{:,}".format(stats.earnings | int) }}</div>
-      <div class="stat-label">This Month (UGX)</div>
+      <div class="stat-label">Earned (UGX)</div>
     </div>
   </div>
 
-  <!-- ADD BUSINESS -->
-  <div class="form-card">
-    <div class="section-title">➕ Add a New Business <span>— fills in for the business owner</span></div>
-    <form method="POST" action="/agent/add-business" enctype="multipart/form-data">
-      <div class="form-grid">
-        <div>
-          <label>Business Name *</label>
-          <input type="text" name="name" placeholder="e.g. Kamali Salon" required>
-        </div>
-        <div>
-          <label>Category *</label>
-          <select name="category" required>
-            <option value="">Select category...</option>
-            <option>Salon & Beauty</option>
-            <option>Restaurant & Food</option>
-            <option>Mechanic & Auto</option>
-            <option>Pharmacy & Health</option>
-            <option>Electronics & Tech</option>
-            <option>Clothing & Fashion</option>
-            <option>Supermarket & Grocery</option>
-            <option>Hotel & Accommodation</option>
-            <option>School & Education</option>
-            <option>Hardware & Construction</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div>
-          <label>Owner WhatsApp Number *</label>
-          <input type="tel" name="whatsapp" placeholder="e.g. 0753187966" required>
-        </div>
-        <div>
-          <label>Owner Email (for login) *</label>
-          <input type="email" name="email" placeholder="owner@email.com" required>
-        </div>
-        <div>
-          <label>Location / Address *</label>
-          <input type="text" name="location" placeholder="e.g. Kampala Road, Kampala" required>
-        </div>
-        <div>
-          <label>Opening Hours</label>
-          <input type="text" name="hours" placeholder="e.g. Mon-Sat 8am-6pm">
-        </div>
-        <div class="full">
-          <label>Business Description *</label>
-          <textarea name="description" placeholder="Describe what the business does, its specialties, and what makes it unique..." required></textarea>
-        </div>
-        <div>
-          <label>Brand Color</label>
-          <input type="color" name="brand_color" value="#2b7a78">
-        </div>
-        <div>
-          <label>Google Maps Link (optional)</label>
-          <input type="url" name="map_link" placeholder="https://maps.google.com/...">
-        </div>
-        <div class="full">
-          <label>Business Photos (optional, up to 5)</label>
-          <input type="file" name="photos" accept="image/*" multiple>
-        </div>
+  <!-- ADD BUSINESS WIZARD -->
+  <div class="wizard-card">
+    <div class="wizard-header">
+      <h3>➕ Add a New Business</h3>
+      <p>Pick a plan first, then fill in what you know — email and WhatsApp are optional for now.</p>
+    </div>
+
+    <!-- STEP INDICATOR -->
+    <div class="steps">
+      <div class="step active" id="ind-1">
+        <div class="step-num">1</div>
+        <span>Choose Plan</span>
       </div>
-      <div style="margin-top:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-        <button type="submit" class="submit-btn">➕ Submit for Approval</button>
-        <p style="font-size:12px;color:#9ca3af;">Admin will review and approve. Business owner gets notified on WhatsApp.</p>
+      <div class="step-line" id="line-1"></div>
+      <div class="step" id="ind-2">
+        <div class="step-num">2</div>
+        <span>Business Details</span>
       </div>
-    </form>
+      <div class="step-line" id="line-2"></div>
+      <div class="step" id="ind-3">
+        <div class="step-num">3</div>
+        <span>Submit</span>
+      </div>
+    </div>
+
+    <!-- STEP 1: PLAN PICKER -->
+    <div class="step-body step-panel active" id="step-1">
+      <div class="plan-picker">
+
+        <!-- FREE -->
+        <div class="plan-opt" id="opt-free" onclick="pickPlan('free',this)">
+          <div class="plan-tag free-tag">FREE</div>
+          <div class="plan-check">✓</div>
+          <div style="padding-top:10px;">
+            <div class="plan-name">Free Plan</div>
+            <div class="plan-price">0 <small>UGX</small></div>
+            <div class="plan-period">No cost · basic listing</div>
+            <ul class="plan-features">
+              <li>Listed in TrustedBiz directory</li>
+              <li>WhatsApp contact button</li>
+              <li>Customer reviews</li>
+              <li class="no">No professional website</li>
+              <li class="no">No photo gallery</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- BASIC -->
+        <div class="plan-opt" id="opt-basic" onclick="pickPlan('basic',this)">
+          <div class="plan-check">✓</div>
+          <div class="plan-name">Basic Plan</div>
+          <div class="plan-price">7,500 <small>UGX</small></div>
+          <div class="plan-period">per month · first month free</div>
+          <ul class="plan-features">
+            <li>Professional website</li>
+            <li>Shareable link</li>
+            <li>WhatsApp button</li>
+            <li>Google Maps directions</li>
+            <li>Photo gallery</li>
+            <li>Services &amp; pricing section</li>
+          </ul>
+        </div>
+
+        <!-- PRO MAX -->
+        <div class="plan-opt featured" id="opt-promax" onclick="pickPlan('promax',this)">
+          <div class="plan-tag">BEST VALUE</div>
+          <div class="plan-check">✓</div>
+          <div style="padding-top:10px;">
+            <div class="plan-name">Pro Max</div>
+            <div style="font-size:12px;color:#ef4444;font-weight:700;text-decoration:line-through;margin-bottom:2px;">25,000 UGX</div>
+            <div class="plan-price">15,000 <small>UGX</small></div>
+            <div class="plan-period">per month · first month free</div>
+            <ul class="plan-features">
+              <li>Everything in Basic</li>
+              <li>AI Ad Creator</li>
+              <li>Priority search placement</li>
+              <li>Multiple branches</li>
+              <li>Up to 10 photos</li>
+              <li>Advanced analytics</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+      <button class="next-btn" id="next-1" onclick="goStep(2)" disabled>Next: Business Details →</button>
+    </div>
+
+    <!-- STEP 2: DETAILS FORM -->
+    <div class="step-body step-panel" id="step-2">
+      <form method="POST" action="/agent/add-business" enctype="multipart/form-data" id="biz-form">
+        <input type="hidden" name="plan" id="plan-input" value="">
+
+        <!-- Plan badge -->
+        <div id="plan-badge" class="plan-selected-badge free" style="display:none;"></div>
+
+        <div class="form-grid">
+          <div>
+            <label>Business Name *</label>
+            <input type="text" name="name" placeholder="e.g. Kamali Salon" required>
+          </div>
+          <div>
+            <label>Category *</label>
+            <select name="category" required>
+              <option value="">Select category...</option>
+              <option>Salon &amp; Beauty</option>
+              <option>Restaurant &amp; Food</option>
+              <option>Mechanic &amp; Auto</option>
+              <option>Pharmacy &amp; Health</option>
+              <option>Electronics &amp; Tech</option>
+              <option>Clothing &amp; Fashion</option>
+              <option>Supermarket &amp; Grocery</option>
+              <option>Hotel &amp; Accommodation</option>
+              <option>School &amp; Education</option>
+              <option>Hardware &amp; Construction</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label>Location / Address *</label>
+            <input type="text" name="location" placeholder="e.g. Kampala Road, Kampala" required>
+          </div>
+          <div>
+            <label>Opening Hours</label>
+            <input type="text" name="hours" placeholder="e.g. Mon–Sat 8am–6pm">
+          </div>
+          <div>
+            <label>Owner WhatsApp <span class="opt">(optional for now)</span></label>
+            <input type="tel" name="whatsapp" placeholder="e.g. 0753187966">
+          </div>
+          <div>
+            <label>Owner Email <span class="opt">(optional for now)</span></label>
+            <input type="email" name="email" placeholder="owner@email.com">
+          </div>
+          <div class="full">
+            <label>Business Description *</label>
+            <textarea name="description" placeholder="Describe what this business does, its services, and what makes it stand out..." required></textarea>
+          </div>
+          <div>
+            <label>Brand Color</label>
+            <input type="color" name="brand_color" value="#2b7a78">
+          </div>
+          <div>
+            <label>Google Maps Link <span class="opt">(optional)</span></label>
+            <input type="url" name="map_link" placeholder="https://maps.google.com/...">
+          </div>
+          <div class="full">
+            <label>Business Photos <span class="opt">(optional, up to 5)</span></label>
+            <input type="file" name="photos" accept="image/*" multiple>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="back-btn" onclick="goStep(1)">← Back</button>
+          <button type="submit" class="next-btn">Submit for Approval ✓</button>
+          <p class="form-hint">Admin reviews & approves. You get a passcode to share with the owner.</p>
+        </div>
+      </form>
+    </div>
+
   </div>
 
-  <!-- EARNINGS SUMMARY -->
+  <!-- EARNINGS -->
   <div class="earnings-card">
     <div class="section-title">💰 Earnings Summary</div>
     <div class="earnings-row">
-      <span class="label">Active businesses this month</span>
-      <span class="value">{{ stats.approved }}</span>
+      <span class="elabel">Active businesses this month</span>
+      <span class="evalue">{{ stats.approved }}</span>
     </div>
     <div class="earnings-row">
-      <span class="label">Rate per business</span>
-      <span class="value">UGX 1,000</span>
+      <span class="elabel">Rate per business</span>
+      <span class="evalue">UGX 1,000</span>
     </div>
     <div class="earnings-row">
-      <span class="label">Earned this month</span>
-      <span class="value green">UGX {{ "{:,}".format(stats.approved * 1000) }}</span>
+      <span class="elabel">Earned this month</span>
+      <span class="evalue green">UGX {{ "{:,}".format(stats.approved * 1000) }}</span>
     </div>
     <div class="earnings-row">
-      <span class="label">Total earned all time</span>
-      <span class="value">UGX {{ "{:,}".format(stats.total_earned | default(0) | int) }}</span>
+      <span class="elabel">Total earned all time</span>
+      <span class="evalue">UGX {{ "{:,}".format(stats.total_earned | default(0) | int) }}</span>
     </div>
     <div style="margin-top:20px;">
-      <a href="https://wa.me/256753187966?text=Hi, I'm agent {{ agent.name }} ({{ agent.code }}). I'd like to request my earnings payout." class="payout-btn">
+      <a href="https://wa.me/256753187966?text=Hi%2C+I'm+agent+{{ agent.name }}+({{ agent.code }}).+I'd+like+to+request+my+earnings+payout." class="payout-btn" target="_blank">
         💬 Request Payout via WhatsApp
       </a>
     </div>
@@ -244,31 +416,100 @@ textarea{resize:vertical;min-height:80px;}
   <div class="biz-list">
     {% for biz in businesses %}
     <div class="biz-card">
-      <div class="biz-info">
+      <div class="biz-info" style="flex:1;min-width:200px;">
         <h4>{{ biz.name }}</h4>
-        <p>{{ biz.category }} · {{ biz.location }}</p>
-      </div>
-      <div class="biz-meta">
+        <p>{{ biz.category }}{% if biz.location %} · {{ biz.location }}{% endif %}</p>
         {% if biz.status == 'approved' %}
-          <span class="status approved">✅ Approved</span>
-          <span class="earning-badge">+UGX 1,000/mo</span>
-          <a href="/site/{{ biz.slug }}" target="_blank" style="font-size:13px;color:#2b7a78;font-weight:700;text-decoration:none;">View Site →</a>
-        {% elif biz.status == 'pending' %}
-          <span class="status pending">⏳ Pending</span>
-        {% else %}
-          <span class="status rejected">❌ Rejected</span>
+        <!-- PASSCODE BOX — visible to agent to share with owner -->
+        {% set inv = invite_codes.get(biz.id) %}
+        {% if inv %}
+        <div class="passcode-box">
+          <div class="pc-label">🔐 Owner Passcode — share this to close the deal</div>
+          <div class="pc-row">
+            <div class="pc-code">{{ inv.code }}</div>
+            <button class="pc-copy" onclick="copyCode('{{ inv.code }}', this)">Copy</button>
+          </div>
+          <div class="pc-link">Activation link: <a href="https://trustedbiz.co.ug/join?code={{ inv.code }}" target="_blank">trustedbiz.co.ug/join?code={{ inv.code }}</a></div>
+          <div class="pc-note">Owner enters this code at /join → sets email & password → gets dashboard access</div>
+        </div>
         {% endif %}
       </div>
+      <div class="biz-meta">
+        <span class="status approved">✅ Approved</span>
+        <span class="earning-badge">+UGX 1,000/mo</span>
+        {% if biz.plan %}<span class="plan-badge-sm {{ biz.plan }}">{{ biz.plan | upper }}</span>{% endif %}
+        <a href="/site/{{ biz.slug }}" target="_blank" class="view-site-btn">View Site →</a>
+      </div>
+        {% elif biz.status == 'pending' %}
+      </div>
+      <div class="biz-meta">
+        <span class="status pending">⏳ Pending Review</span>
+        {% if biz.plan %}<span class="plan-badge-sm {{ biz.plan }}">{{ biz.plan | upper }}</span>{% endif %}
+      </div>
+        {% else %}
+      </div>
+      <div class="biz-meta">
+        <span class="status rejected">❌ Rejected</span>
+      </div>
+        {% endif %}
     </div>
     {% else %}
-    <div style="background:white;border-radius:14px;padding:40px;text-align:center;border:2px dashed #e8eaf0;">
-      <div style="font-size:40px;margin-bottom:12px;">🏢</div>
-      <p style="font-size:15px;font-weight:700;color:#1f2937;margin-bottom:6px;">No businesses added yet</p>
+    <div style="background:white;border-radius:14px;padding:44px;text-align:center;border:2px dashed #e8eaf0;">
+      <div style="font-size:44px;margin-bottom:12px;">🏢</div>
+      <p style="font-size:15px;font-weight:800;color:#1f2937;margin-bottom:6px;">No businesses added yet</p>
       <p style="font-size:13px;color:#9ca3af;">Use the form above to add your first business and start earning.</p>
     </div>
     {% endfor %}
   </div>
 
 </div>
+
+<script>
+var selectedPlan = '';
+
+function pickPlan(plan, el) {
+  selectedPlan = plan;
+  document.querySelectorAll('.plan-opt').forEach(function(o){ o.classList.remove('selected'); });
+  el.classList.add('selected');
+  document.getElementById('next-1').disabled = false;
+}
+
+function goStep(n) {
+  if (n === 2 && !selectedPlan) return;
+
+  // Update step indicators
+  [1,2,3].forEach(function(i){
+    var ind = document.getElementById('ind-'+i);
+    var line = document.getElementById('line-'+i);
+    ind.classList.remove('active','done');
+    if (line) line.classList.remove('done');
+    if (i < n) { ind.classList.add('done'); if (line) line.classList.add('done'); }
+    if (i === n) ind.classList.add('active');
+  });
+
+  // Show correct panel
+  document.querySelectorAll('.step-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('step-'+n).classList.add('active');
+
+  if (n === 2) {
+    document.getElementById('plan-input').value = selectedPlan;
+    var badge = document.getElementById('plan-badge');
+    badge.style.display = 'inline-flex';
+    badge.className = 'plan-selected-badge ' + selectedPlan;
+    var labels = {free:'🆓 Free Plan', basic:'✅ Basic — 7,500 UGX/mo', promax:'⭐ Pro Max — 15,000 UGX/mo'};
+    badge.textContent = labels[selectedPlan] || selectedPlan;
+  }
+
+  window.scrollTo({top: document.querySelector('.wizard-card').offsetTop - 80, behavior:'smooth'});
+}
+
+function copyCode(code, btn) {
+  navigator.clipboard.writeText(code).then(function(){
+    btn.textContent = 'Copied!';
+    btn.style.background = 'rgba(37,211,102,.3)';
+    setTimeout(function(){ btn.textContent = 'Copy'; btn.style.background = ''; }, 2000);
+  });
+}
+</script>
 </body>
 </html>
