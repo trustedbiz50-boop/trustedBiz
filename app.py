@@ -1251,6 +1251,10 @@ def choose_plan():
             flash("Welcome! Add your business and we will review and approve it.")
         return redirect('/dashboard')
     return render_template('choose-plan.html', current_user=get_current_user())
+    
+@app.route('/about')
+def about():
+    return render_template('landing.html')
 
 @app.errorhandler(404)
 def not_found(e):
