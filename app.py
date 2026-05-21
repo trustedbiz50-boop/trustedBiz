@@ -140,7 +140,7 @@ app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = True
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
 ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "trustedbiz2026")
@@ -203,6 +203,31 @@ def save_photos(files):
                 results.append(fname)
         except Exception as e:
             print(f"Photo error: {e}")
+    return results
+
+def save_photos_b64(b64_list):
+    """Save client-compressed base64 images — avoids 413 entity too large."""
+    import base64, re
+    results = []
+    for b64 in b64_list:
+        if not b64: continue
+        try:
+            # Strip data:image/jpeg;base64, prefix
+            match = re.match(r'data:image/(\w+);base64,(.+)', b64, re.DOTALL)
+            if not match: continue
+            ext, data = match.group(1), match.group(2)
+            if ext not in ('jpeg','jpg','png','webp'): ext = 'jpg'
+            raw = base64.b64decode(data)
+            if USE_CLOUDINARY:
+                up = cloudinary.uploader.upload(raw, folder="trustedbiz",
+                     transformation=[{"width":1200,"height":900,"crop":"limit","quality":"auto:good"}])
+                results.append(up["secure_url"])
+            else:
+                fname = f"{secrets.token_hex(8)}.{ext}"
+                (LOCAL_UPLOAD/fname).write_bytes(raw)
+                results.append(fname)
+        except Exception as e:
+            print(f"B64 photo error: {e}")
     return results
 
 def save_single_photo(file):
@@ -766,7 +791,17 @@ def add_business():
         hero_price  = request.form.get('hero_price','').strip() or None
         hero_label  = request.form.get('hero_price_label','').strip()
         slug        = make_slug(name)
-        photos      = save_photos(request.files.getlist('photos'))
+        # Try client-compressed b64 first, fallback to raw file upload
+        photos_b64_raw = request.form.get('photos_b64','').strip()
+        if photos_b64_raw:
+            try:
+                import json as _json
+                photos = save_photos_b64(_json.loads(photos_b64_raw))
+            except Exception as e:
+                print(f"B64 parse error: {e}")
+                photos = save_photos(request.files.getlist('photos'))
+        else:
+            photos = save_photos(request.files.getlist('photos'))
         photos_str  = ",".join(photos)
 
         try:
