@@ -1,18 +1,22 @@
 """
 ai_generator.py — TrustedBiz AI Website Generator
-Add ANTHROPIC_API_KEY to environment variables and it works.
-Without the key it uses a high-quality fallback.
+Basic Plan  → Claude Haiku  (fast, unique, beautiful)
+Pro Max     → Claude Sonnet (stunning, magazine-level)
+Fallback    → High-quality static HTML (no API needed)
 """
-import os, re, json, threading
+import os, re, json
 
-def _client():
+def _client(model="haiku"):
     key = os.environ.get("ANTHROPIC_API_KEY","")
-    if not key: return None
+    if not key: return None, None
     try:
         import anthropic
-        return anthropic.Anthropic(api_key=key)
+        c = anthropic.Anthropic(api_key=key)
+        if model == "sonnet":
+            return c, "claude-sonnet-4-20250514"
+        return c, "claude-haiku-4-5-20251001"
     except ImportError:
-        return None
+        return None, None
 
 def _hex_rgb(h):
     try:
@@ -21,42 +25,44 @@ def _hex_rgb(h):
         return f"{int(h[0:2],16)},{int(h[2:4],16)},{int(h[4:6],16)}"
     except: return "43,122,120"
 
-DIRECTIONS = {
-    "cafe":"warm editorial — cream tones, cozy but stylish, coffee culture",
-    "coffee":"warm editorial — cream tones, cozy but stylish",
-    "restaurant":"bold food magazine — dark dramatic backgrounds, huge typography",
-    "food":"bold food magazine — dark dramatic backgrounds",
-    "salon":"luxury beauty editorial — gold accents, Vogue-level elegance",
-    "beauty":"luxury beauty editorial — gold accents, elegant",
-    "barber":"bold urban barbershop — dark industrial, strong geometric type",
-    "mechanic":"bold industrial — dark steel, orange accent, raw power",
-    "garage":"bold industrial — dark steel, orange accent",
-    "plumber":"clean professional trades — navy, clear and trustworthy",
-    "electrician":"clean trades — dark navy, electric yellow accent",
-    "gym":"high energy athletic — dark background, neon accent, condensed type",
-    "fitness":"high energy athletic — dark background, neon accent",
-    "pharmacy":"clean medical — white and teal, professional calm",
-    "clinic":"clean medical — soft blue, reassuring and clear",
-    "hospital":"clean medical — white and blue, calm authority",
-    "school":"educational — clean bright, inspiring blues",
-    "hotel":"luxury hospitality — dark elegant, gold accents, cinematic",
-    "lodge":"luxury hospitality — dark elegant, gold",
-    "fashion":"high fashion editorial — bold type, striking contrast",
-    "boutique":"high fashion — bold typography, asymmetric",
-    "electronics":"sleek tech — dark, blue accent, futuristic",
-    "phone":"sleek tech — dark, cyan accent",
-    "supermarket":"fresh market — bright, colorful, welcoming",
-    "hardware":"strong trades — bold orange, industrial, reliable",
+# Design personalities per category
+DESIGNS = {
+    "cafe":       ("warm-editorial",    "Cream & coffee tones, cozy editorial, handwritten accents"),
+    "coffee":     ("warm-editorial",    "Warm cream, cozy editorial, artisan feel"),
+    "restaurant": ("bold-food",         "Dark dramatic, huge typography, food magazine energy"),
+    "food":       ("bold-food",         "Dark backgrounds, oversized type, vibrant food energy"),
+    "salon":      ("luxury-beauty",     "Gold & black, Vogue-level elegance, fashion editorial"),
+    "beauty":     ("luxury-beauty",     "Gold accents, marble textures, premium feminine"),
+    "barber":     ("urban-barbershop",  "Dark industrial, geometric type, bold masculine"),
+    "mechanic":   ("industrial-bold",   "Dark steel, orange accent, raw power and reliability"),
+    "garage":     ("industrial-bold",   "Steel & orange, mechanical, strong and trustworthy"),
+    "plumber":    ("clean-trades",      "Navy & white, clean professional, trustworthy"),
+    "electrician":("electric-trades",   "Dark navy, electric yellow, sharp and technical"),
+    "gym":        ("high-energy",       "Dark background, neon accent, athletic energy, condensed type"),
+    "fitness":    ("high-energy",       "Dark, neon, high contrast, motivational"),
+    "pharmacy":   ("clean-medical",     "White & teal, clinical precision, calm authority"),
+    "clinic":     ("soft-medical",      "Soft blue, caring and reassuring, professional"),
+    "hospital":   ("medical-authority", "White & blue, calm authority, trustworthy"),
+    "school":     ("bright-education",  "Clean bright blues, inspiring, welcoming"),
+    "hotel":      ("luxury-hospitality","Dark elegant, gold accents, cinematic experience"),
+    "lodge":      ("luxury-hospitality","Dark elegant, gold, nature-luxury blend"),
+    "fashion":    ("high-fashion",      "Bold editorial, striking contrast, asymmetric layouts"),
+    "boutique":   ("high-fashion",      "Bold typography, asymmetric, avant-garde"),
+    "electronics":("sleek-tech",        "Dark, blue accent, futuristic, minimal"),
+    "phone":      ("sleek-tech",        "Dark, cyan accent, tech-forward"),
+    "supermarket":("fresh-market",      "Bright, colorful, friendly, welcoming"),
+    "hardware":   ("strong-trades",     "Bold orange, industrial, reliable and strong"),
 }
 
-def _direction(cat):
-    if not cat: return "modern professional — clean bold typography, premium feel"
+def _design(cat):
+    if not cat: return ("modern-pro", "Clean bold typography, premium modern feel")
     c = cat.lower()
-    for k,v in DIRECTIONS.items():
+    for k,v in DESIGNS.items():
         if k in c: return v
-    return "modern professional — clean bold typography, premium feel"
+    return ("modern-pro", "Clean bold typography, premium modern feel")
 
-def generate_business_website(biz):
+
+def generate_business_website(biz, plan="basic"):
     try: biz = dict(biz)
     except: pass
 
@@ -75,16 +81,20 @@ def generate_business_website(biz):
     branches    = biz.get("branches") or []
     ads         = biz.get("ads") or []
 
-    photos   = [p.strip() for p in photos_raw.split(",") if p.strip()]
-    wa_link  = f"https://wa.me/{whatsapp}?text=Hello%2C+I+found+{name.replace(' ','+')}+on+TrustedBiz%21"
+    # Pro Max uses Sonnet, Basic uses Haiku
+    model = "sonnet" if (plan == "promax" or is_premium) else "haiku"
+    client, model_id = _client(model)
+
+    photos  = [p.strip() for p in photos_raw.split(",") if p.strip()]
+    wa_link = f"https://wa.me/{whatsapp}?text=Hello%2C+I+found+{name.replace(' ','+')}+on+TrustedBiz%21"
     map_link = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}" if lat and lng else ""
 
-    client = _client()
     if client:
         try:
-            return _ai_generate(client, biz, name, category, description, whatsapp,
-                                hours, color, photos, lat, lng, is_premium,
-                                hero_price, hero_label, branches, ads, wa_link, map_link)
+            return _ai_generate(client, model_id, biz, name, category, description,
+                                whatsapp, hours, color, photos, lat, lng,
+                                hero_price, hero_label, branches, ads,
+                                wa_link, map_link, plan)
         except Exception as e:
             print(f"AI generate error: {e}")
 
@@ -93,138 +103,136 @@ def generate_business_website(biz):
                      branches, ads, wa_link, map_link)
 
 
-
-def generate_business_website_bg(biz, db_execute, biz_id):
-    """Generate AI website in a true background thread — never blocks the caller.
-    Always call this from inside a daemon thread (app.py fires a thread before
-    calling this). The fallback is already saved in DB; if AI succeeds it
-    overwrites the fallback with the better result."""
+def generate_business_website_bg(biz, db_execute, biz_id, plan="basic"):
     try:
-        html = generate_business_website(biz)
+        html = generate_business_website(biz, plan)
         if html and len(html) > 2000:
             try:
                 db_execute(
                     "UPDATE business SET generated_html=? WHERE id=?",
                     (html, biz_id)
                 )
-                print(f"AI generation done for biz_id={biz_id}")
+                print(f"Website generation done for biz_id={biz_id} plan={plan}")
             except Exception as e:
                 print(f"DB save error: {e}")
-        else:
-            print(f"AI generation returned too-short result for biz_id={biz_id} — fallback kept")
     except Exception as e:
-        print(f"AI generation error for biz_id={biz_id}: {e}")
+        print(f"Website generation error for biz_id={biz_id}: {e}")
 
 
-def _ai_generate(client, biz, name, category, description, whatsapp,
-                 hours, color, photos, lat, lng, is_premium,
-                 hero_price, hero_label, branches, ads, wa_link, map_link):
+def _ai_generate(client, model_id, biz, name, category, description, whatsapp,
+                 hours, color, photos, lat, lng,
+                 hero_price, hero_label, branches, ads,
+                 wa_link, map_link, plan):
 
-    direction = _direction(category)
-    rgb       = _hex_rgb(color)
+    design_style, design_desc = _design(category)
+    rgb = _hex_rgb(color)
 
+    # Build photo HTML
     photo_html = ""
     if photos:
-        for i,p in enumerate(photos[:6]):
+        for i, p in enumerate(photos[:8]):
             src = p if p.startswith("http") else f"/static/images/{p}"
             photo_html += f'<div class="gal-item" onclick="openLb({i})"><img src="{src}" alt="Photo {i+1}" loading="lazy"></div>\n'
 
+    # Branch info
     branch_text = ""
     if branches:
         for br in branches:
-            branch_text += f"- {br.get('name','Branch')}: {br.get('address','')}, {br.get('hours','')}\n"
+            branch_text += f"- {br.get('name','Branch')}: {br.get('address','')}, Hours: {br.get('hours','')}\n"
 
-    price_text = f"Starting price: {hero_label} from UGX {int(float(hero_price)):,}" if hero_price and hero_label else ""
+    # Price info
+    price_text = f"Signature item: {hero_label} — UGX {int(float(hero_price)):,}" if hero_price and hero_label else ""
 
+    # Ads info
     ads_text = ""
     if ads:
         for ad in ads:
-            ads_text += f"AD: '{ad.get('title','')}' — {ad.get('body','')}\n"
+            ads_text += f"PROMO: '{ad.get('title','')}' — {ad.get('body','')}\n"
 
-    prompt = f"""You are a senior creative director at a $10,000/project web agency. Build a STUNNING, world-class business website for a Uganda business. This must look like Vibram, PureCare, OLLY, or CSWatch — not a template.
+    # Different prompts for Basic vs Pro Max
+    if plan == "promax":
+        style_instruction = f"""You are the creative director at a world-class $50,000/project web agency.
+Create a MAGAZINE-LEVEL, award-winning website for this Uganda business.
+Design inspiration: {design_desc}
+This must look like it was designed by a top agency in New York or London — but feel local and authentic.
+Use CREATIVE LAYOUT TECHNIQUES: asymmetric grids, large typographic statements, bold color blocks, 
+diagonal sections, layered depth, micro-animations, glassmorphism or neumorphism where appropriate.
+The Pro Max website must be NOTICEABLY more premium, more unique, and more impressive than a basic website."""
+    else:
+        style_instruction = f"""You are a skilled web designer at a professional agency.
+Create a BEAUTIFUL, unique, and professional website for this Uganda business.
+Design style: {design_desc}
+Make it clean, modern, and impressive — NOT a template. Each section should feel intentional and designed.
+Use the brand color powerfully throughout."""
 
-BUSINESS DATA:
+    prompt = f"""{style_instruction}
+
+BUSINESS INFORMATION:
 Name: {name}
-Category: {category}
-Description: {description}
+Type: {category}
+About: {description}
 WhatsApp: {whatsapp}
 Hours: {hours}
-Brand Color: {color}
+Brand Color: {color} (RGB: {rgb})
 {price_text}
 {f"BRANCHES:{chr(10)}{branch_text}" if branch_text else ""}
-{f"PROMOTIONS:{chr(10)}{ads_text}" if ads_text else ""}
+{f"ACTIVE PROMOTIONS:{chr(10)}{ads_text}" if ads_text else ""}
 
-DESIGN DIRECTION: {direction}
+DESIGN RULES — NEVER BREAK:
+1. HERO: Pure CSS backgrounds ONLY — gradients, SVG shapes, CSS art, geometric patterns. NO <img> in hero.
+2. BUSINESS NAME in hero: font-size clamp(36px,9vw,100px), overflow:hidden, word-break:break-word
+3. MOBILE: Perfect on 390px screens. Hero buttons: flex-direction:column on mobile, width:fit-content, min-width:200px
+4. BRAND COLOR {color}: Use as primary everywhere — buttons, accents, gradients, highlights
+5. ANIMATIONS: CSS keyframes only. Fade-up on scroll via IntersectionObserver.
+6. MOBILE NAV: Hamburger menu that toggles nav links on mobile
+7. GALLERY: Client photos ONLY in gallery section using these img tags:
+{photo_html if photo_html else "   No photos — use CSS gradient placeholder cards with relevant icons"}
+8. FOOTER: © 2026 {name}. Powered by TrustedBiz linking to https://trustedbiz.co.ug
+9. WHATSAPP BUTTON: background:#25D366; color:white; border-radius:50px; Always use this link: {wa_link}
 
-CRITICAL DESIGN RULES — NEVER BREAK THESE:
-1. HERO BACKGROUND: Use ONLY pure CSS — dark gradients, geometric SVG shapes, animated particles, or abstract CSS art. NEVER use <img> tags in the hero. No photos as backgrounds.
-2. TYPOGRAPHY: Business name in the hero must be MASSIVE (clamp(36px,10vw,110px)), bold. ALWAYS set overflow:hidden and word-break:break-word on the hero h1 — long names must NEVER overflow off screen edges on mobile.
-3. MOBILE FIRST: Every section must look perfect on a 390px wide phone screen. No horizontal scroll ever. Hero buttons MUST stack centered on mobile: wrap them in a div with display:flex; flex-direction:column; align-items:center; gap:12px — each button must have width:fit-content; min-width:220px; max-width:90%; — NEVER width:100% or display:block on hero buttons.
-4. BRAND COLOR: {color} must be used powerfully — not just as accents. Use it for backgrounds, gradients, glows.
-5. ANIMATIONS: CSS keyframe animations only — fade-up on scroll, pulsing CTAs, hover transforms. No JS animation libraries.
-6. HAMBURGER MENU: On mobile, nav links must collapse into a hamburger menu (pure CSS or minimal JS toggle).
-7. GALLERY PHOTOS: Client photos go ONLY in the gallery section using these exact img tags — never in hero or backgrounds:
-{photo_html if photo_html else "   No photos provided — use CSS gradient placeholder cards with category-relevant icons"}
-8. YEAR: Footer copyright must say 2026, NOT 2024 or 2025.
-9. FOOTER LINK: "Powered by TrustedBiz" must link to https://trustedbiz.co.ug
+REQUIRED SECTIONS:
+1. STICKY NAV — logo left, hamburger mobile menu, WhatsApp button right
+2. HERO — 100vh, massive business name, powerful tagline from description
+   Buttons: "💬 Chat on WhatsApp" + {"📍 Get Directions" if map_link else "📞 Contact Us"}
+3. ABOUT — description + 4 trust cards (hours, contact, verified, location)
+4. SERVICES — 4-6 cards with real services inferred from {category} and description
+5. GALLERY — {"Show all " + str(len(photos)) + " photos" if photos else "3 styled placeholder cards"}
+6. {"PRICING — feature card: " + hero_label + " UGX " + str(int(float(hero_price))) + " with WhatsApp CTA" if hero_price else "WHY CHOOSE US — 3 compelling reasons"}
+{f"7. PROMOTIONS — styled cards for: {ads_text}" if ads_text else ""}
+{f"{'8' if ads_text else '7'}. BRANCHES — location cards for all branches" if branch_text else ""}
+7. CONTACT — large WhatsApp CTA, hours, {"map directions button: " + map_link if map_link else "contact details"}
+8. FOOTER — name, tagline, © 2026, Powered by TrustedBiz
 
-REQUIRED SECTIONS IN ORDER:
-1. NAV — sticky, logo left, hamburger on mobile, WhatsApp CTA button right
-2. HERO — fullscreen 100vh, massive business name, powerful tagline from description, two CTAs: WhatsApp + {f"Get Directions" if map_link else "Learn More"}
-3. ABOUT — split layout on desktop, stacked on mobile. Description + 4 trust badges (hours, location, verified, WhatsApp)
-4. SERVICES — grid of 4-6 cards. Infer real services from category+description. Each card has icon, title, description.
-5. GALLERY — masonry-style photo grid. {f"Use these {len(photos)} photos: show all" if photos else "Use 3 CSS gradient placeholder cards"}
-6. {f"PRICING — hero price card: {hero_label} from UGX {int(float(hero_price)):,} with WhatsApp CTA" if hero_price else "WHY CHOOSE US — 3 compelling reasons with icons"}
-{f"7. PROMOTIONS — styled promo cards for: {ads_text}" if ads_text else ""}
-{f"{'8' if ads_text else '7'}. BRANCHES — location cards for: {branch_text}" if branch_text else ""}
-7. CONTACT — large WhatsApp CTA button, hours card, {f"embedded map directions button linking to {map_link}" if map_link else "call to action"}
-8. FOOTER — business name, tagline, hours, WhatsApp, © 2026 {name}, Powered by TrustedBiz (link to https://trustedbiz.co.ug)
+CSS VARIABLES TO USE:
+:root {{ --primary: {color}; --primary-rgb: {rgb}; --dark: #0d0d0d; --light: #f7f7f5; }}
 
-WHATSAPP BUTTON STYLE — use this exact green everywhere:
-background: #25D366; color: white; padding: 16px 32px; border-radius: 50px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; width: fit-content;
-WhatsApp link: {wa_link}
-{f"Directions link: {map_link}" if map_link else ""}
-
-TECHNICAL REQUIREMENTS:
-- Single HTML file. All CSS in <style>. All JS in <script> before </body>.
-- No external JS libraries (no jQuery, no GSAP). Google Fonts OK.
-- CSS custom properties for colors: --primary, --primary-rgb, --dark, --light
-- Smooth scroll behavior
-- Intersection Observer for scroll animations
-- Touch-friendly on mobile
-
-OUTPUT: Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown. No backticks. No explanation."""
+OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown, no backticks, no explanation."""
 
     messages = [{"role": "user", "content": prompt}]
     full_text = ""
-    max_rounds = 4  # safety cap on continuation calls
+    max_tokens = 12000 if plan == "promax" else 9000
 
-    for round_num in range(max_rounds):
+    for round_num in range(5):
         msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=9000,
+            model=model_id,
+            max_tokens=max_tokens,
             messages=messages
         )
         chunk = msg.content[0].text if msg.content else ""
         full_text += chunk
 
-        # If the model finished naturally, we're done
         if msg.stop_reason != "max_tokens":
             break
 
-        # Model was cut off — ask it to continue exactly where it stopped
-        print(f"AI generation hit max_tokens on round {round_num + 1}, continuing...")
+        print(f"Continuing generation round {round_num + 1}...")
         messages.append({"role": "assistant", "content": chunk})
-        messages.append({"role": "user", "content": "Continue exactly from where you stopped. Output only the remaining HTML, no preamble."})
-    else:
-        print("Warning: AI generation hit max continuation rounds — HTML may be incomplete.")
+        messages.append({"role": "user", "content": "Continue exactly where you stopped. Output only remaining HTML."})
 
-    raw = full_text
-    raw = re.sub(r'^```html\s*', '', raw.strip(), flags=re.IGNORECASE)
-    raw = re.sub(r'^```\s*', '', raw.strip())
-    raw = re.sub(r'\s*```$', '', raw.strip())
+    raw = full_text.strip()
+    raw = re.sub(r'^```html\s*', '', raw, flags=re.IGNORECASE)
+    raw = re.sub(r'^```\s*', '', raw)
+    raw = re.sub(r'\s*```$', '', raw)
 
-    # Ensure the HTML is properly closed
     if raw and '</html>' not in raw[-500:]:
         raw = raw.rstrip() + '\n</body>\n</html>'
 
@@ -234,19 +242,19 @@ OUTPUT: Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown. No back
 def _fallback(name, category, description, whatsapp, hours, color,
               photos, lat, lng, hero_price, hero_label,
               branches, ads, wa_link, map_link):
-    """High-quality fallback website — no API needed."""
+    """High-quality fallback — no API needed."""
     rgb = _hex_rgb(color)
+    _, design_desc = _design(category)
 
     gallery_html = ""
+    photos_js = "var P=[];"
     if photos:
         items = ""
-        for i,p in enumerate(photos[:6]):
+        for i, p in enumerate(photos[:6]):
             src = p if p.startswith("http") else f"/static/images/{p}"
             items += f'<div class="gi" onclick="lb({i})"><img src="{src}" alt="" loading="lazy"></div>'
         gallery_html = f'<section class="sec sec-alt" id="gallery"><div class="wrap"><p class="sec-label">Gallery</p><h2 class="sec-h">Our Work</h2><div class="gal">{items}</div></div></section>'
         photos_js = "var P=[" + ",".join([f'"{p if p.startswith("http") else "/static/images/"+p}"' for p in photos]) + "];"
-    else:
-        photos_js = "var P=[];"
 
     price_html = ""
     if hero_price and hero_label:
@@ -263,110 +271,109 @@ def _fallback(name, category, description, whatsapp, hours, color,
             img_html = ""
             if ad.get("image_ref"):
                 src = ad["image_ref"] if ad["image_ref"].startswith("http") else f'/static/images/{ad["image_ref"]}'
-                img_html = f'<img src="{src}" alt="" style="width:100%;max-height:300px;object-fit:cover;border-radius:12px;margin-bottom:16px;">'
-            ads_html += f'<div class="ad-block">{img_html}<h3>{ad.get("title","")}</h3><p>{ad.get("body","")}</p><a href="{wa_link}" target="_blank" class="wa-btn" style="margin-top:16px;display:inline-flex;">Learn More</a></div>'
-        ads_html = f'<section class="sec" id="announcements"><div class="wrap"><p class="sec-label">Announcements</p><h2 class="sec-h">Latest Updates</h2><div class="ads-grid">{ads_html}</div></div></section>'
+                img_html = f'<img src="{src}" alt="" style="width:100%;max-height:260px;object-fit:cover;border-radius:12px;margin-bottom:16px;">'
+            ads_html += f'<div class="ad-block">{img_html}<h3>{ad.get("title","")}</h3><p>{ad.get("body","")}</p><a href="{wa_link}" target="_blank" class="wa-btn" style="margin-top:14px;display:inline-flex;">Learn More</a></div>'
+        ads_html = f'<section class="sec" id="promos"><div class="wrap"><p class="sec-label">Announcements</p><h2 class="sec-h">Latest Updates</h2><div class="ads-grid">{ads_html}</div></div></section>'
 
     map_html = ""
     if lat and lng:
-        map_html = f"""
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<div id="bmap" style="width:100%;height:300px;border-radius:12px;margin-top:24px;"></div>
-<script>
-var bm=L.map('bmap').setView([{lat},{lng}],15);
-L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',{{maxZoom:19}}).addTo(bm);
-L.marker([{lat},{lng}]).addTo(bm).bindPopup('<strong>{name}</strong>').openPopup();
-</script>"""
+        map_html = f'<div id="bmap" style="width:100%;height:280px;border-radius:12px;margin-top:20px;"></div><link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/><script src="https://unpkg.com/leaflet/dist/leaflet.js"></script><script>var bm=L.map("bmap").setView([{lat},{lng}],15);L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png",{{maxZoom:19}}).addTo(bm);L.marker([{lat},{lng}]).addTo(bm).bindPopup("<strong>{name}</strong>").openPopup();</script>'
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>{name} — {category.title()} | TrustedBiz</title>
+<title>{name} — {category.title()} in Uganda</title>
 <meta name="description" content="{description[:155]}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0;}}
-:root{{--c:{color};--rgb:{rgb};--dark:#0f0f0f;--light:#f8f8f6;}}
+:root{{--primary:{color};--rgb:{rgb};--dark:#0d0d0d;--light:#f7f7f5;}}
 html{{scroll-behavior:smooth;}}
 body{{font-family:'DM Sans',sans-serif;background:var(--light);color:#1a1a1a;overflow-x:hidden;}}
-@keyframes fadeUp{{from{{opacity:0;transform:translateY(24px)}}to{{opacity:1;transform:translateY(0)}}}}
-.reveal{{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s;}}
+@keyframes fadeUp{{from{{opacity:0;transform:translateY(28px)}}to{{opacity:1;transform:translateY(0)}}}}
+@keyframes pulse{{0%,100%{{transform:scale(1)}}50%{{transform:scale(1.4);opacity:.6}}}}
+@keyframes float{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY(-10px)}}}}
+.reveal{{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease;}}
 .reveal.in{{opacity:1;transform:none;}}
-nav{{position:fixed;top:0;left:0;right:0;z-index:100;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 36px;transition:background .4s;}}
-nav.solid{{background:rgba(15,15,15,.96);border-bottom:1px solid rgba(255,255,255,.06);}}
-.nav-brand{{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:white;text-decoration:none;}}
-.nav-brand em{{font-style:normal;color:var(--c);}}
-.nav-wa{{background:var(--c);color:white;padding:8px 18px;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;transition:filter .2s;}}
-.nav-wa:hover{{filter:brightness(1.1);}}
+nav{{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 36px;transition:background .3s,box-shadow .3s;}}
+nav.solid{{background:rgba(13,13,13,.97);box-shadow:0 1px 0 rgba(255,255,255,.06);}}
+.nav-brand{{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:white;text-decoration:none;letter-spacing:-.3px;}}
+.nav-brand em{{font-style:normal;color:var(--primary);}}
+.nav-wa{{background:var(--primary);color:white;padding:9px 20px;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;transition:filter .2s,transform .2s;white-space:nowrap;}}
+.nav-wa:hover{{filter:brightness(1.12);transform:translateY(-1px);}}
 .hero{{min-height:100vh;background:var(--dark);display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 24px 80px;position:relative;overflow:hidden;}}
-.hero-bg{{position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 50%,rgba(var(--rgb),.18) 0%,transparent 65%);}}
-.hero-grid{{position:absolute;inset:0;opacity:.03;background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);background-size:50px 50px;}}
-.hero-inner{{position:relative;z-index:2;max-width:820px;animation:fadeUp .9s ease forwards;}}
-.eyebrow{{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.75);font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:7px 18px;border-radius:100px;margin-bottom:28px;}}
-.dot{{width:6px;height:6px;border-radius:50%;background:var(--c);animation:pulse 2s infinite;}}
-@keyframes pulse{{0%,100%{{transform:scale(1)}}50%{{transform:scale(1.5);opacity:.5}}}}
-.hero h1{{font-family:'Syne',sans-serif;font-size:clamp(44px,8vw,96px);font-weight:800;color:white;line-height:.95;letter-spacing:-2px;margin-bottom:24px;}}
-.hero h1 .ac{{color:var(--c);}}
-.hero-desc{{font-size:18px;color:rgba(255,255,255,.6);max-width:540px;margin:0 auto 40px;line-height:1.75;font-weight:300;}}
+.hero-bg{{position:absolute;inset:0;background:radial-gradient(ellipse 80% 70% at 50% 40%,rgba(var(--rgb),.2) 0%,transparent 60%);}}
+.hero-shapes{{position:absolute;inset:0;overflow:hidden;opacity:.06;}}
+.hero-shapes::before{{content:'';position:absolute;width:600px;height:600px;border:1px solid rgba(255,255,255,.3);border-radius:50%;top:-100px;right:-200px;animation:float 8s ease-in-out infinite;}}
+.hero-shapes::after{{content:'';position:absolute;width:400px;height:400px;border:1px solid rgba(255,255,255,.2);border-radius:50%;bottom:-100px;left:-100px;animation:float 6s ease-in-out infinite reverse;}}
+.hero-inner{{position:relative;z-index:2;max-width:860px;animation:fadeUp .9s ease forwards;}}
+.eyebrow{{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.8);font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:8px 20px;border-radius:100px;margin-bottom:32px;}}
+.dot{{width:6px;height:6px;border-radius:50%;background:var(--primary);animation:pulse 2s infinite;flex-shrink:0;}}
+.hero h1{{font-family:'Syne',sans-serif;font-size:clamp(40px,9vw,100px);font-weight:900;color:white;line-height:.95;letter-spacing:-3px;margin-bottom:24px;overflow:hidden;word-break:break-word;}}
+.hero h1 .ac{{color:var(--primary);}}
+.hero-desc{{font-size:18px;color:rgba(255,255,255,.55);max-width:560px;margin:0 auto 44px;line-height:1.8;font-weight:300;}}
 .hero-btns{{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}}
-.wa-btn{{display:inline-flex;align-items:center;gap:9px;background:#22c55e;color:white;padding:15px 30px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:all .25s;}}
-.wa-btn:hover{{background:#16a34a;transform:translateY(-2px);box-shadow:0 12px 30px rgba(34,197,94,.3);}}
-.dir-btn{{display:inline-flex;align-items:center;gap:9px;border:2px solid rgba(255,255,255,.2);color:white;padding:15px 26px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none;transition:all .25s;}}
-.dir-btn:hover{{border-color:var(--c);background:rgba(255,255,255,.05);}}
-.sec{{padding:88px 24px;}}
+.wa-btn{{display:inline-flex;align-items:center;gap:9px;background:#25D366;color:white;padding:16px 32px;border-radius:50px;font-size:15px;font-weight:700;text-decoration:none;transition:all .25s;width:fit-content;}}
+.wa-btn:hover{{background:#1eaa52;transform:translateY(-2px);box-shadow:0 14px 32px rgba(37,211,102,.3);}}
+.dir-btn{{display:inline-flex;align-items:center;gap:9px;border:2px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:16px 28px;border-radius:50px;font-size:15px;font-weight:600;text-decoration:none;transition:all .25s;width:fit-content;}}
+.dir-btn:hover{{border-color:var(--primary);background:rgba(var(--rgb),.1);}}
+.sec{{padding:92px 24px;}}
 .sec-alt{{background:white;}}
-.wrap{{max-width:1000px;margin:0 auto;}}
-.sec-label{{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--c);margin-bottom:12px;}}
-.sec-h{{font-family:'Syne',sans-serif;font-size:clamp(30px,4vw,52px);font-weight:800;color:#1a1a1a;line-height:1.05;letter-spacing:-1px;margin-bottom:20px;}}
-.sec-sub{{font-size:16px;color:#6b7280;line-height:1.75;max-width:580px;margin-bottom:48px;}}
-.info-grid{{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;}}
-.info-card{{background:#f8f8f6;border-radius:14px;padding:28px;border:1.5px solid rgba(0,0,0,.06);transition:border-color .2s,transform .2s;}}
-.info-card:hover{{border-color:var(--c);transform:translateY(-3px);}}
-.ic-icon{{font-size:28px;margin-bottom:14px;}}
-.info-card h3{{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:8px;}}
-.info-card p{{font-size:14px;color:#6b7280;line-height:1.6;}}
-.services-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:40px;}}
-.svc-card{{background:#f8f8f6;border-radius:12px;padding:24px;border:1.5px solid rgba(0,0,0,.06);transition:all .2s;position:relative;overflow:hidden;}}
-.svc-card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--c);transform:scaleX(0);transform-origin:left;transition:transform .3s;}}
-.svc-card:hover{{border-color:var(--c);transform:translateY(-3px);}}.svc-card:hover::before{{transform:scaleX(1);}}
-.svc-icon{{font-size:28px;margin-bottom:12px;}}
-.svc-card h3{{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#1a1a1a;margin-bottom:6px;}}
-.svc-card p{{font-size:13px;color:#6b7280;line-height:1.5;}}
-.gal{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:40px;}}
-.gi{{aspect-ratio:4/3;border-radius:10px;overflow:hidden;cursor:pointer;}}
+.wrap{{max-width:1040px;margin:0 auto;}}
+.sec-label{{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--primary);margin-bottom:14px;}}
+.sec-h{{font-family:'Syne',sans-serif;font-size:clamp(28px,4vw,52px);font-weight:800;color:#111;line-height:1.05;letter-spacing:-1.5px;margin-bottom:16px;}}
+.sec-sub{{font-size:16px;color:#6b7280;line-height:1.8;max-width:600px;margin-bottom:52px;font-weight:300;}}
+.info-grid{{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:44px;}}
+.info-card{{background:var(--light);border-radius:16px;padding:28px;border:1.5px solid #e5e7eb;transition:border-color .2s,transform .2s;}}
+.info-card:hover{{border-color:var(--primary);transform:translateY(-3px);}}
+.ic-icon{{font-size:30px;margin-bottom:16px;}}
+.info-card h3{{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:#111;margin-bottom:8px;}}
+.info-card p{{font-size:14px;color:#6b7280;line-height:1.65;}}
+.services-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;margin-top:44px;}}
+.svc-card{{background:var(--light);border-radius:14px;padding:26px;border:1.5px solid #e5e7eb;transition:all .2s;position:relative;overflow:hidden;}}
+.svc-card::after{{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--primary);transform:scaleX(0);transform-origin:left;transition:transform .3s;}}
+.svc-card:hover{{border-color:var(--primary);transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.08);}}
+.svc-card:hover::after{{transform:scaleX(1);}}
+.svc-icon{{font-size:30px;margin-bottom:14px;}}
+.svc-card h3{{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#111;margin-bottom:7px;}}
+.svc-card p{{font-size:13px;color:#6b7280;line-height:1.55;}}
+.gal{{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:44px;}}
+.gi{{aspect-ratio:4/3;border-radius:12px;overflow:hidden;cursor:pointer;}}
 .gi img{{width:100%;height:100%;object-fit:cover;transition:transform .4s;display:block;}}
-.gi:hover img{{transform:scale(1.06);}}
-.contact-grid{{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;margin-top:40px;}}
-.contact-detail{{display:flex;align-items:center;gap:14px;padding:16px;background:#f8f8f6;border-radius:12px;margin-bottom:12px;}}
-.cd-icon{{width:40px;height:40px;background:rgba(var(--rgb),.12);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}}
-.cd-label{{font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}}
-.cd-val{{font-size:14px;font-weight:600;color:#1a1a1a;}}
-.branches{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:40px;}}
-.branch-card{{background:#f8f8f6;border-radius:12px;padding:22px;border:1.5px solid rgba(0,0,0,.06);}}
+.gi:hover img{{transform:scale(1.07);}}
+.contact-grid{{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;margin-top:44px;}}
+.contact-detail{{display:flex;align-items:center;gap:14px;padding:16px;background:var(--light);border-radius:12px;margin-bottom:12px;border:1px solid #e5e7eb;}}
+.cd-icon{{width:42px;height:42px;background:rgba(var(--rgb),.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}}
+.cd-label{{font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}}
+.cd-val{{font-size:14px;font-weight:600;color:#111;}}
+.branches{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:44px;}}
+.branch-card{{background:var(--light);border-radius:14px;padding:24px;border:1.5px solid #e5e7eb;}}
 .branch-card h4{{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px;}}
 .branch-card p{{font-size:13px;color:#6b7280;margin-bottom:4px;}}
-.ads-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-top:40px;}}
-.ad-block{{background:linear-gradient(135deg,rgba(var(--rgb),.06),rgba(var(--rgb),.02));border:1.5px solid rgba(var(--rgb),.2);border-radius:14px;padding:24px;}}
-.ad-block h3{{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#1a1a1a;margin-bottom:8px;}}
-.ad-block p{{font-size:14px;color:#6b7280;line-height:1.6;}}
-.lb{{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9000;display:none;flex-direction:column;align-items:center;justify-content:center;}}
+.ads-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-top:44px;}}
+.ad-block{{background:linear-gradient(135deg,rgba(var(--rgb),.07),rgba(var(--rgb),.02));border:1.5px solid rgba(var(--rgb),.2);border-radius:16px;padding:26px;}}
+.ad-block h3{{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#111;margin-bottom:8px;}}
+.ad-block p{{font-size:14px;color:#6b7280;line-height:1.65;}}
+.lb{{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9000;display:none;flex-direction:column;align-items:center;justify-content:center;}}
 .lb.open{{display:flex;}}
-.lb-img{{max-width:90vw;max-height:78vh;border-radius:8px;object-fit:contain;}}
-.lb-close{{position:absolute;top:18px;right:22px;color:white;font-size:28px;cursor:pointer;background:rgba(255,255,255,.1);border:none;padding:8px 14px;border-radius:8px;}}
-.lb-prev,.lb-next{{position:absolute;top:50%;transform:translateY(-50%);color:white;font-size:34px;cursor:pointer;background:rgba(255,255,255,.1);border:none;padding:10px 14px;border-radius:8px;transition:background .2s;}}
-.lb-prev{{left:10px;}}.lb-next{{right:10px;}}
+.lb-img{{max-width:90vw;max-height:80vh;border-radius:8px;object-fit:contain;}}
+.lb-close{{position:absolute;top:20px;right:24px;color:white;font-size:26px;cursor:pointer;background:rgba(255,255,255,.1);border:none;padding:8px 14px;border-radius:8px;}}
+.lb-prev,.lb-next{{position:absolute;top:50%;transform:translateY(-50%);color:white;font-size:32px;cursor:pointer;background:rgba(255,255,255,.1);border:none;padding:10px 16px;border-radius:8px;transition:background .2s;}}
+.lb-prev{{left:12px;}}.lb-next{{right:12px;}}
 .lb-prev:hover,.lb-next:hover{{background:rgba(255,255,255,.22);}}
-footer{{background:var(--dark);padding:36px 24px;text-align:center;color:rgba(255,255,255,.35);font-size:13px;}}
-footer a{{color:var(--c);text-decoration:none;font-weight:600;}}
+footer{{background:var(--dark);padding:40px 24px;text-align:center;color:rgba(255,255,255,.3);font-size:13px;}}
+footer strong{{color:rgba(255,255,255,.7);font-family:'Syne',sans-serif;}}
+footer a{{color:var(--primary);text-decoration:none;font-weight:600;}}
 @media(max-width:700px){{
   nav{{padding:0 16px;}}
   .hero{{padding:90px 16px 70px;}}
+  .hero-btns{{flex-direction:column;align-items:center;}}
+  .wa-btn,.dir-btn{{min-width:220px;justify-content:center;}}
   .info-grid,.contact-grid{{grid-template-columns:1fr;}}
-  .sec{{padding:60px 16px;}}
+  .sec{{padding:64px 16px;}}
 }}
 </style>
 </head>
@@ -382,11 +389,12 @@ footer a{{color:var(--c);text-decoration:none;font-weight:600;}}
   <a href="{wa_link}" target="_blank" class="nav-wa">WhatsApp Us</a>
 </nav>
 <section class="hero">
-  <div class="hero-bg"></div><div class="hero-grid"></div>
+  <div class="hero-bg"></div>
+  <div class="hero-shapes"></div>
   <div class="hero-inner">
-    <div class="eyebrow"><span class="dot"></span>{category.upper()}</div>
+    <div class="eyebrow"><span class="dot"></span>{category.upper()} · UGANDA</div>
     <h1><span class="ac">{name}</span></h1>
-    <p class="hero-desc">{description[:200]}</p>
+    <p class="hero-desc">{description[:220]}</p>
     <div class="hero-btns">
       <a href="{wa_link}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>
       {f'<a href="{map_link}" target="_blank" class="dir-btn">📍 Get Directions</a>' if map_link else ""}
@@ -400,9 +408,9 @@ footer a{{color:var(--c);text-decoration:none;font-weight:600;}}
     <p class="sec-sub reveal">{description}</p>
     <div class="info-grid">
       <div class="info-card reveal"><div class="ic-icon">⏰</div><h3>Opening Hours</h3><p>{hours}</p></div>
-      <div class="info-card reveal"><div class="ic-icon">📱</div><h3>Contact Us</h3><p>+{whatsapp}<br>Message anytime on WhatsApp</p></div>
+      <div class="info-card reveal"><div class="ic-icon">💬</div><h3>WhatsApp Us</h3><p>+{whatsapp}<br>Message us anytime</p></div>
       <div class="info-card reveal"><div class="ic-icon">✅</div><h3>Verified Business</h3><p>Listed and verified on TrustedBiz Uganda</p></div>
-      <div class="info-card reveal"><div class="ic-icon">📍</div><h3>Location</h3><p>{"Get directions on Google Maps" if map_link else "Contact us for directions"}</p></div>
+      <div class="info-card reveal"><div class="ic-icon">📍</div><h3>Find Us</h3><p>{"Get directions via Google Maps" if map_link else "Contact us for our location"}</p></div>
     </div>
   </div>
 </section>
@@ -411,10 +419,12 @@ footer a{{color:var(--c);text-decoration:none;font-weight:600;}}
     <p class="sec-label">What We Offer</p>
     <h2 class="sec-h reveal">Our Services</h2>
     <div class="services-grid">
-      <div class="svc-card reveal"><div class="svc-icon">⭐</div><h3>Professional Service</h3><p>High-quality {category} services delivered by experts.</p></div>
-      <div class="svc-card reveal"><div class="svc-icon">🚀</div><h3>Fast Turnaround</h3><p>We value your time and deliver results quickly.</p></div>
-      <div class="svc-card reveal"><div class="svc-icon">💬</div><h3>WhatsApp Support</h3><p>Contact us anytime. We respond fast.</p></div>
-      <div class="svc-card reveal"><div class="svc-icon">🛡️</div><h3>Trusted Quality</h3><p>Verified on TrustedBiz. Real reviews from real customers.</p></div>
+      <div class="svc-card reveal"><div class="svc-icon">⭐</div><h3>Quality Service</h3><p>Professional {category} services delivered by experienced specialists.</p></div>
+      <div class="svc-card reveal"><div class="svc-icon">⚡</div><h3>Fast & Reliable</h3><p>We respect your time and deliver results you can count on.</p></div>
+      <div class="svc-card reveal"><div class="svc-icon">💬</div><h3>WhatsApp Support</h3><p>Reach us anytime on WhatsApp. We respond quickly.</p></div>
+      <div class="svc-card reveal"><div class="svc-icon">🛡️</div><h3>Trusted & Verified</h3><p>Verified business on TrustedBiz with real customer reviews.</p></div>
+      <div class="svc-card reveal"><div class="svc-icon">📍</div><h3>Easy to Find</h3><p>Get directions straight to us with one tap on your phone.</p></div>
+      <div class="svc-card reveal"><div class="svc-icon">💯</div><h3>Customer First</h3><p>Your satisfaction is our priority. We go the extra mile every time.</p></div>
     </div>
   </div>
 </section>
@@ -425,15 +435,15 @@ footer a{{color:var(--c);text-decoration:none;font-weight:600;}}
 <section class="sec sec-alt" id="contact">
   <div class="wrap">
     <p class="sec-label">Get In Touch</p>
-    <h2 class="sec-h reveal">Contact Us</h2>
+    <h2 class="sec-h reveal">Contact Us Today</h2>
     <div class="contact-grid">
       <div>
         <div class="contact-detail"><div class="cd-icon">💬</div><div><div class="cd-label">WhatsApp</div><div class="cd-val">+{whatsapp}</div></div></div>
-        <div class="contact-detail"><div class="cd-icon">⏰</div><div><div class="cd-label">Hours</div><div class="cd-val">{hours}</div></div></div>
-        {f'<div class="contact-detail"><div class="cd-icon">📍</div><div><div class="cd-label">Directions</div><div class="cd-val">Get directions on Google Maps</div></div></div>' if map_link else ""}
+        <div class="contact-detail"><div class="cd-icon">⏰</div><div><div class="cd-label">Opening Hours</div><div class="cd-val">{hours}</div></div></div>
+        {f'<div class="contact-detail"><div class="cd-icon">📍</div><div><div class="cd-label">Directions</div><div class="cd-val">Google Maps directions available</div></div></div>' if map_link else ""}
       </div>
-      <div style="text-align:center">
-        <a href="{wa_link}" target="_blank" class="wa-btn" style="display:inline-flex;margin-bottom:14px;">💬 Chat on WhatsApp</a>
+      <div style="text-align:center;padding-top:16px;">
+        <a href="{wa_link}" target="_blank" class="wa-btn" style="display:inline-flex;margin-bottom:16px;">💬 Chat on WhatsApp</a>
         {f'<br><a href="{map_link}" target="_blank" class="dir-btn" style="display:inline-flex;margin-top:8px;">📍 Get Directions</a>' if map_link else ""}
         {map_html}
       </div>
@@ -441,8 +451,9 @@ footer a{{color:var(--c);text-decoration:none;font-weight:600;}}
   </div>
 </section>
 <footer>
-  <p style="margin-bottom:6px;">© 2026 {name}. All rights reserved.</p>
-  <p>Powered by <a href="https://trustedbiz.co.ug" target="_blank">TrustedBiz</a> — Uganda's Trusted Business Directory</p>
+  <p style="margin-bottom:8px;"><strong>{name}</strong></p>
+  <p style="margin-bottom:6px;">{category.title()} · Uganda · {hours}</p>
+  <p>© 2026 {name}. Powered by <a href="https://trustedbiz.co.ug" target="_blank">TrustedBiz</a></p>
 </footer>
 <script>
 {photos_js}
@@ -453,117 +464,9 @@ function lbn(d){{li=(li+d+P.length)%P.length;document.getElementById('lbi').src=
 document.getElementById('lb').addEventListener('click',function(e){{if(e.target===this)lbc();}});
 document.addEventListener('keydown',function(e){{if(document.getElementById('lb').classList.contains('open')){{if(e.key==='ArrowRight')lbn(1);if(e.key==='ArrowLeft')lbn(-1);if(e.key==='Escape')lbc();}}}});
 window.addEventListener('scroll',function(){{document.getElementById('nav').classList.toggle('solid',window.scrollY>60);}});
-var obs=new IntersectionObserver(function(e){{e.forEach(function(x){{if(x.isIntersecting)x.target.classList.add('in');}});}},{{threshold:.12}});
+var obs=new IntersectionObserver(function(entries){{entries.forEach(function(e){{if(e.isIntersecting)e.target.classList.add('in');}});}},{{threshold:.1}});
 document.querySelectorAll('.reveal').forEach(function(el){{obs.observe(el);}});
 </script>
 </body>
 </html>"""
 
-
-# ── TEMPLATE POOL: swap business info into an existing pooled HTML page ───────
-def swap_business_info(pool_html, biz):
-    """Replace key business info in a pooled HTML page with new business data.
-    This costs ZERO AI tokens — it's just string replacement.
-    The result looks like a fresh AI-generated page for the new business.
-    """
-    try:
-        biz = dict(biz)
-    except:
-        pass
-
-    name        = str(biz.get("name") or "Business")
-    category    = str(biz.get("category") or "")
-    description = str(biz.get("description") or f"Professional {category} services in Uganda.")
-    whatsapp    = str(biz.get("whatsapp") or "")
-    hours       = str(biz.get("hours") or "Mon–Sat 8am–7pm")
-    color       = str(biz.get("brand_color") or "#2b7a78")
-    photos_raw  = str(biz.get("photos") or "")
-    lat         = biz.get("lat") or 0
-    lng         = biz.get("lng") or 0
-    hero_price  = biz.get("hero_price")
-    hero_label  = str(biz.get("hero_price_label") or "")
-    slug        = str(biz.get("slug") or "")
-
-    photos   = [p.strip() for p in photos_raw.split(",") if p.strip()]
-    wa_link  = f"https://wa.me/{whatsapp}?text=Hello%2C+I+found+{name.replace(' ','+')}+on+TrustedBiz%21"
-    map_link = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}" if lat and lng else "#"
-    rgb      = _hex_rgb(color)
-
-    html = pool_html
-
-    # ── Replace business name everywhere ──────────────────────────────────────
-    import re as _re
-    # Find the old business name from <title> tag
-    old_name_m = _re.search(r'<title>([^<|]+)', html)
-    if old_name_m:
-        old_name = old_name_m.group(1).strip()
-        html = html.replace(old_name, name)
-
-    # ── Replace WhatsApp number and links ────────────────────────────────────
-    html = _re.sub(r'https://wa\.me/\d+[^"\']*', wa_link, html)
-    html = _re.sub(r'wa\.me/\d+', f'wa.me/{whatsapp}', html)
-
-    # ── Replace Google Maps link ─────────────────────────────────────────────
-    html = _re.sub(
-        r'https://www\.google\.com/maps/dir/[^"\']*',
-        map_link, html
-    )
-
-    # ── Replace brand color ──────────────────────────────────────────────────
-    old_color_m = _re.search(r'--primary:\s*(#[0-9a-fA-F]{3,6})', html)
-    if old_color_m:
-        old_color = old_color_m.group(1)
-        html = html.replace(old_color, color)
-    old_rgb_m = _re.search(r'--primary-rgb:\s*([0-9,\s]+);', html)
-    if old_rgb_m:
-        old_rgb = old_rgb_m.group(1).strip()
-        html = html.replace(old_rgb, rgb)
-
-    # ── Replace hours ────────────────────────────────────────────────────────
-    old_hours_m = _re.search(
-        r'(Mon[-–][A-Za-z]+\s+\d+[ap]m[-–]\d+[ap]m[^<"\']{0,40})',
-        html, _re.IGNORECASE
-    )
-    if old_hours_m:
-        html = html.replace(old_hours_m.group(1), hours, 1)
-
-    # ── Replace description text in about/hero sections ──────────────────────
-    # Find text between about-section indicators and replace first long paragraph
-    html = _re.sub(
-        r'(<p[^>]*class="[^"]*(?:desc|about|tagline|lead)[^"]*"[^>]*>)[^<]{40,}(</p>)',
-        lambda m: m.group(1) + description + m.group(2),
-        html, count=1, flags=_re.IGNORECASE
-    )
-
-    # ── Replace gallery photos ────────────────────────────────────────────────
-    if photos:
-        new_photo_html = ""
-        for i, p in enumerate(photos[:6]):
-            src = p if p.startswith("http") else f"/static/images/{p}"
-            new_photo_html += f'<div class="gal-item" onclick="openLb({i})"><img src="{src}" alt="Photo {i+1}" loading="lazy"></div>\n'
-        # Replace img tags inside gal-item divs
-        html = _re.sub(
-            r'(<div class="gal-item"[^>]*>).*?(</div>)',
-            '', html, flags=_re.DOTALL
-        )
-        # Insert new photos into gal div
-        html = _re.sub(
-            r'(<div[^>]*class="[^"]*gal[^"]*"[^>]*>)',
-            lambda m: m.group(0) + new_photo_html,
-            html, count=1
-        )
-
-    # ── Replace hero price ───────────────────────────────────────────────────
-    if hero_price and hero_label:
-        price_str = f"UGX {int(float(hero_price)):,}"
-        html = _re.sub(r'UGX\s+[\d,]+', price_str, html, count=1)
-        html = _re.sub(
-            r'(From|Starting at|Starting from)\s+UGX\s+[\d,]+',
-            f'From {price_str}',
-            html, flags=_re.IGNORECASE
-        )
-
-    # ── Replace copyright year name in footer ────────────────────────────────
-    html = _re.sub(r'© \d{4} [^.<]+', f'© 2026 {name}', html)
-
-    return html
