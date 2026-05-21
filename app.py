@@ -140,7 +140,7 @@ app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = True
-app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB — handles 6 phone photos
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
 
@@ -221,7 +221,7 @@ def save_photos_b64(b64_list):
     import base64, re
     results = []
     for b64 in b64_list:
-        if not b64: continue
+        if not b64 or b64 == 'null': continue   # skip removed/null entries
         try:
             # Strip data:image/jpeg;base64, prefix
             match = re.match(r'data:image/(\w+);base64,(.+)', b64, re.DOTALL)
@@ -229,6 +229,7 @@ def save_photos_b64(b64_list):
             ext, data = match.group(1), match.group(2)
             if ext not in ('jpeg','jpg','png','webp'): ext = 'jpg'
             raw = base64.b64decode(data)
+            if not raw or len(raw) < 100: continue  # skip empty/corrupt
             if USE_CLOUDINARY:
                 up = cloudinary.uploader.upload(raw, folder="trustedbiz",
                      transformation=[{"width":1200,"height":900,"crop":"limit","quality":"auto:good"}])
@@ -1408,7 +1409,12 @@ def agent_set_password():
 
 @app.errorhandler(404)
 def not_found(e):
-    return render_template('404.html', current_user=get_current_user()), 404 
+    return render_template('404.html', current_user=get_current_user()), 404
+
+@app.errorhandler(413)
+def too_large(e):
+    flash("Photos too large to upload. Please try fewer or smaller images.")
+    return redirect(request.referrer or '/add-business'), 413 
 @app.route('/google2c13209b099aea62.html')
 def google_verify():
     return "google-site-verification: google2c13209b099aea62"
