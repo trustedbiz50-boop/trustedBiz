@@ -278,6 +278,8 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS price_guard_items (id SERIAL PRIMARY KEY, business_id INTEGER, category TEXT, label TEXT, price REAL, image_ref TEXT, ai_name TEXT, ai_verified INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS ads (id SERIAL PRIMARY KEY, business_id INTEGER, title TEXT, body TEXT, image_ref TEXT, active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS agents (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS template_pool (id SERIAL PRIMARY KEY, category TEXT NOT NULL, html TEXT NOT NULL, quality_score INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS invite_codes (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'promax', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         ]
         cur = conn.cursor()
         for t in tables: cur.execute(t)
@@ -293,6 +295,8 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS price_guard_items (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, category TEXT, label TEXT, price REAL, image_ref TEXT, ai_name TEXT, ai_verified INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS ads (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, title TEXT, body TEXT, image_ref TEXT, active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS agents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS template_pool (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, html TEXT NOT NULL, quality_score INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS invite_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'promax', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         ]
         for t in tables: conn.execute(t)
         conn.commit()
@@ -1083,6 +1087,27 @@ def admin():
                 flash("✅ Regenerating in background — refresh the site in 60 seconds!")
         elif action == 'delete':
             db_execute(q("DELETE FROM business WHERE id=?"), (biz_id,))
+        elif action == 'send_to_pool':
+            # Owner refused or ignored — save their generated website to the pool
+            # so the next business in the same category gets it for free
+            biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
+            if biz and biz.get('generated_html') and len(biz['generated_html']) > 2000:
+                category = (biz.get('category') or '').lower().strip()
+                # Only pool if not already in pool from this business
+                already = db_fetchone(
+                    q("SELECT id FROM template_pool WHERE category=? AND html=?"),
+                    (category, biz['generated_html'])
+                )
+                if not already:
+                    db_insert(
+                        q("INSERT INTO template_pool (category, html, quality_score) VALUES (?,?,?)"),
+                        (category, biz['generated_html'], 90)
+                    )
+                    flash(f"✅ '{biz['name']}' website moved to pool — next {category} business gets it free!", 'success')
+                else:
+                    flash("Already in pool.", 'info')
+            else:
+                flash("No generated website found for this business — generate one first.", 'error')
 
         return redirect('/admin')
 
@@ -1111,9 +1136,34 @@ def admin():
         'total_premium':    (db_fetchone(q("SELECT COUNT(*) as c FROM business WHERE is_premium=1")) or {}).get('c',0),
     }
 
+    # Template pool stats — show how many AI calls were saved
+    try:
+        pool_stats = db_fetchall(q("SELECT category, times_used, quality_score, created_at FROM template_pool ORDER BY times_used DESC"))
+        pool_stats = [dict(p) for p in pool_stats]
+        pool_saves = sum(p.get('times_used', 0) for p in pool_stats)
+    except:
+        pool_stats = []
+        pool_saves = 0
+
+    # Pending agent-submitted businesses (need approve-agent-biz action)
+    try:
+        agent_pending = db_fetchall(q("""
+            SELECT b.*, a.name as agent_name, a.whatsapp as agent_whatsapp
+            FROM business b
+            LEFT JOIN agents a ON a.code=b.agent_code
+            WHERE b.agent_code IS NOT NULL AND b.status='pending'
+            ORDER BY b.created_at DESC
+        """))
+        agent_pending = [biz_to_dict(b) for b in agent_pending]
+    except:
+        agent_pending = []
+
     return render_template('admin.html',
         businesses=[biz_to_dict(b) for b in businesses],
         late_alert=[biz_to_dict(b) for b in (late_alert or [])],
+        pool_stats=pool_stats,
+        pool_saves=pool_saves,
+        agent_pending=agent_pending,
         **stats)
 
 # ── ADMIN DEMO ────────────────────────────────────────────────────────────────
@@ -1255,21 +1305,6 @@ def choose_plan():
 @app.route('/about')
 def about():
     return render_template('landing.html')
-@app.route('/agent/set-password', methods=['GET','POST'])
-def agent_set_password():
-    email = request.args.get('email','')
-    if request.method == 'POST':
-        email    = request.form.get('email','')
-        password = request.form.get('password','')
-        user = db_fetchone(q("SELECT * FROM users WHERE email=?"), (email,))
-        if not user:
-            flash('Email not found.', 'error')
-            return redirect('/agent/set-password')
-        db_execute(q("UPDATE users SET password=? WHERE id=?"),
-            (generate_password_hash(password), user['id']))
-        flash('Password set! You can now log in.')
-        return redirect('/login')
-    return render_template('set_password.html', email=email)
 @app.route('/agent/set-password', methods=['GET', 'POST'])
 def agent_set_password():
     email = request.args.get('email', '')
@@ -1536,35 +1571,180 @@ def admin_approve_agent_biz(biz_id):
 
     db_execute(q("UPDATE business SET status='approved', verified=1 WHERE id=?"), (biz_id,))
 
-    # Generate the AI website in background
-    try:
-        from ai_generator import generate_business_website_bg
+    category = (biz.get('category') or '').lower().strip()
+
+    # ── TEMPLATE POOL: reuse an existing generated page if available ──────────
+    # This saves AI tokens — only call AI when no pooled template exists
+    pooled = db_fetchone(
+        q("SELECT * FROM template_pool WHERE category=? ORDER BY quality_score DESC, times_used ASC LIMIT 1"),
+        (category,)
+    )
+
+    if pooled:
+        # Swap the business info into the pooled HTML — zero AI tokens used
+        import threading as _t
+        def _swap_and_save(pool_html, biz_dict, bid):
+            try:
+                from ai_generator import swap_business_info
+                new_html = swap_business_info(pool_html, biz_dict)
+                db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (new_html, bid))
+                db_execute(q("UPDATE template_pool SET times_used=times_used+1 WHERE id=?"), (pooled['id'],))
+                print(f"Pool swap done for biz_id={bid} using pool_id={pooled['id']}")
+            except Exception as e:
+                print(f"Pool swap error: {e}")
+                # Fallback: just save the raw fallback
+                from ai_generator import generate_business_website
+                bd2 = dict(biz_dict); bd2['branches'] = []; bd2['ads'] = []
+                html = generate_business_website(bd2)
+                if html and len(html) > 2000:
+                    db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
+
         bd = biz_to_dict(biz)
         bd['branches'] = []
         bd['ads'] = []
-        generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
-    except Exception as e:
-        print(f"AI gen error: {e}")
+        _t.Thread(target=_swap_and_save, args=(pooled['html'], bd, biz_id), daemon=True).start()
+        flash(f"✅ '{biz['name']}' approved — website ready instantly from pool (0 AI tokens used)!", 'success')
+    else:
+        # No pool entry for this category — call AI, then save to pool for future use
+        import threading as _t
+        def _gen_and_pool(biz_dict, bid, cat):
+            try:
+                from ai_generator import generate_business_website
+                bd2 = dict(biz_dict)
+                html = generate_business_website(bd2)
+                if html and len(html) > 2000:
+                    db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
+                    # Save to pool — future businesses in same category get this for free
+                    db_execute(
+                        q("INSERT INTO template_pool (category, html, quality_score) VALUES (?,?,?)"),
+                        (cat, html, 100)
+                    )
+                    print(f"AI gen + pooled for biz_id={bid}, category={cat}")
+                else:
+                    print(f"AI gen too short for biz_id={bid}, keeping fallback")
+            except Exception as e:
+                print(f"AI gen error: {e}")
 
-    # Get owner and send them a login code via WhatsApp
-    owner = db_fetchone(q("SELECT * FROM users WHERE id=?"), (biz['owner_id'],)) if biz['owner_id'] else None
+        bd = biz_to_dict(biz)
+        branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
+        bd['branches'] = [dict(b) for b in branches]
+        ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
+        bd['ads'] = [dict(a) for a in ads]
+        _t.Thread(target=_gen_and_pool, args=(bd, biz_id, category), daemon=True).start()
+        flash(f"✅ '{biz['name']}' approved — AI website generating in background (first in category).", 'success')
 
-    # Generate a temp login link for the owner
-    site_url = f"https://trustedbiz.co.ug/site/{biz['slug']}"
-    login_url = f"https://trustedbiz.co.ug/login"
+    # ── INVITE CODE: generate one so the agent can give the owner dashboard access
+    import string, secrets as _sec
+    def _make_code():
+        chars = string.ascii_uppercase + string.digits
+        for _ in range(100):
+            code = ''.join(_sec.choice(chars) for _ in range(6))
+            if not db_fetchone(q("SELECT id FROM invite_codes WHERE code=?"), (code,)):
+                return code
+        return _sec.token_hex(3).upper()
 
-    # Notify the agent
+    existing_code = db_fetchone(q("SELECT * FROM invite_codes WHERE biz_id=? AND used=0"), (biz_id,))
+    if not existing_code:
+        agent = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz.get('agent_code'),)) if biz.get('agent_code') else None
+        agent_id = agent['id'] if agent else 0
+        new_code = _make_code()
+        db_insert(
+            q("INSERT INTO invite_codes (code, biz_id, agent_id, plan) VALUES (?,?,?,?)"),
+            (new_code, biz_id, agent_id, 'promax')
+        )
+        invite_code_str = new_code
+    else:
+        invite_code_str = existing_code['code']
+
+    # Notify the agent with the invite code so they can close the deal
     if biz.get('agent_code'):
         agent = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz['agent_code'],))
         if agent:
+            join_link = f"https://trustedbiz.co.ug/join?code={invite_code_str}"
             db_insert(
                 q("INSERT INTO notifications (user_id, message) VALUES (?,?)"),
-                (0, f"Business '{biz['name']}' you submitted has been approved! Earning: UGX 1,000/month.")
+                (0, f"🎉 '{biz['name']}' APPROVED! Show the owner their website at https://trustedbiz.co.ug/site/{biz['slug']} — then give them this link to activate their dashboard: {join_link}")
             )
-            # Send WhatsApp message to agent (plug WA API here)
 
-    flash(f"'{biz['name']}' approved and AI website generation started.", 'success')
     return redirect('/admin')
+
+
+@app.route('/join', methods=['GET', 'POST'])
+def join_with_code():
+    """Business owner enters invite code → creates account → gets dashboard access."""
+    code = request.args.get('code', '').strip().upper()
+    invite = None
+    biz = None
+
+    if code:
+        invite = db_fetchone(q("SELECT * FROM invite_codes WHERE code=? AND used=0"), (code,))
+        if invite:
+            biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (invite['biz_id'],))
+
+    if request.method == 'POST':
+        code     = request.form.get('code', '').strip().upper()
+        name     = request.form.get('name', '').strip()
+        email    = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        confirm  = request.form.get('confirm', '')
+
+        invite = db_fetchone(q("SELECT * FROM invite_codes WHERE code=? AND used=0"), (code,))
+        if not invite:
+            flash("Invalid or already used invite code. Contact your TrustedBiz agent.", "error")
+            return render_template('join.html', code=code, invite=None, biz=None)
+
+        biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (invite['biz_id'],))
+
+        if password != confirm:
+            flash("Passwords do not match.", "error")
+            return render_template('join.html', code=code, invite=dict(invite), biz=biz_to_dict(biz) if biz else None)
+        if len(password) < 6:
+            flash("Password must be at least 6 characters.", "error")
+            return render_template('join.html', code=code, invite=dict(invite), biz=biz_to_dict(biz) if biz else None)
+
+        # Create or update user
+        existing_user = db_fetchone(q("SELECT * FROM users WHERE email=?"), (email,))
+        if existing_user:
+            user_id = existing_user['id']
+            db_execute(q("UPDATE users SET password=?, name=? WHERE id=?"),
+                       (generate_password_hash(password), name, user_id))
+        else:
+            user_id = db_insert(
+                q("INSERT INTO users (name, email, password, is_premium) VALUES (?,?,?,1)"),
+                (name, email, generate_password_hash(password))
+            )
+
+        # Link user to the business
+        db_execute(q("UPDATE business SET owner_id=? WHERE id=?"), (user_id, biz['id']))
+        # Mark code as used
+        db_execute(q("UPDATE invite_codes SET used=1, used_by_user_id=? WHERE code=?"), (user_id, code))
+        # Log them in
+        session['user_id'] = user_id
+        flash(f"🎉 Welcome to TrustedBiz! Your business dashboard is ready.", "success")
+        return redirect('/dashboard')
+
+    return render_template('join.html', code=code, invite=dict(invite) if invite else None,
+                           biz=biz_to_dict(biz) if biz else None)
+
+
+@app.route('/agent/generate-invite/<int:biz_id>', methods=['POST'])
+@agent_login_required
+def agent_generate_invite(biz_id):
+    """Agent generates a unique invite code for a business they submitted."""
+    agent = get_current_agent()
+    biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND agent_code=?"), (biz_id, agent['code']))
+    if not biz:
+        flash("Business not found.", "error")
+        return redirect('/agent/dashboard')
+
+    existing = db_fetchone(q("SELECT * FROM invite_codes WHERE biz_id=? AND used=0"), (biz_id,))
+    if existing:
+        join_link = f"https://trustedbiz.co.ug/join?code={existing['code']}"
+        flash(f"Invite code: {existing['code']} — Share this link: {join_link}", "success")
+        return redirect('/agent/dashboard')
+
+    flash("This business hasn't been approved by admin yet. Check back soon.", "warning")
+    return redirect('/agent/dashboard')
 
 
 # ── MIGRATE: add agent columns if upgrading existing DB ──────────────────────

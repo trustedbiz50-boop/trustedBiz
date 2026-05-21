@@ -458,3 +458,112 @@ document.querySelectorAll('.reveal').forEach(function(el){{obs.observe(el);}});
 </script>
 </body>
 </html>"""
+
+
+# ── TEMPLATE POOL: swap business info into an existing pooled HTML page ───────
+def swap_business_info(pool_html, biz):
+    """Replace key business info in a pooled HTML page with new business data.
+    This costs ZERO AI tokens — it's just string replacement.
+    The result looks like a fresh AI-generated page for the new business.
+    """
+    try:
+        biz = dict(biz)
+    except:
+        pass
+
+    name        = str(biz.get("name") or "Business")
+    category    = str(biz.get("category") or "")
+    description = str(biz.get("description") or f"Professional {category} services in Uganda.")
+    whatsapp    = str(biz.get("whatsapp") or "")
+    hours       = str(biz.get("hours") or "Mon–Sat 8am–7pm")
+    color       = str(biz.get("brand_color") or "#2b7a78")
+    photos_raw  = str(biz.get("photos") or "")
+    lat         = biz.get("lat") or 0
+    lng         = biz.get("lng") or 0
+    hero_price  = biz.get("hero_price")
+    hero_label  = str(biz.get("hero_price_label") or "")
+    slug        = str(biz.get("slug") or "")
+
+    photos   = [p.strip() for p in photos_raw.split(",") if p.strip()]
+    wa_link  = f"https://wa.me/{whatsapp}?text=Hello%2C+I+found+{name.replace(' ','+')}+on+TrustedBiz%21"
+    map_link = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}" if lat and lng else "#"
+    rgb      = _hex_rgb(color)
+
+    html = pool_html
+
+    # ── Replace business name everywhere ──────────────────────────────────────
+    import re as _re
+    # Find the old business name from <title> tag
+    old_name_m = _re.search(r'<title>([^<|]+)', html)
+    if old_name_m:
+        old_name = old_name_m.group(1).strip()
+        html = html.replace(old_name, name)
+
+    # ── Replace WhatsApp number and links ────────────────────────────────────
+    html = _re.sub(r'https://wa\.me/\d+[^"\']*', wa_link, html)
+    html = _re.sub(r'wa\.me/\d+', f'wa.me/{whatsapp}', html)
+
+    # ── Replace Google Maps link ─────────────────────────────────────────────
+    html = _re.sub(
+        r'https://www\.google\.com/maps/dir/[^"\']*',
+        map_link, html
+    )
+
+    # ── Replace brand color ──────────────────────────────────────────────────
+    old_color_m = _re.search(r'--primary:\s*(#[0-9a-fA-F]{3,6})', html)
+    if old_color_m:
+        old_color = old_color_m.group(1)
+        html = html.replace(old_color, color)
+    old_rgb_m = _re.search(r'--primary-rgb:\s*([0-9,\s]+);', html)
+    if old_rgb_m:
+        old_rgb = old_rgb_m.group(1).strip()
+        html = html.replace(old_rgb, rgb)
+
+    # ── Replace hours ────────────────────────────────────────────────────────
+    old_hours_m = _re.search(
+        r'(Mon[-–][A-Za-z]+\s+\d+[ap]m[-–]\d+[ap]m[^<"\']{0,40})',
+        html, _re.IGNORECASE
+    )
+    if old_hours_m:
+        html = html.replace(old_hours_m.group(1), hours, 1)
+
+    # ── Replace description text in about/hero sections ──────────────────────
+    # Find text between about-section indicators and replace first long paragraph
+    html = _re.sub(
+        r'(<p[^>]*class="[^"]*(?:desc|about|tagline|lead)[^"]*"[^>]*>)[^<]{40,}(</p>)',
+        lambda m: m.group(1) + description + m.group(2),
+        html, count=1, flags=_re.IGNORECASE
+    )
+
+    # ── Replace gallery photos ────────────────────────────────────────────────
+    if photos:
+        new_photo_html = ""
+        for i, p in enumerate(photos[:6]):
+            src = p if p.startswith("http") else f"/static/images/{p}"
+            new_photo_html += f'<div class="gal-item" onclick="openLb({i})"><img src="{src}" alt="Photo {i+1}" loading="lazy"></div>\n'
+        # Replace img tags inside gal-item divs
+        html = _re.sub(
+            r'(<div class="gal-item"[^>]*>).*?(</div>)',
+            '', html, flags=_re.DOTALL
+        )
+        # Insert new photos into gal div
+        html = _re.sub(
+            r'(<div[^>]*class="[^"]*gal[^"]*"[^>]*>)',
+            lambda m: m.group(0) + new_photo_html,
+            html, count=1
+        )
+
+    # ── Replace hero price ───────────────────────────────────────────────────
+    if hero_price and hero_label:
+        price_str = f"UGX {int(float(hero_price)):,}"
+        html = _re.sub(r'UGX\s+[\d,]+', price_str, html, count=1)
+        html = _re.sub(
+            r'(From|Starting at|Starting from)\s+UGX\s+[\d,]+',
+            f'From {price_str}',
+            html, flags=_re.IGNORECASE
+        )
+
+    # ── Replace copyright year name in footer ────────────────────────────────
+    html = _re.sub(r'© \d{4} [^.<]+', f'© 2026 {name}', html)
+
+    return html
