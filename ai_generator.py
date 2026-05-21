@@ -13,7 +13,7 @@ def _client(model="haiku"):
         import anthropic
         c = anthropic.Anthropic(api_key=key)
         if model == "sonnet":
-            return c, "claude-sonnet-4-5-20251001"
+            return c, "claude-sonnet-4-6"
         return c, "claude-haiku-4-5-20251001"
     except ImportError:
         return None, None
