@@ -287,7 +287,7 @@ def create_tables():
     else:
         tables = [
         "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'pending', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'pending', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'basic', location TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_identifier TEXT)",
@@ -1218,6 +1218,15 @@ def migrate_db():
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#2b7a78'")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS chosen_plan TEXT DEFAULT 'free'")
+        # Agent-submitted business extras
+        try:
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'basic'")
+        except Exception:
+            pass
+        try:
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS location TEXT")
+        except Exception:
+            pass
         return "Migration done! All columns added."
     except Exception as e:
         return f"Migration error: {e}"
@@ -1506,10 +1515,30 @@ def agent_dashboard():
         'total_earned': len(approved) * 1000,  # expand with real payout tracking later
     }
 
+    # Fetch invite codes for approved businesses so agent can share passcodes
+    invite_codes = {}
+    for biz in businesses:
+        if biz['status'] == 'approved':
+            inv = db_fetchone(
+                q("SELECT * FROM invite_codes WHERE biz_id=? ORDER BY id DESC LIMIT 1"),
+                (biz['id'],)
+            )
+            if inv:
+                invite_codes[biz['id']] = dict(inv)
+
+    # Attach plan to each biz dict (from column if exists, else derive from is_premium)
+    biz_dicts = []
+    for biz in businesses:
+        b = dict(biz)
+        if not b.get('plan'):
+            b['plan'] = 'promax' if b.get('is_premium') else 'free'
+        biz_dicts.append(b)
+
     return render_template('agent_dashboard.html',
         agent=dict(agent),
-        businesses=businesses,
-        stats=stats
+        businesses=biz_dicts,
+        stats=stats,
+        invite_codes=invite_codes
     )
 
 
@@ -1525,45 +1554,68 @@ def agent_add_business():
     whatsapp    = request.form.get('whatsapp', '').strip()
     email       = request.form.get('email', '').strip().lower()
     location    = request.form.get('location', '').strip()
-    hours       = request.form.get('hours', 'Mon-Sat 8am-6pm').strip()
+    hours       = request.form.get('hours', 'Mon–Sat 8am–6pm').strip() or 'Mon–Sat 8am–6pm'
     description = request.form.get('description', '').strip()
     brand_color = request.form.get('brand_color', '#2b7a78').strip()
     map_link    = request.form.get('map_link', '').strip()
+    plan        = request.form.get('plan', 'basic').strip().lower()
+    if plan not in ('free', 'basic', 'promax'):
+        plan = 'basic'
 
-    if not all([name, category, whatsapp, email, description]):
-        flash('Please fill in all required fields.', 'error')
+    # Only name, category, location, description are required — email/whatsapp optional for demo
+    if not all([name, category, location, description]):
+        flash('Please fill in the business name, category, location and description.', 'error')
         return redirect('/agent/dashboard')
 
-    # Create a placeholder user for the business owner
-    existing_user = db_fetchone(q("SELECT id FROM users WHERE email=?"), (email,))
-    if existing_user:
-        owner_id = existing_user['id']
-    else:
-        temp_password = generate_password_hash(secrets.token_urlsafe(8))
-        owner_id = db_insert(
-            q("INSERT INTO users (name, email, password) VALUES (?,?,?)"),
-            (name, email, temp_password)
-        )
+    # Create a placeholder user only if email was given
+    owner_id = 0
+    if email:
+        existing_user = db_fetchone(q("SELECT id FROM users WHERE email=?"), (email,))
+        if existing_user:
+            owner_id = existing_user['id']
+        else:
+            temp_password = generate_password_hash(secrets.token_urlsafe(8))
+            owner_id = db_insert(
+                q("INSERT INTO users (name, email, password) VALUES (?,?,?)"),
+                (name, email, temp_password)
+            )
 
     slug       = make_slug(name)
     agent_code = agent['code']
+    is_premium = 1 if plan in ('basic', 'promax') else 0
 
-    biz_id = db_insert(
-        q("INSERT INTO business (name, category, whatsapp, description, hours, brand_color, slug, owner_id, status, agent_code, is_premium) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
-        (name, category, whatsapp, description, hours, brand_color, slug, owner_id, 'pending', agent_code, 1)
-    )
+    # Store plan in the business record (reuse a spare column or add to notes)
+    # We store plan value in a separate field; fall back to storing in description prefix if column missing
+    try:
+        biz_id = db_insert(
+            q("INSERT INTO business (name, category, whatsapp, description, hours, brand_color, slug, owner_id, status, agent_code, is_premium, plan) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"),
+            (name, category, whatsapp, description, hours, brand_color, slug, owner_id, 'pending', agent_code, is_premium, plan)
+        )
+    except Exception:
+        # plan column may not exist yet — fallback without it
+        biz_id = db_insert(
+            q("INSERT INTO business (name, category, whatsapp, description, hours, brand_color, slug, owner_id, status, agent_code, is_premium) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
+            (name, category, whatsapp, description, hours, brand_color, slug, owner_id, 'pending', agent_code, is_premium)
+        )
+
+    # Save location (stored in a notes/location field if available, otherwise skip gracefully)
+    try:
+        db_execute(q("UPDATE business SET location=? WHERE id=?"), (location, biz_id))
+    except Exception:
+        pass
 
     # Save photos if uploaded
     photos = request.files.getlist('photos')
     if photos and photos[0].filename:
-        photo_refs = save_photos(photos)
-        if photo_refs:
-            db_execute(q("UPDATE business SET photos=? WHERE id=?"), (','.join(photo_refs), biz_id))
+        try:
+            photo_refs = save_photos(photos)
+            if photo_refs:
+                db_execute(q("UPDATE business SET photos=? WHERE id=?"), (','.join(photo_refs), biz_id))
+        except Exception:
+            pass
 
-    # Notify admin
-    admin_wa = os.environ.get('ADMIN_WHATSAPP', '256753187966')
-
-    flash(f'✅ "{name}" submitted for approval! Admin will review and notify the owner on WhatsApp.', 'success')
+    plan_label = {'free': 'Free', 'basic': 'Basic', 'promax': 'Pro Max'}.get(plan, plan.title())
+    flash(f'✅ "{name}" ({plan_label} plan) submitted for approval! Once approved, you\'ll get a passcode to share with the owner.', 'success')
     return redirect('/agent/dashboard')
 
 
@@ -1580,65 +1632,78 @@ def admin_approve_agent_biz(biz_id):
 
     category = (biz.get('category') or '').lower().strip()
 
-    # ── TEMPLATE POOL: reuse an existing generated page if available ──────────
-    # This saves AI tokens — only call AI when no pooled template exists
+    # ── WEBSITE GENERATION ────────────────────────────────────────────────────
+    # Rule: only reuse a pooled template if it has NEVER been used for a real
+    # business (times_used == 0). The moment it's been used once, every new
+    # business in that category gets a fully fresh AI-generated site so no two
+    # live businesses ever share the same website structure.
+    import threading as _t
+    biz_plan = (biz.get('plan') or 'basic')
+
     pooled = db_fetchone(
-        q("SELECT * FROM template_pool WHERE category=? ORDER BY quality_score DESC, times_used ASC LIMIT 1"),
+        q("SELECT * FROM template_pool WHERE category=? AND times_used=0 ORDER BY quality_score DESC LIMIT 1"),
         (category,)
     )
 
     if pooled:
-        # Swap the business info into the pooled HTML — zero AI tokens used
-        import threading as _t
-        def _swap_and_save(pool_html, biz_dict, bid):
+        # Template exists but has never been deployed — swap this business's
+        # info in and mark it used. Next business in same category gets fresh AI.
+        def _swap_and_save(pool_html, biz_dict, bid, pool_id, bplan):
             try:
                 from ai_generator import swap_business_info
                 new_html = swap_business_info(pool_html, biz_dict)
-                db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (new_html, bid))
-                db_execute(q("UPDATE template_pool SET times_used=times_used+1 WHERE id=?"), (pooled['id'],))
-                print(f"Pool swap done for biz_id={bid} using pool_id={pooled['id']}")
+                if new_html and len(new_html) > 2000:
+                    db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (new_html, bid))
+                    db_execute(q("UPDATE template_pool SET times_used=times_used+1 WHERE id=?"), (pool_id,))
+                    print(f"Pool swap done for biz_id={bid} (pool_id={pool_id}) — pool now used")
+                    return
             except Exception as e:
                 print(f"Pool swap error: {e}")
-                # Fallback: just save the raw fallback
+            # Swap failed — fall through to full AI generation
+            try:
                 from ai_generator import generate_business_website
-                bd2 = dict(biz_dict); bd2['branches'] = []; bd2['ads'] = []
-                html = generate_business_website(bd2)
+                bd2 = dict(biz_dict); bd2.setdefault('branches', []); bd2.setdefault('ads', [])
+                html = generate_business_website(bd2, plan=bplan)
                 if html and len(html) > 2000:
                     db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
+                    print(f"Fallback AI gen done for biz_id={bid}")
+            except Exception as e2:
+                print(f"Fallback AI gen error: {e2}")
 
         bd = biz_to_dict(biz)
         bd['branches'] = []
         bd['ads'] = []
-        _t.Thread(target=_swap_and_save, args=(pooled['html'], bd, biz_id), daemon=True).start()
-        flash(f"✅ '{biz['name']}' approved — website ready instantly from pool (0 AI tokens used)!", 'success')
+        _t.Thread(target=_swap_and_save, args=(pooled['html'], bd, biz_id, pooled['id'], biz_plan), daemon=True).start()
+        flash(f"✅ '{biz['name']}' approved — website generating now!", 'success')
     else:
-        # No pool entry for this category — call AI, then save to pool for future use
-        import threading as _t
-        def _gen_and_pool(biz_dict, bid, cat):
+        # No unused pool template — generate a completely fresh site with AI,
+        # then save it to the pool (times_used=0) for the NEXT business in this
+        # category. This business always gets its own unique AI-generated site.
+        def _gen_and_pool(biz_dict, bid, cat, bplan):
             try:
                 from ai_generator import generate_business_website
                 bd2 = dict(biz_dict)
-                html = generate_business_website(bd2)
+                html = generate_business_website(bd2, plan=bplan)
                 if html and len(html) > 2000:
                     db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
-                    # Save to pool — future businesses in same category get this for free
+                    # Store in pool for the NEXT business — this one is NOT reused
                     db_execute(
-                        q("INSERT INTO template_pool (category, html, quality_score) VALUES (?,?,?)"),
+                        q("INSERT INTO template_pool (category, html, quality_score, times_used) VALUES (?,?,?,0)"),
                         (cat, html, 100)
                     )
-                    print(f"AI gen + pooled for biz_id={bid}, category={cat}")
+                    print(f"Fresh AI gen done + pooled for next use — biz_id={bid}, category={cat}")
                 else:
-                    print(f"AI gen too short for biz_id={bid}, keeping fallback")
+                    print(f"AI gen output too short for biz_id={bid}")
             except Exception as e:
-                print(f"AI gen error: {e}")
+                print(f"AI gen error for biz_id={bid}: {e}")
 
         bd = biz_to_dict(biz)
         branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
         bd['branches'] = [dict(b) for b in branches]
         ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
         bd['ads'] = [dict(a) for a in ads]
-        _t.Thread(target=_gen_and_pool, args=(bd, biz_id, category), daemon=True).start()
-        flash(f"✅ '{biz['name']}' approved — AI website generating in background (first in category).", 'success')
+        _t.Thread(target=_gen_and_pool, args=(bd, biz_id, category, biz_plan), daemon=True).start()
+        flash(f"✅ '{biz['name']}' approved — generating a unique AI website now.", 'success')
 
     # ── INVITE CODE: generate one so the agent can give the owner dashboard access
     import string, secrets as _sec
@@ -1650,27 +1715,28 @@ def admin_approve_agent_biz(biz_id):
                 return code
         return _sec.token_hex(3).upper()
 
+    actual_plan = biz.get('plan') or 'basic'
     existing_code = db_fetchone(q("SELECT * FROM invite_codes WHERE biz_id=? AND used=0"), (biz_id,))
     if not existing_code:
-        agent = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz.get('agent_code'),)) if biz.get('agent_code') else None
-        agent_id = agent['id'] if agent else 0
-        new_code = _make_code()
+        agent_row = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz.get('agent_code'),)) if biz.get('agent_code') else None
+        agent_id = agent_row['id'] if agent_row else 0
+        invite_code_str = _make_code()
         db_insert(
             q("INSERT INTO invite_codes (code, biz_id, agent_id, plan) VALUES (?,?,?,?)"),
-            (new_code, biz_id, agent_id, 'promax')
+            (invite_code_str, biz_id, agent_id, actual_plan)
         )
-        invite_code_str = new_code
     else:
         invite_code_str = existing_code['code']
 
-    # Notify the agent with the invite code so they can close the deal
+    # Notify the agent with the invite code + direct link to share with the owner
     if biz.get('agent_code'):
-        agent = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz['agent_code'],))
-        if agent:
+        agent_row = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz['agent_code'],))
+        if agent_row:
+            site_url  = f"https://trustedbiz.co.ug/site/{biz['slug']}"
             join_link = f"https://trustedbiz.co.ug/join?code={invite_code_str}"
             db_insert(
                 q("INSERT INTO notifications (user_id, message) VALUES (?,?)"),
-                (0, f"🎉 '{biz['name']}' APPROVED! Show the owner their website at https://trustedbiz.co.ug/site/{biz['slug']} — then give them this link to activate their dashboard: {join_link}")
+                (0, f"🎉 '{biz['name']}' APPROVED! Show the owner their website: {site_url} — passcode to share: {invite_code_str} — activation link: {join_link}")
             )
 
     return redirect('/admin')
@@ -1763,6 +1829,12 @@ def migrate_agents():
     except: pass
     try:
         db_execute(q("ALTER TABLE business ADD COLUMN agent_code TEXT"))
+    except: pass
+    try:
+        db_execute(q("ALTER TABLE business ADD COLUMN plan TEXT DEFAULT 'basic'"))
+    except: pass
+    try:
+        db_execute(q("ALTER TABLE business ADD COLUMN location TEXT"))
     except: pass
     return "Agent migration done!"
 

@@ -470,3 +470,99 @@ document.querySelectorAll('.reveal').forEach(function(el){{obs.observe(el);}});
 </body>
 </html>"""
 
+
+def swap_business_info(template_html, biz):
+    """
+    Swap business-specific info into a pooled template HTML.
+    Replaces name, description, whatsapp link, hours, colors, etc.
+    Falls back to full AI regeneration if the HTML looks too different.
+    """
+    import re as _re
+
+    try:
+        biz = dict(biz)
+    except Exception:
+        pass
+
+    name        = str(biz.get("name") or "Business")
+    category    = str(biz.get("category") or "")
+    description = str(biz.get("description") or f"Professional {category} services in Uganda.")
+    whatsapp    = str(biz.get("whatsapp") or "")
+    hours       = str(biz.get("hours") or "Mon–Sat 8am–7pm")
+    color       = str(biz.get("brand_color") or "#2b7a78")
+    rgb         = _hex_rgb(color)
+    wa_link     = f"https://wa.me/{whatsapp}?text=Hello%2C+I+found+{name.replace(' ','+')}+on+TrustedBiz%21"
+
+    html = template_html
+
+    # ── Replace the <title> tag ──
+    html = _re.sub(r'<title>[^<]*</title>', f'<title>{name} — {category.title()} in Uganda</title>', html)
+
+    # ── Replace meta description ──
+    html = _re.sub(
+        r'<meta name="description"[^>]*>',
+        f'<meta name="description" content="{description[:155]}">',
+        html
+    )
+
+    # ── Replace CSS --primary color ──
+    html = _re.sub(r'--primary:\s*#[0-9a-fA-F]{3,8}', f'--primary:{color}', html)
+    html = _re.sub(r'--primary-rgb:\s*[\d,\s]+', f'--primary-rgb:{rgb}', html)
+    html = _re.sub(r'--rgb:\s*[\d,\s]+;', f'--rgb:{rgb};', html)
+
+    # ── WhatsApp links ──
+    html = _re.sub(r'https://wa\.me/\d+[^"\']*', wa_link, html)
+
+    # ── Opening hours ──
+    html = _re.sub(
+        r'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[^\<"\']{3,40}(am|pm)',
+        hours,
+        html,
+        count=3
+    )
+
+    # ── Footer: powered by TrustedBiz line ──
+    html = _re.sub(
+        r'© \d{4} [^<\.]+\.',
+        f'© 2026 {name}.',
+        html,
+        count=2
+    )
+
+    # ── Try to replace the hero h1 business name ──
+    # Match the largest heading inside the hero section
+    def _replace_h1(m):
+        inner = m.group(2)
+        # strip old name spans/text, put new name in
+        cleaned = _re.sub(r'<[^>]+>', '', inner).strip()
+        # wrap first word in accent span like the original might
+        words = name.split()
+        if len(words) >= 2:
+            new_inner = f'<span class="ac">{words[0]}</span> {" ".join(words[1:])}'
+        else:
+            new_inner = name
+        return m.group(1) + new_inner + m.group(3)
+
+    html = _re.sub(r'(<h1[^>]*>)(.*?)(</h1>)', _replace_h1, html, count=1, flags=_re.DOTALL)
+
+    # ── Replace nav brand name ──
+    html = _re.sub(
+        r'(<(?:a|span|div)[^>]+class="nav-brand[^"]*"[^>]*>)([^<]*(?:<[^>]+>[^<]*</[^>]+>)*[^<]*)(</)',
+        lambda m: m.group(1) + name + m.group(3),
+        html,
+        count=1
+    )
+
+    # ── Replace description paragraph(s) in About section ──
+    # Find the first substantial paragraph after the hero (likely About)
+    # Replace just the first 1-2 long paragraphs to avoid breaking structure
+    desc_sentences = description[:300]
+
+    def _swap_first_long_p(m):
+        if len(m.group(1)) > 60:
+            return f'<p>{desc_sentences}</p>'
+        return m.group(0)
+
+    html = _re.sub(r'<p>([^<]{60,})</p>', _swap_first_long_p, html, count=1)
+
+    return html
