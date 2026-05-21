@@ -142,7 +142,7 @@ textarea{resize:vertical;min-height:80px;}
     </div>
     <div class="stat-card highlight">
       <div class="stat-icon">💰</div>
-      <div class="stat-num">{{ stats.earnings | int | format_ugx }}</div>
+      <div class="stat-num">{{ "{:,}".format(stats.earnings | int) }}</div>
       <div class="stat-label">This Month (UGX)</div>
     </div>
   </div>
@@ -226,11 +226,11 @@ textarea{resize:vertical;min-height:80px;}
     </div>
     <div class="earnings-row">
       <span class="label">Earned this month</span>
-      <span class="value green">UGX {{ stats.approved * 1000 | int:,}}</span>
+      <span class="value green">UGX {{ "{:,}".format(stats.approved * 1000) }}</span>
     </div>
     <div class="earnings-row">
       <span class="label">Total earned all time</span>
-      <span class="value">UGX {{ stats.total_earned | default(0) | int:,}}</span>
+      <span class="value">UGX {{ "{:,}".format(stats.total_earned | default(0) | int) }}</span>
     </div>
     <div style="margin-top:20px;">
       <a href="https://wa.me/256753187966?text=Hi, I'm agent {{ agent.name }} ({{ agent.code }}). I'd like to request my earnings payout." class="payout-btn">
