@@ -289,17 +289,16 @@
             <input type="file" name="photos" id="photosInput" accept="image/*" multiple style="display:none">
 
             <div id="uploadTrigger" onclick="document.getElementById('photosInput').click()"
-                 style="padding:20px;background:#f9fafb;border:2px dashed #d1d5db;border-radius:10px;cursor:pointer;text-align:center;transition:border-color .2s;"
+                 style="padding:20px;background:#f9fafb;border:2px dashed #d1d5db;border-radius:10px;cursor:pointer;text-align:center;"
                  onmouseover="this.style.borderColor='#2b7a78'" onmouseout="this.style.borderColor='#d1d5db'">
                 <div style="font-size:28px;margin-bottom:6px;">📷</div>
-                <div style="font-size:14px;font-weight:700;color:#374151;">Click to choose photos</div>
+                <div style="font-size:14px;font-weight:700;color:#374151;">Tap to choose photos</div>
                 <div style="font-size:12px;color:#9ca3af;margin-top:3px;">Up to 6 photos · Any size · Auto-compressed</div>
             </div>
 
-            <!-- Progress bar -->
             <div id="uploadProgress" style="display:none;margin-top:10px;">
                 <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#374151;margin-bottom:4px;">
-                    <span id="progressText">Compressing photos…</span>
+                    <span id="progressText">Compressing…</span>
                     <span id="progressCount"></span>
                 </div>
                 <div style="background:#e5e7eb;border-radius:100px;height:8px;overflow:hidden;">
@@ -308,118 +307,111 @@
             </div>
 
             <div id="photosPreview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
-            <div id="photoStatus" style="font-size:12px;margin-top:6px;font-weight:600;"></div>
-
+            <div id="photoStatus" style="font-size:12px;margin-top:6px;font-weight:600;min-height:18px;"></div>
             <input type="hidden" name="photos_b64" id="photosB64">
-            <div class="fg-hint">Add clear photos of your business, products or services. Images are auto-compressed so they upload fast.</div>
+            <div class="fg-hint">Photos appear in your gallery. Large phone photos are compressed automatically.</div>
 
             <script>
             (function(){
-                var compressedImages = [];
-                var totalFiles = 0;
-                var doneCount  = 0;
-                var formReady  = true;
+                var imgs = [];       // final compressed b64 strings, indexed by slot
+                var total = 0;
+                var done  = 0;
+                var ready = true;    // false while compressing
 
                 document.getElementById('photosInput').addEventListener('change', function(){
-                    var files = Array.from(this.files).slice(0, 6);
+                    var files = Array.from(this.files).slice(0,6);
                     if (!files.length) return;
 
-                    compressedImages = new Array(files.length);
-                    doneCount  = 0;
-                    totalFiles = files.length;
-                    formReady  = false;
+                    imgs  = new Array(files.length);
+                    total = files.length;
+                    done  = 0;
+                    ready = false;
 
-                    document.getElementById('photosPreview').innerHTML  = '';
-                    document.getElementById('photosB64').value          = '';
-                    document.getElementById('photoStatus').innerHTML    = '';
-                    document.getElementById('progressBar').style.width  = '0%';
-                    document.getElementById('progressBar').style.background = '#2b7a78';
-                    document.getElementById('progressCount').textContent = '0 / ' + totalFiles;
+                    document.getElementById('photosPreview').innerHTML = '';
+                    document.getElementById('photosB64').value = '';
+                    document.getElementById('photoStatus').innerHTML = '';
+                    document.getElementById('progressBar').style.cssText = 'height:100%;background:#2b7a78;border-radius:100px;width:0%;transition:width .3s;';
+                    document.getElementById('progressCount').textContent = '0 / ' + total;
                     document.getElementById('uploadProgress').style.display = 'block';
                     document.getElementById('progressText').textContent = 'Compressing photos…';
 
                     files.forEach(function(file, i){
-                        compressOne(file, i, function(b64, idx){
-                            compressedImages[idx] = b64;
-                            doneCount++;
-
-                            var pct = Math.round(doneCount / totalFiles * 100);
-                            document.getElementById('progressBar').style.width  = pct + '%';
-                            document.getElementById('progressCount').textContent = doneCount + ' / ' + totalFiles;
+                        shrink(file, i, function(b64, idx){
+                            imgs[idx] = b64;
+                            done++;
+                            var pct = Math.round(done/total*100);
+                            document.getElementById('progressBar').style.width = pct+'%';
+                            document.getElementById('progressCount').textContent = done+' / '+total;
 
                             if (b64) {
                                 var wrap = document.createElement('div');
-                                wrap.style = 'position:relative;';
-                                var img = document.createElement('img');
-                                img.src   = b64;
-                                img.style = 'width:72px;height:72px;object-fit:cover;border-radius:8px;border:2px solid #e5e7eb;display:block;';
-                                var rm  = document.createElement('button');
-                                rm.type = 'button';
-                                rm.textContent = '✕';
-                                rm.style = 'position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:white;border:none;cursor:pointer;font-size:10px;font-weight:900;line-height:1;padding:0;';
-                                rm.onclick = (function(ix){ return function(){ compressedImages[ix]=null; wrap.remove(); syncB64(); }; })(idx);
-                                wrap.appendChild(img);
-                                wrap.appendChild(rm);
+                                wrap.style.cssText = 'position:relative;display:inline-block;';
+                                var im = document.createElement('img');
+                                im.src = b64;
+                                im.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:8px;border:2px solid #e5e7eb;display:block;';
+                                var x = document.createElement('button');
+                                x.type = 'button'; x.textContent = '✕';
+                                x.style.cssText = 'position:absolute;top:-5px;right:-5px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:white;border:none;cursor:pointer;font-size:11px;font-weight:900;line-height:20px;padding:0;text-align:center;';
+                                x.onclick = (function(n){ return function(){ imgs[n]=null; wrap.remove(); sync(); }; })(idx);
+                                wrap.appendChild(im); wrap.appendChild(x);
                                 document.getElementById('photosPreview').appendChild(wrap);
                             }
 
-                            if (doneCount === totalFiles) {
-                                syncB64();
-                                formReady = true;
-                                document.getElementById('progressText').textContent     = '✅ Ready!';
+                            if (done === total) {
+                                sync();
+                                ready = true;
+                                document.getElementById('progressText').textContent = '✅ Ready!';
                                 document.getElementById('progressBar').style.background = '#22c55e';
-                                document.getElementById('photoStatus').innerHTML = '<span style="color:#059669;">✅ Photos compressed and ready.</span>';
+                                document.getElementById('photoStatus').innerHTML = '<span style="color:#059669;font-weight:700;">✅ Photos ready to upload.</span>';
                             }
                         });
                     });
                 });
 
-                function syncB64() {
-                    var valid = compressedImages.filter(function(x){ return x; });
-                    document.getElementById('photosB64').value = valid.length ? JSON.stringify(valid) : '';
+                function sync(){
+                    var v = imgs.filter(function(x){ return x; });
+                    document.getElementById('photosB64').value = v.length ? JSON.stringify(v) : '';
                 }
 
-                function compressOne(file, idx, cb) {
-                    var reader = new FileReader();
-                    reader.onerror = function(){ cb(null, idx); };
-                    reader.onload  = function(e){
-                        var img = new Image();
-                        img.onerror = function(){ cb(null, idx); };
-                        img.onload  = function(){
+                function shrink(file, idx, cb){
+                    var r = new FileReader();
+                    r.onerror = function(){ cb(null, idx); };
+                    r.onload  = function(e){
+                        var im = new Image();
+                        im.onerror = function(){ cb(null, idx); };
+                        im.onload  = function(){
                             try {
-                                var MAX = 1200, w = img.width, h = img.height;
-                                if (w > MAX){ h = Math.round(h * MAX / w); w = MAX; }
-                                if (h > MAX){ w = Math.round(w * MAX / h); h = MAX; }
-                                if (w < 1) w = 1; if (h < 1) h = 1;
-                                var c = document.createElement('canvas');
-                                c.width = w; c.height = h;
-                                c.getContext('2d').drawImage(img, 0, 0, w, h);
-                                cb(c.toDataURL('image/jpeg', 0.82), idx);
+                                var M=1200, w=im.width, h=im.height;
+                                if(w>M){h=Math.round(h*M/w);w=M;}
+                                if(h>M){w=Math.round(w*M/h);h=M;}
+                                if(w<1)w=1; if(h<1)h=1;
+                                var c=document.createElement('canvas');
+                                c.width=w; c.height=h;
+                                c.getContext('2d').drawImage(im,0,0,w,h);
+                                cb(c.toDataURL('image/jpeg',0.82), idx);
                             } catch(err){ cb(e.target.result, idx); }
                         };
-                        img.src = e.target.result;
+                        im.src = e.target.result;
                     };
-                    reader.readAsDataURL(file);
+                    r.readAsDataURL(file);
                 }
 
-                // Block submit until compression finishes
-                var theForm = document.getElementById('bizForm');
-                if (theForm) {
-                    theForm.addEventListener('submit', function(e){
-                        if (!formReady) {
+                // Block submit while compressing
+                var frm = document.getElementById('bizForm');
+                if(frm){
+                    frm.addEventListener('submit', function(e){
+                        if(!ready){
                             e.preventDefault();
-                            document.getElementById('photoStatus').innerHTML = '<span style="color:#d97706;">⏳ Still compressing — please wait a moment…</span>';
-                            var f = this;
-                            var tries = 0;
-                            var wait = setInterval(function(){
-                                tries++;
-                                if (formReady){ clearInterval(wait); f.submit(); }
-                                if (tries > 20){ clearInterval(wait); f.submit(); } // safety
-                            }, 300);
+                            document.getElementById('photoStatus').innerHTML='<span style="color:#d97706;">⏳ Still compressing — please wait…</span>';
+                            var f=this, t=0;
+                            var iv=setInterval(function(){
+                                t++;
+                                if(ready||t>40){ clearInterval(iv); f.submit(); }
+                            },300);
                             return false;
                         }
-                        var btn = theForm.querySelector('.submit-btn');
-                        if (btn){ btn.textContent = '⏳ Uploading…'; btn.disabled = true; btn.style.opacity = '0.7'; }
+                        var btn=frm.querySelector('.submit-btn');
+                        if(btn){btn.textContent='⏳ Uploading…';btn.disabled=true;btn.style.opacity='0.7';}
                     });
                 }
             })();
