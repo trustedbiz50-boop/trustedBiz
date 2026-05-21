@@ -75,6 +75,7 @@
     .btn-premium{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;}.btn-premium:hover{filter:brightness(1.1);}
     .btn-remove{background:#f3f4f6;color:#6b7280;}.btn-remove:hover{background:#e5e7eb;}
     .btn-delete{background:#fee2e2;color:#dc2626;}.btn-delete:hover{background:#dc2626;color:white;}
+    .btn-pool{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}.btn-pool:hover{background:#16a34a;color:white;}
     .btn-view{background:#2b7a78;color:white;}.btn-view:hover{background:#205e5c;}
     .btn-regen{background:#fff8e1;color:#d97706;}.btn-regen:hover{background:#fef3c7;}
     .btn-mark-late{background:#fee2e2;color:#dc2626;font-size:11px;}.btn-mark-late:hover{background:#dc2626;color:white;}
@@ -130,7 +131,44 @@
         <div class="stat-card"><div class="stat-num" style="color:#d97706;">{{ pending }}</div><div class="stat-label">Pending</div></div>
         <div class="stat-card"><div class="stat-num">{{ total_reviews }}</div><div class="stat-label">Reviews</div></div>
         <div class="stat-card"><div class="stat-num" style="color:#f59e0b;">{{ total_premium }}</div><div class="stat-label">Premium</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#16a34a;">{{ pool_saves }}</div><div class="stat-label">AI Tokens Saved (Pool)</div></div>
     </div>
+
+    <!-- TEMPLATE POOL STATUS -->
+    {% if pool_stats %}
+    <div style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+        <strong style="color:#15803d;font-size:15px;">🧠 Template Pool — {{ pool_stats|length }} categor{{ 'ies' if pool_stats|length != 1 else 'y' }} cached · {{ pool_saves }} websites served for free</strong>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
+        {% for p in pool_stats %}
+            <span style="background:white;border:1px solid #bbf7d0;border-radius:20px;padding:4px 12px;font-size:12px;color:#166534;">
+                {{ p.category }} · used {{ p.times_used }}×
+            </span>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- AGENT-SUBMITTED PENDING (needs approve-agent-biz) -->
+    {% if agent_pending %}
+    <div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+        <strong style="color:#1d4ed8;font-size:15px;">🤝 {{ agent_pending|length }} Agent-Submitted Business{{ 'es' if agent_pending|length != 1 }} — Ready to Approve</strong>
+        <p style="font-size:13px;color:#1e40af;margin:4px 0 12px;">Approving will generate the website AND send the agent their invite code to close the deal.</p>
+        {% for b in agent_pending %}
+        <div style="background:white;border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+                <strong style="font-size:14px;">{{ b.name }}</strong>
+                <span style="font-size:12px;color:#6b7280;margin-left:8px;">{{ b.category }}</span>
+                {% if b.agent_name %}<span style="font-size:12px;color:#3b82f6;margin-left:8px;">Agent: {{ b.agent_name }}</span>{% endif %}
+            </div>
+            <form method="POST" action="/admin/approve-agent-biz/{{ b.id }}" style="margin:0;">
+                <button type="submit" style="background:#16a34a;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;">
+                    ✅ Approve + Generate + Invite
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- PENDING ALERT -->
     {% if pending > 0 %}
@@ -315,6 +353,13 @@
                     <input type="hidden" name="action" value="delete">
                     <button type="submit" class="btn btn-delete">🗑</button>
                 </form>
+                {% if b.generated_html and not b.owner_id %}
+                <form method="POST" style="display:inline;" onsubmit="return confirm('Move {{ b.name }} website to pool? Use this when the owner refused.')">
+                    <input type="hidden" name="id" value="{{ b.id }}">
+                    <input type="hidden" name="action" value="send_to_pool">
+                    <button type="submit" class="btn btn-pool" title="Owner refused — save website for next business in same category">♻️ Pool</button>
+                </form>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
