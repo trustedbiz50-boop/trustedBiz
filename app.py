@@ -1270,6 +1270,38 @@ def agent_set_password():
         flash('Password set! You can now log in.')
         return redirect('/login')
     return render_template('set_password.html', email=email)
+@app.route('/agent/set-password', methods=['GET', 'POST'])
+def agent_set_password():
+    email = request.args.get('email', '')
+    biz = None
+    if email:
+        user = db_fetchone(q("SELECT * FROM users WHERE email=?"), (email,))
+        if user:
+            biz = db_fetchone(
+                q("SELECT * FROM business WHERE owner_id=? AND status='approved' ORDER BY created_at DESC LIMIT 1"),
+                (user['id'],)
+            )
+    if request.method == 'POST':
+        email            = request.form.get('email', '').strip().lower()
+        password         = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        if password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return render_template('set_password.html', email=email, biz=biz)
+        if len(password) < 6:
+            flash('Password must be at least 6 characters.', 'error')
+            return render_template('set_password.html', email=email, biz=biz)
+        user = db_fetchone(q("SELECT * FROM users WHERE email=?"), (email,))
+        if not user:
+            flash('Email not found.', 'error')
+            return render_template('set_password.html', email=email, biz=biz)
+        db_execute(q("UPDATE users SET password=? WHERE id=?"),
+            (generate_password_hash(password), user['id']))
+        session['user_id'] = user['id']
+        flash('Account activated! Welcome to TrustedBiz 🎉', 'success')
+        return redirect('/dashboard')
+    return render_template('set_password.html', email=email, biz=biz)
+
 
 @app.errorhandler(404)
 def not_found(e):
