@@ -727,12 +727,19 @@ def generate_site(biz_id):
     bd['branches'] = [dict(b) for b in branches]
     ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
     bd['ads'] = [dict(a) for a in ads]
+    plan = session.get('chosen_plan', 'basic')
     from ai_generator import generate_business_website_bg
     try:
-        generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
+        import threading
+        t = threading.Thread(
+            target=generate_business_website_bg,
+            args=(bd, lambda sql, params: db_execute(q(sql), params), biz_id, plan),
+            daemon=True
+        )
+        t.start()
     except Exception as e:
         print(f"Regen error: {e}")
-    flash("✅ Website regenerating in background...")
+    flash("✨ Your website is being built... refresh in 30 seconds to see it live.")
     return redirect('/dashboard')
 
 # ── ADD BUSINESS ──────────────────────────────────────────────────────────────
