@@ -89,7 +89,7 @@ def _email_welcome(name, email):
 </body></html>""")
 
 def _email_approved(name, email, biz_name, biz_slug):
-    biz_url = f"https://trustedbiz.co.ug/site/{biz_slug}"
+    biz_url = f"https://{biz_slug}.trustedbiz.co.ug"
     _send_email(email, f"✅ {biz_name} is now LIVE on TrustedBiz!", f"""
 <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
 <div style="max-width:560px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
@@ -143,6 +143,17 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
+
+# ── SUBDOMAIN MIDDLEWARE ───────────────────────────────────────────────────────
+@app.before_request
+def handle_subdomain():
+    host = request.host.lower().split(':')[0]  # e.g. cyber-tech.trustedbiz.co.ug
+    if host.endswith('.trustedbiz.co.ug'):
+        slug = host.replace('.trustedbiz.co.ug', '')
+        if slug and slug not in ('www', 'admin', 'api'):
+            if request.path == '/':
+                # Serve the business page without changing the URL
+                return site(slug)
 ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "trustedbiz2026")
 ADMIN_WHATSAPP  = os.environ.get("ADMIN_WHATSAPP", "256753187966")
 
@@ -675,7 +686,13 @@ def logout():
 
 # ── AI WEBSITE VIEW ───────────────────────────────────────────────────────────
 @app.route('/site/<slug>')
-def site(slug):
+def site(slug=None):
+    # Also handle subdomain requests e.g. cyber-tech.trustedbiz.co.ug
+    if slug is None:
+        from flask import g
+        slug = getattr(g, 'subdomain_slug', None)
+        if not slug:
+            return render_template('404.html', current_user=get_current_user()), 404
     biz = db_fetchone(q("SELECT * FROM business WHERE slug=? AND status='approved'"), (slug,))
     if not biz:
         try: biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND status='approved'"), (int(slug),))
@@ -1411,7 +1428,7 @@ def sitemap():
     )
 
     for biz in businesses:
-        urls.append(f"/site/{biz['slug']}")
+        urls.append(f"https://{biz['slug']}.trustedbiz.co.ug")
 
     xml = '<?xml version="1.0" encoding="UTF-8"?>'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -1767,7 +1784,7 @@ def admin_approve_agent_biz(biz_id):
     if biz.get('agent_code'):
         agent_row = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz['agent_code'],))
         if agent_row:
-            site_url  = f"https://trustedbiz.co.ug/site/{biz['slug']}"
+            site_url  = f"https://{biz['slug']}.trustedbiz.co.ug"
             join_link = f"https://trustedbiz.co.ug/join?code={invite_code_str}"
             db_insert(
                 q("INSERT INTO notifications (user_id, message) VALUES (?,?)"),
