@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Dashboard — TrustedBiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4f6fb;color:#1f2937;min-height:100vh;}
+
+/* NAV */
+nav{background:white;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 0 #e8eaf0;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,#2b7a78,#14a8ac);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.logo-mark svg{width:18px;height:18px;fill:white;}
+.logo-text{font-size:19px;font-weight:900;color:#1f2937;}
+.logo-text span{color:#2b7a78;}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.agent-badge{background:#fffbeb;border:1.5px solid #fde68a;color:#92400e;font-size:12px;font-weight:800;padding:5px 12px;border-radius:100px;}
+.logout-btn{font-size:13px;font-weight:700;color:#6b7280;text-decoration:none;padding:8px 14px;border:1.5px solid #e5e7eb;border-radius:8px;transition:all .18s;}
+.logout-btn:hover{border-color:#ef4444;color:#ef4444;}
+
+/* PAGE */
+.page{max-width:1000px;margin:0 auto;padding:28px 20px 60px;}
+
+/* HERO CARD */
+.hero-card{background:linear-gradient(135deg,#0d2020,#163535);border-radius:20px;padding:32px 28px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;}
+.hero-greet h2{font-size:22px;font-weight:900;color:white;margin-bottom:4px;}
+.hero-greet p{font-size:14px;color:rgba(255,255,255,.6);}
+.code-box{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:12px;padding:14px 20px;text-align:center;}
+.code-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.45);margin-bottom:4px;}
+.code-val{font-size:26px;font-weight:900;color:#fbbf24;letter-spacing:2px;}
+.code-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:white;border-radius:14px;padding:20px;border:2px solid #e8eaf0;}
+.stat-icon{font-size:24px;margin-bottom:8px;}
+.stat-num{font-size:28px;font-weight:900;color:#1f2937;line-height:1;}
+.stat-label{font-size:12px;color:#9ca3af;margin-top:4px;font-weight:600;}
+.stat-card.highlight{border-color:#2b7a78;background:linear-gradient(135deg,#f0fdfa,#ccfbf1);}
+.stat-card.highlight .stat-num{color:#2b7a78;}
+
+/* SECTIONS */
+.section-title{font-size:16px;font-weight:800;color:#1f2937;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.section-title span{font-size:13px;font-weight:600;color:#9ca3af;}
+
+/* ADD BUSINESS FORM */
+.form-card{background:white;border-radius:16px;padding:28px;border:2px solid #e8eaf0;margin-bottom:24px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+label{display:block;font-size:13px;font-weight:700;color:#374151;margin-bottom:5px;}
+input,select,textarea{width:100%;padding:11px 14px;border:2px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit;color:#1f2937;outline:none;transition:border-color .18s;}
+input:focus,select:focus,textarea:focus{border-color:#2b7a78;}
+textarea{resize:vertical;min-height:80px;}
+.full{grid-column:1/-1;}
+.submit-btn{background:#2b7a78;color:white;border:none;border-radius:10px;padding:14px 28px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;display:inline-flex;align-items:center;gap:8px;}
+.submit-btn:hover{background:#205e5c;transform:translateY(-1px);}
+
+/* BUSINESS LIST */
+.biz-list{display:flex;flex-direction:column;gap:12px;}
+.biz-card{background:white;border-radius:14px;padding:18px 20px;border:2px solid #e8eaf0;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.biz-info h4{font-size:15px;font-weight:800;color:#1f2937;margin-bottom:2px;}
+.biz-info p{font-size:13px;color:#6b7280;}
+.biz-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;}
+.status.pending{background:#fef9c3;color:#854d0e;}
+.status.approved{background:#dcfce7;color:#166534;}
+.status.rejected{background:#fee2e2;color:#991b1b;}
+.earning-badge{background:#f0fdfa;border:1px solid #99f6e4;color:#0f766e;font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;}
+
+/* EARNINGS */
+.earnings-card{background:white;border-radius:16px;padding:28px;border:2px solid #e8eaf0;margin-bottom:24px;}
+.earnings-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f3f4f6;font-size:14px;}
+.earnings-row:last-child{border-bottom:none;}
+.earnings-row .label{color:#6b7280;font-weight:600;}
+.earnings-row .value{font-weight:800;color:#1f2937;}
+.earnings-row .value.green{color:#16a34a;}
+.payout-btn{display:inline-flex;align-items:center;gap:8px;background:#25D366;color:white;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:800;text-decoration:none;transition:all .2s;width:fit-content;}
+.payout-btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
+
+.flash{background:#dcfce7;border:1.5px solid #16a34a;color:#166534;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;}
+.flash.error{background:#fee2e2;border-color:#f87171;color:#991b1b;}
+
+@media(max-width:680px){
+  .stats{grid-template-columns:1fr 1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .hero-card{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+    <span class="logo-text">Trusted<span>Biz</span></span>
+  </a>
+  <div class="nav-right">
+    <span class="agent-badge">🤝 Agent</span>
+    <a href="/agent/logout" class="logout-btn">Sign Out</a>
+  </div>
+</nav>
+
+<div class="page">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}{% for cat, msg in messages %}
+  <div class="flash {% if cat == 'error' %}error{% endif %}">{{ msg }}</div>
+  {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- HERO -->
+  <div class="hero-card">
+    <div class="hero-greet">
+      <h2>Welcome back, {{ agent.name }} 👋</h2>
+      <p>{{ agent.area }} · {{ agent.email }}</p>
+    </div>
+    <div class="code-box">
+      <div class="code-label">Your Referral Code</div>
+      <div class="code-val">{{ agent.code }}</div>
+      <div class="code-sub">Share this with business owners</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-icon">🏢</div>
+      <div class="stat-num">{{ stats.total }}</div>
+      <div class="stat-label">Businesses Added</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-num">{{ stats.approved }}</div>
+      <div class="stat-label">Approved</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⏳</div>
+      <div class="stat-num">{{ stats.pending }}</div>
+      <div class="stat-label">Pending Approval</div>
+    </div>
+    <div class="stat-card highlight">
+      <div class="stat-icon">💰</div>
+      <div class="stat-num">{{ stats.earnings | int | format_ugx }}</div>
+      <div class="stat-label">This Month (UGX)</div>
+    </div>
+  </div>
+
+  <!-- ADD BUSINESS -->
+  <div class="form-card">
+    <div class="section-title">➕ Add a New Business <span>— fills in for the business owner</span></div>
+    <form method="POST" action="/agent/add-business" enctype="multipart/form-data">
+      <div class="form-grid">
+        <div>
+          <label>Business Name *</label>
+          <input type="text" name="name" placeholder="e.g. Kamali Salon" required>
+        </div>
+        <div>
+          <label>Category *</label>
+          <select name="category" required>
+            <option value="">Select category...</option>
+            <option>Salon & Beauty</option>
+            <option>Restaurant & Food</option>
+            <option>Mechanic & Auto</option>
+            <option>Pharmacy & Health</option>
+            <option>Electronics & Tech</option>
+            <option>Clothing & Fashion</option>
+            <option>Supermarket & Grocery</option>
+            <option>Hotel & Accommodation</option>
+            <option>School & Education</option>
+            <option>Hardware & Construction</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Owner WhatsApp Number *</label>
+          <input type="tel" name="whatsapp" placeholder="e.g. 0753187966" required>
+        </div>
+        <div>
+          <label>Owner Email (for login) *</label>
+          <input type="email" name="email" placeholder="owner@email.com" required>
+        </div>
+        <div>
+          <label>Location / Address *</label>
+          <input type="text" name="location" placeholder="e.g. Kampala Road, Kampala" required>
+        </div>
+        <div>
+          <label>Opening Hours</label>
+          <input type="text" name="hours" placeholder="e.g. Mon-Sat 8am-6pm">
+        </div>
+        <div class="full">
+          <label>Business Description *</label>
+          <textarea name="description" placeholder="Describe what the business does, its specialties, and what makes it unique..." required></textarea>
+        </div>
+        <div>
+          <label>Brand Color</label>
+          <input type="color" name="brand_color" value="#2b7a78">
+        </div>
+        <div>
+          <label>Google Maps Link (optional)</label>
+          <input type="url" name="map_link" placeholder="https://maps.google.com/...">
+        </div>
+        <div class="full">
+          <label>Business Photos (optional, up to 5)</label>
+          <input type="file" name="photos" accept="image/*" multiple>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <button type="submit" class="submit-btn">➕ Submit for Approval</button>
+        <p style="font-size:12px;color:#9ca3af;">Admin will review and approve. Business owner gets notified on WhatsApp.</p>
+      </div>
+    </form>
+  </div>
+
+  <!-- EARNINGS SUMMARY -->
+  <div class="earnings-card">
+    <div class="section-title">💰 Earnings Summary</div>
+    <div class="earnings-row">
+      <span class="label">Active businesses this month</span>
+      <span class="value">{{ stats.approved }}</span>
+    </div>
+    <div class="earnings-row">
+      <span class="label">Rate per business</span>
+      <span class="value">UGX 1,000</span>
+    </div>
+    <div class="earnings-row">
+      <span class="label">Earned this month</span>
+      <span class="value green">UGX {{ stats.approved * 1000 | int:,}}</span>
+    </div>
+    <div class="earnings-row">
+      <span class="label">Total earned all time</span>
+      <span class="value">UGX {{ stats.total_earned | default(0) | int:,}}</span>
+    </div>
+    <div style="margin-top:20px;">
+      <a href="https://wa.me/256753187966?text=Hi, I'm agent {{ agent.name }} ({{ agent.code }}). I'd like to request my earnings payout." class="payout-btn">
+        💬 Request Payout via WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <!-- BUSINESSES LIST -->
+  <div class="section-title">🏢 Businesses You've Added <span>— {{ businesses | length }} total</span></div>
+  <div class="biz-list">
+    {% for biz in businesses %}
+    <div class="biz-card">
+      <div class="biz-info">
+        <h4>{{ biz.name }}</h4>
+        <p>{{ biz.category }} · {{ biz.location }}</p>
+      </div>
+      <div class="biz-meta">
+        {% if biz.status == 'approved' %}
+          <span class="status approved">✅ Approved</span>
+          <span class="earning-badge">+UGX 1,000/mo</span>
+          <a href="/site/{{ biz.slug }}" target="_blank" style="font-size:13px;color:#2b7a78;font-weight:700;text-decoration:none;">View Site →</a>
+        {% elif biz.status == 'pending' %}
+          <span class="status pending">⏳ Pending</span>
+        {% else %}
+          <span class="status rejected">❌ Rejected</span>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div style="background:white;border-radius:14px;padding:40px;text-align:center;border:2px dashed #e8eaf0;">
+      <div style="font-size:40px;margin-bottom:12px;">🏢</div>
+      <p style="font-size:15px;font-weight:700;color:#1f2937;margin-bottom:6px;">No businesses added yet</p>
+      <p style="font-size:13px;color:#9ca3af;">Use the form above to add your first business and start earning.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+</body>
+</html>
