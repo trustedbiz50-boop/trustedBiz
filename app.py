@@ -2,7 +2,7 @@
 TrustedBiz — app.py
 All routes. Add your keys in environment variables and run.
 
-REQUIRED ENV VARS (add on Render dashboard):
+on ENV VARS (add on Render dashboard):
   SECRET_KEY          = any random string
   ANTHROPIC_API_KEY   = sk-ant-... (from console.anthropic.com)
   DATABASE_URL        = auto-set by Render PostgreSQL
@@ -1255,6 +1255,21 @@ def choose_plan():
 @app.route('/about')
 def about():
     return render_template('landing.html')
+@app.route('/agent/set-password', methods=['GET','POST'])
+def agent_set_password():
+    email = request.args.get('email','')
+    if request.method == 'POST':
+        email    = request.form.get('email','')
+        password = request.form.get('password','')
+        user = db_fetchone(q("SELECT * FROM users WHERE email=?"), (email,))
+        if not user:
+            flash('Email not found.', 'error')
+            return redirect('/agent/set-password')
+        db_execute(q("UPDATE users SET password=? WHERE id=?"),
+            (generate_password_hash(password), user['id']))
+        flash('Password set! You can now log in.')
+        return redirect('/login')
+    return render_template('set_password.html', email=email)
 
 @app.errorhandler(404)
 def not_found(e):
