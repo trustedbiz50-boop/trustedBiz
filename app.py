@@ -277,6 +277,7 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, user_id INTEGER, user_identifier TEXT, message TEXT, seen INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS price_guard_items (id SERIAL PRIMARY KEY, business_id INTEGER, category TEXT, label TEXT, price REAL, image_ref TEXT, ai_name TEXT, ai_verified INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS ads (id SERIAL PRIMARY KEY, business_id INTEGER, title TEXT, body TEXT, image_ref TEXT, active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS agents (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         ]
         cur = conn.cursor()
         for t in tables: cur.execute(t)
@@ -291,6 +292,7 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, user_identifier TEXT, message TEXT, seen INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS price_guard_items (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, category TEXT, label TEXT, price REAL, image_ref TEXT, ai_name TEXT, ai_verified INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS ads (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, title TEXT, body TEXT, image_ref TEXT, active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS agents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         ]
         for t in tables: conn.execute(t)
         conn.commit()
@@ -1300,3 +1302,229 @@ Sitemap: https://trustedbiz.co.ug/sitemap.xml
 # ── RUN ───────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AGENT SYSTEM
+# ══════════════════════════════════════════════════════════════════════════════
+
+def agent_login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'agent_id' not in session:
+            return redirect('/agent/login')
+        return f(*args, **kwargs)
+    return decorated
+
+def get_current_agent():
+    if 'agent_id' in session:
+        return db_fetchone(q("SELECT * FROM agents WHERE id=?"), (session['agent_id'],))
+    return None
+
+def make_agent_code():
+    """Generate a unique AGT-XXXX code."""
+    while True:
+        code = "AGT-" + str(secrets.randbelow(9000) + 1000)
+        existing = db_fetchone(q("SELECT id FROM agents WHERE code=?"), (code,))
+        if not existing:
+            return code
+
+
+@app.route('/agent/register', methods=['GET', 'POST'])
+def agent_register():
+    if request.method == 'POST':
+        name     = request.form.get('name', '').strip()
+        email    = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        whatsapp = request.form.get('whatsapp', '').strip()
+        area     = request.form.get('area', '').strip()
+
+        if not all([name, email, password, whatsapp, area]):
+            flash('Please fill in all fields.', 'error')
+            return render_template('agent_register.html')
+
+        existing = db_fetchone(q("SELECT id FROM agents WHERE email=?"), (email,))
+        if existing:
+            flash('An agent account with that email already exists.', 'error')
+            return render_template('agent_register.html')
+
+        code     = make_agent_code()
+        hashed   = generate_password_hash(password)
+        agent_id = db_insert(
+            q("INSERT INTO agents (name, email, password, whatsapp, area, code) VALUES (?,?,?,?,?,?)"),
+            (name, email, hashed, whatsapp, area, code)
+        )
+
+        # Notify admin on WhatsApp
+        admin_wa = os.environ.get('ADMIN_WHATSAPP', '256753187966')
+        _send_wa_notification = f"New TrustedBiz Agent registered!\nName: {name}\nEmail: {email}\nArea: {area}\nCode: {code}\nWhatsApp: {whatsapp}"
+        # (WhatsApp notification to admin — plug in your SMS/WA API here)
+
+        session['agent_id'] = agent_id
+        flash(f'Welcome {name}! Your agent code is {code}. Start adding businesses!', 'success')
+        return redirect('/agent/dashboard')
+
+    return render_template('agent_register.html')
+
+
+@app.route('/agent/login', methods=['GET', 'POST'])
+def agent_login():
+    if request.method == 'POST':
+        email    = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        agent = db_fetchone(q("SELECT * FROM agents WHERE email=?"), (email,))
+        if not agent or not check_password_hash(agent['password'], password):
+            flash('Invalid email or password.', 'error')
+            return render_template('agent_login.html')
+
+        session['agent_id'] = agent['id']
+        return redirect('/agent/dashboard')
+
+    return render_template('agent_login.html')
+
+
+@app.route('/agent/logout')
+def agent_logout():
+    session.pop('agent_id', None)
+    return redirect('/agent/login')
+
+
+@app.route('/agent/dashboard')
+@agent_login_required
+def agent_dashboard():
+    agent = get_current_agent()
+    if not agent:
+        return redirect('/agent/login')
+
+    businesses = db_fetchall(
+        q("SELECT * FROM business WHERE agent_code=? ORDER BY created_at DESC"),
+        (agent['code'],)
+    )
+
+    approved = [b for b in businesses if b['status'] == 'approved']
+    pending  = [b for b in businesses if b['status'] == 'pending']
+
+    stats = {
+        'total':        len(businesses),
+        'approved':     len(approved),
+        'pending':      len(pending),
+        'earnings':     len(approved) * 1000,
+        'total_earned': len(approved) * 1000,  # expand with real payout tracking later
+    }
+
+    return render_template('agent_dashboard.html',
+        agent=dict(agent),
+        businesses=businesses,
+        stats=stats
+    )
+
+
+@app.route('/agent/add-business', methods=['POST'])
+@agent_login_required
+def agent_add_business():
+    agent = get_current_agent()
+    if not agent:
+        return redirect('/agent/login')
+
+    name        = request.form.get('name', '').strip()
+    category    = request.form.get('category', '').strip()
+    whatsapp    = request.form.get('whatsapp', '').strip()
+    email       = request.form.get('email', '').strip().lower()
+    location    = request.form.get('location', '').strip()
+    hours       = request.form.get('hours', 'Mon-Sat 8am-6pm').strip()
+    description = request.form.get('description', '').strip()
+    brand_color = request.form.get('brand_color', '#2b7a78').strip()
+    map_link    = request.form.get('map_link', '').strip()
+
+    if not all([name, category, whatsapp, email, description]):
+        flash('Please fill in all required fields.', 'error')
+        return redirect('/agent/dashboard')
+
+    # Create a placeholder user for the business owner
+    existing_user = db_fetchone(q("SELECT id FROM users WHERE email=?"), (email,))
+    if existing_user:
+        owner_id = existing_user['id']
+    else:
+        temp_password = generate_password_hash(secrets.token_urlsafe(8))
+        owner_id = db_insert(
+            q("INSERT INTO users (name, email, password) VALUES (?,?,?)"),
+            (name, email, temp_password)
+        )
+
+    slug       = make_slug(name)
+    agent_code = agent['code']
+
+    biz_id = db_insert(
+        q("INSERT INTO business (name, category, whatsapp, description, hours, brand_color, slug, owner_id, status, agent_code, is_premium) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
+        (name, category, whatsapp, description, hours, brand_color, slug, owner_id, 'pending', agent_code, 1)
+    )
+
+    # Save photos if uploaded
+    photos = request.files.getlist('photos')
+    if photos and photos[0].filename:
+        photo_refs = save_photos(photos)
+        if photo_refs:
+            db_execute(q("UPDATE business SET photos=? WHERE id=?"), (','.join(photo_refs), biz_id))
+
+    # Notify admin
+    admin_wa = os.environ.get('ADMIN_WHATSAPP', '256753187966')
+
+    flash(f'✅ "{name}" submitted for approval! Admin will review and notify the owner on WhatsApp.', 'success')
+    return redirect('/agent/dashboard')
+
+
+# ── ADMIN: Approve agent-submitted business and notify owner ──────────────────
+
+@app.route('/admin/approve-agent-biz/<int:biz_id>', methods=['POST'])
+@admin_required
+def admin_approve_agent_biz(biz_id):
+    biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
+    if not biz:
+        return "Not found", 404
+
+    db_execute(q("UPDATE business SET status='approved', verified=1 WHERE id=?"), (biz_id,))
+
+    # Generate the AI website in background
+    try:
+        from ai_generator import generate_business_website_bg
+        bd = biz_to_dict(biz)
+        bd['branches'] = []
+        bd['ads'] = []
+        generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
+    except Exception as e:
+        print(f"AI gen error: {e}")
+
+    # Get owner and send them a login code via WhatsApp
+    owner = db_fetchone(q("SELECT * FROM users WHERE id=?"), (biz['owner_id'],)) if biz['owner_id'] else None
+
+    # Generate a temp login link for the owner
+    site_url = f"https://trustedbiz.co.ug/site/{biz['slug']}"
+    login_url = f"https://trustedbiz.co.ug/login"
+
+    # Notify the agent
+    if biz.get('agent_code'):
+        agent = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz['agent_code'],))
+        if agent:
+            db_insert(
+                q("INSERT INTO notifications (user_id, message) VALUES (?,?)"),
+                (0, f"Business '{biz['name']}' you submitted has been approved! Earning: UGX 1,000/month.")
+            )
+            # Send WhatsApp message to agent (plug WA API here)
+
+    flash(f"'{biz['name']}' approved and AI website generation started.", 'success')
+    return redirect('/admin')
+
+
+# ── MIGRATE: add agent columns if upgrading existing DB ──────────────────────
+@app.route('/admin/migrate-agents')
+@admin_required
+def migrate_agents():
+    try:
+        db_execute("CREATE TABLE IF NOT EXISTS agents (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    except: pass
+    try:
+        db_execute(q("ALTER TABLE business ADD COLUMN agent_code TEXT"))
+    except: pass
+    return "Agent migration done!"
+
