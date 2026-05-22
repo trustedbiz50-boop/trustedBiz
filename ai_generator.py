@@ -250,7 +250,7 @@ def _fallback(name, category, description, whatsapp, hours, color,
     photos_js = "var P=[];"
     if photos:
         items = ""
-        for i, p in enumerate(photos[:6]):
+        for i, p in enumerate(photos[:8]):
             src = p if p.startswith("http") else f"/static/images/{p}"
             items += f'<div class="gi" onclick="lb({i})"><img src="{src}" alt="" loading="lazy"></div>'
         gallery_html = f'<section class="sec sec-alt" id="gallery"><div class="wrap"><p class="sec-label">Gallery</p><h2 class="sec-h">Our Work</h2><div class="gal">{items}</div></div></section>'
