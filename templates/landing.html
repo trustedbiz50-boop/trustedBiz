@@ -306,7 +306,7 @@ footer{background:#0a1f1f;padding:48px 24px 28px;}
         <div style="font-size:48px;margin-bottom:16px;">🤝</div>
         <h3>Become an Agent</h3>
         <p>Sign up as a TrustedBiz agent. Get your referral code. Start adding businesses and earning.</p>
-        <a href="/agent/register" class="btn-gold">👤 Join as Agent →</a>
+        <a href="#" onclick="showUnderConstruction(event)" class="btn-gold">👤 Join as Agent →</a>
         <div class="agent-steps">
           <div class="agent-step"><div class="agent-step-dot">1</div>Create agent account</div>
           <div class="agent-step"><div class="agent-step-dot">2</div>Get your unique code (e.g. AGT-4821)</div>
@@ -412,7 +412,7 @@ footer{background:#0a1f1f;padding:48px 24px 28px;}
       </div>
       <div class="footer-col">
         <h4>Agents</h4>
-        <a href="/agent/register">Become an Agent</a>
+        <a href="#" onclick="showUnderConstruction(event)">Become an Agent</a>
         <a href="/agent/login">Agent Login</a>
         <a href="#agent">How it Works</a>
       </div>
@@ -434,5 +434,27 @@ footer{background:#0a1f1f;padding:48px 24px 28px;}
 <!-- WhatsApp Float -->
 <a href="https://wa.me/256753187966" class="wa-float" title="Chat with us on WhatsApp">💬</a>
 
+<!-- Under Construction Modal -->
+<div id="ucModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:20px;padding:40px 32px;max-width:340px;width:90%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.25);animation:popIn .3s ease;">
+    <div style="font-size:52px;margin-bottom:16px;">🚧</div>
+    <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:900;color:#1f2937;margin-bottom:10px;">Under Construction</h2>
+    <p style="font-size:14px;color:#6b7280;line-height:1.7;margin-bottom:24px;">Agent registration is coming very soon!<br>We're putting the finishing touches on it.<br><strong style="color:#2b7a78;">Stay tuned 🔥</strong></p>
+    <button onclick="document.getElementById('ucModal').style.display='none'" style="background:#2b7a78;color:white;border:none;border-radius:10px;padding:13px 32px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;width:100%;">Got it 👍</button>
+  </div>
+</div>
+<style>
+@keyframes popIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+</style>
+<script>
+function showUnderConstruction(e){
+  e.preventDefault();
+  var m = document.getElementById('ucModal');
+  m.style.display = 'flex';
+}
+document.getElementById('ucModal').addEventListener('click', function(e){
+  if(e.target === this) this.style.display = 'none';
+});
+</script>
 </body>
 </html>

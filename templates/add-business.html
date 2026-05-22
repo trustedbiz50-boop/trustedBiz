@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Add Your Business — TrustedBiz</title>
+    <title>Add Your Business | TrustedBiz</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -285,7 +285,7 @@
         {% if not editing %}
         <div class="section-divider">Photos</div>
         <div class="fg">
-            <label>Business Photos (up to 6)</label>
+            <label>Business Photos (up to 8)</label>
             <input type="file" id="photosInput" accept="image/*" multiple style="display:none">
 
             <div id="uploadTrigger" onclick="document.getElementById('photosInput').click()"
@@ -293,7 +293,7 @@
                  onmouseover="this.style.borderColor='#2b7a78'" onmouseout="this.style.borderColor='#d1d5db'">
                 <div style="font-size:28px;margin-bottom:6px;">📷</div>
                 <div style="font-size:14px;font-weight:700;color:#374151;">Tap to choose photos</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:3px;">Up to 6 photos · Any size · Auto-compressed</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:3px;">Up to 8 photos · Any size · Auto-compressed</div>
             </div>
 
             <div id="uploadProgress" style="display:none;margin-top:10px;">
@@ -319,7 +319,7 @@
                 var ready = true;    // false while compressing
 
                 document.getElementById('photosInput').addEventListener('change', function(){
-                    var files = Array.from(this.files).slice(0,6);
+                    var files = Array.from(this.files).slice(0,8);
                     if (!files.length) return;
 
                     imgs  = new Array(files.length);

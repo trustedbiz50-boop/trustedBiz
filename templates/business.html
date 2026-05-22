@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
 <!-- PRIMARY SEO -->
-<title>{{ business.name }} — {{ business.category }} in Uganda | TrustedBiz</title>
+<title>{{ business.name }} | {{ business.category }} | TrustedBiz Uganda</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="{% if business.description %}{{ business.description[:155] }}{% else %}Looking for verified {{ business.category }}? Visit {{ business.name }} on TrustedBiz. {% if total_reviews > 0 %}{{ total_reviews }} reviews, {{ avg_rating }} stars. {% endif %}Contact on WhatsApp.{% endif %}">
 <link rel="canonical" href="{{ request.url }}">
 
 <!-- OPEN GRAPH (WhatsApp, Facebook previews) -->
 <meta property="og:type" content="business.business">
-<meta property="og:title" content="{{ business.name }} — {{ business.category }} | TrustedBiz">
-<meta property="og:description" content="{% if business.description %}{{ business.description[:155] }}{% else %}Find {{ business.name }} on TrustedBiz — Uganda's trusted business directory.{% endif %}">
+<meta property="og:title" content="{{ business.name }} | {{ business.category }} | TrustedBiz">
+<meta property="og:description" content="{% if business.description %}{{ business.description[:155] }}{% else %}Find {{ business.name }} on TrustedBiz | Uganda's trusted business directory.{% endif %}">
 <meta property="og:url" content="{{ request.url }}">
 <meta property="og:image" content="{% if business.photos %}{{ photo_url(business.photos.split(',')[0].strip()) }}{% else %}https://trustedbiz.onrender.com/static/og-default.png{% endif %}">
 <meta property="og:site_name" content="TrustedBiz">
