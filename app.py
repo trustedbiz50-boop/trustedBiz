@@ -88,6 +88,26 @@ def _email_welcome(name, email):
 </div>
 </body></html>""")
 
+def ping_google(slug):
+    """Ping Google to crawl and index a business URL immediately after approval."""
+    import threading, urllib.request, urllib.parse
+    def _ping(slug):
+        try:
+            biz_url   = f"https://{slug}.trustedbiz.co.ug"
+            sitemap   = "https://trustedbiz.co.ug/sitemap.xml"
+            # 1. Ping sitemap so Google re-reads all URLs
+            ping_url  = f"https://www.google.com/ping?sitemap={urllib.parse.quote(sitemap, safe='')}"
+            urllib.request.urlopen(ping_url, timeout=8)
+            # 2. Also ping the specific business URL via IndexNow (Bing/Yandex — helps speed)
+            indexnow  = (f"https://api.indexnow.org/indexnow"
+                         f"?url={urllib.parse.quote(biz_url, safe='')}"
+                         f"&key=trustedbiz2026")
+            urllib.request.urlopen(indexnow, timeout=8)
+            print(f"[SEO] Pinged Google + IndexNow for {biz_url}")
+        except Exception as e:
+            print(f"[SEO] Ping error for {slug}: {e}")
+    threading.Thread(target=_ping, args=(slug,), daemon=True).start()
+
 def _email_approved(name, email, biz_name, biz_slug):
     biz_url = f"https://{biz_slug}.trustedbiz.co.ug"
     _send_email(email, f"✅ {biz_name} is now LIVE on TrustedBiz!", f"""
@@ -1103,11 +1123,14 @@ def admin():
         if action == 'approve':
             db_execute(q("UPDATE business SET status='approved' WHERE id=?"), (biz_id,))
             owner = db_fetchone(q("SELECT owner_id FROM business WHERE id=?"), (biz_id,))
+            biz_row = db_fetchone(q("SELECT name, slug FROM business WHERE id=?"), (biz_id,))
+            # Ping Google to index the business URL immediately
+            if biz_row and biz_row.get('slug'):
+                ping_google(biz_row['slug'])
             if owner and owner.get('owner_id'):
                 db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
                           (owner['owner_id'], "✅ Your business is now live on TrustedBiz!"))
                 # Send approval email
-                biz_row = db_fetchone(q("SELECT name, slug FROM business WHERE id=?"), (biz_id,))
                 user_row = db_fetchone(q("SELECT name, email FROM users WHERE id=?"), (owner['owner_id'],))
                 if biz_row and user_row:
                     _email_approved(user_row['name'], user_row['email'], biz_row['name'], biz_row['slug'])
@@ -1424,6 +1447,10 @@ def too_large(e):
 def google_verify():
     return "google-site-verification: google2c13209b099aea62"
 
+@app.route('/trustedbiz2026.txt')
+def indexnow_key():
+    return "trustedbiz2026", 200, {'Content-Type': 'text/plain'}
+
 
 @app.route('/sitemap.xml')
 def sitemap():
@@ -1737,6 +1764,7 @@ def admin_approve_agent_biz(biz_id):
         bd['branches'] = []
         bd['ads'] = []
         _t.Thread(target=_swap_and_save, args=(pooled['html'], bd, biz_id, pooled['id'], biz_plan), daemon=True).start()
+        ping_google(biz.get('slug', ''))
         flash(f"✅ '{biz['name']}' approved — website generating now!", 'success')
     else:
         # No unused pool template — generate a completely fresh site with AI,
@@ -1766,6 +1794,7 @@ def admin_approve_agent_biz(biz_id):
         ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
         bd['ads'] = [dict(a) for a in ads]
         _t.Thread(target=_gen_and_pool, args=(bd, biz_id, category, biz_plan), daemon=True).start()
+        ping_google(biz.get('slug', ''))
         flash(f"✅ '{biz['name']}' approved — generating a unique AI website now.", 'success')
 
     # ── INVITE CODE: generate one so the agent can give the owner dashboard access
