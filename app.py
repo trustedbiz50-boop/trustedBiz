@@ -856,11 +856,15 @@ def add_business():
 
             # Auto-add to price guard with AI verification
             if hero_price and hero_label and biz_id:
+                hero_img_b64 = request.form.get('hero_price_image_b64','').strip()
                 hero_price_img = request.files.get('hero_price_image')
                 hero_img_ref = None
                 ai_name = hero_label
                 ai_verified = 0
-                if hero_price_img and hero_price_img.filename:
+                if hero_img_b64:
+                    refs = save_photos_b64([hero_img_b64])
+                    hero_img_ref = refs[0] if refs else None
+                elif hero_price_img and hero_price_img.filename:
                     hero_img_ref = save_single_photo(hero_price_img)
                     client = get_anthropic_client()
                     if client and hero_img_ref:
