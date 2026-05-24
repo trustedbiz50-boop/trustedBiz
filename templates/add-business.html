@@ -244,7 +244,29 @@
             </div>
             <div class="fg" style="margin-top:10px;">
                 <label>📸 Photo of this item <span style="font-weight:400;color:#9ca3af;font-size:11px;">Optional but recommended — appears in Price Guard widget</span></label>
-                <input type="file" name="hero_price_image" accept="image/*" style="margin-top:4px;">
+                <input type="file" name="hero_price_image" id="heroImg" accept="image/*" style="margin-top:4px;">
+<input type="hidden" name="hero_price_image_b64" id="heroImgB64">
+<script>
+document.getElementById('heroImg').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var r = new FileReader();
+    r.onload = function(ev){
+        var im = new Image();
+        im.onload = function(){
+            var M=1200, w=im.width, h=im.height;
+            if(w>M){h=Math.round(h*M/w);w=M;}
+            if(h>M){w=Math.round(w*M/h);h=M;}
+            var c=document.createElement('canvas');
+            c.width=w; c.height=h;
+            c.getContext('2d').drawImage(im,0,0,w,h);
+            document.getElementById('heroImgB64').value = c.toDataURL('image/jpeg',0.82);
+        };
+        im.src = ev.target.result;
+    };
+    r.readAsDataURL(file);
+});
+</script>
                 <div style="font-size:11px;color:#9ca3af;margin-top:4px;">A clear photo of the product/service helps customers trust your price. E.g. photo of the food, haircut result, etc.</div>
             </div>
             <div class="price-examples" id="priceExamples">
