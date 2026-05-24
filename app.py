@@ -1455,10 +1455,10 @@ def indexnow_key():
 @app.route('/sitemap.xml')
 def sitemap():
     urls = [
-        '/',
-        '/price-guard',
-        '/privacy',
-        '/terms'
+        'https://trustedbiz.co.ug/',
+        'https://trustedbiz.co.ug/price-guard',
+        'https://trustedbiz.co.ug/privacy',
+        'https://trustedbiz.co.ug/terms'
     ]
 
     businesses = db_fetchall(
@@ -1472,7 +1472,7 @@ def sitemap():
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
 
     for url in urls:
-        xml += f'<url><loc>https://trustedbiz.co.ug{url}</loc></url>'
+        xml += f'<url><loc>{url}</loc></url>'
 
     xml += '</urlset>'
 
