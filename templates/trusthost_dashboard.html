@@ -347,11 +347,15 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
         </div>
         <div class="site-actions">
           <span class="site-badge {% if biz.status == 'approved' %}badge-live{% else %}badge-none{% endif %}">
-            {% if biz.status == 'approved' %}● LIVE{% else %}PENDING{% endif %}
+            {% if biz.status == 'approved' %}● LIVE{% else %}⏳ PENDING{% endif %}
           </span>
           {% if biz.status == 'approved' %}
           <a href="//{{ biz.slug }}.trustedbiz.co.ug" target="_blank" class="btn btn-ghost" style="font-size:11px;padding:5px 10px;">↗ View</a>
           <a href="/dashboard/edit-html/{{ biz.id }}" class="btn btn-ghost" style="font-size:11px;padding:5px 10px;">💻 Edit</a>
+          {% else %}
+          <form method="POST" action="/trusthost/approve-own/{{ biz.id }}" style="display:inline;">
+            <button type="submit" class="btn btn-teal" style="font-size:11px;padding:5px 10px;">⚡ Activate</button>
+          </form>
           {% endif %}
         </div>
       </div>
@@ -367,22 +371,10 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
     </div>
     {% endif %}
 
-    <!-- LIVE LOGS PREVIEW -->
-    <div class="sec-hdr" style="margin-top:8px;"><div class="sec-title">Live Logs</div></div>
-    <div class="terminal">
-      <div class="term-hdr">
-        <div class="term-dots"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div></div>
-        <div class="term-title">production · live stream</div>
-      </div>
-      <div class="term-body" id="liveLogs">
-        {% for log in logs %}
-        <div><span class="l-time">{{ log.time }}</span><span class="{{ log.cls }}">{{ log.msg }}</span></div>
-        {% else %}
-        <div><span class="l-time">--:--:--</span><span class="l-ok">✓ TrustHost running · waiting for traffic</span></div>
-        {% endfor %}
-        <span class="cursor"></span>
-      </div>
+    <div style="text-align:right;margin-top:4px;">
+      <button class="btn btn-ghost" style="font-size:11px;" onclick="showPage('logs',document.querySelectorAll('.nav-item')[3])">📋 View Full Logs →</button>
     </div>
+
   </div>
 
   <!-- ── DEPLOY PAGE ── -->
