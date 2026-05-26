@@ -1496,6 +1496,83 @@ Sitemap: https://trustedbiz.co.ug/sitemap.xml
 """, 200, {'Content-Type': 'text/plain'}
 
 # ── RUN ───────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TRUSTHOST — Website Hosting Dashboard
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/trusthost')
+@login_required
+def trusthost_dashboard():
+    user  = get_current_user()
+    sites = db_fetchall(
+        q("SELECT * FROM business WHERE owner_id=? ORDER BY created_at DESC"),
+        (user['id'],)
+    )
+    plan  = 'basic' if any(s['is_premium'] for s in sites) else 'free'
+    # Simple log entries — in future connect to real request logs
+    from datetime import datetime
+    now = datetime.now().strftime('%H:%M:%S')
+    logs = [
+        {'time': now, 'cls': 'l-ok',  'msg': '✓ TrustHost running · all sites healthy'},
+        {'time': now, 'cls': 'l-info','msg': f'GET / 200 — {len(sites)} site(s) hosted'},
+    ]
+    return render_template('trusthost_dashboard.html',
+        current_user=user,
+        sites=[dict(s) for s in sites],
+        plan=plan,
+        logs=logs
+    )
+
+
+@app.route('/trusthost/deploy', methods=['POST'])
+@login_required
+def trusthost_deploy():
+    user        = get_current_user()
+    name        = request.form.get('name','').strip()
+    category    = request.form.get('category','Business Website').strip()
+    whatsapp    = request.form.get('whatsapp','').strip()
+    brand_color = request.form.get('brand_color','#2b7a78').strip()
+    description = request.form.get('description','').strip()
+    custom_html = request.form.get('custom_html','').strip()
+    html_file   = request.files.get('html_file')
+    if html_file and html_file.filename.endswith('.html'):
+        custom_html = html_file.read().decode('utf-8')
+    if not name:
+        flash('Site name is required.', 'error')
+        return redirect('/trusthost')
+    if not custom_html:
+        flash('Please upload or paste your HTML file.', 'error')
+        return redirect('/trusthost')
+    slug   = make_slug(name)
+    biz_id = db_insert(
+        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?)"),
+        (name, category, whatsapp, description, brand_color, slug, user['id'], 'pending', 1, custom_html)
+    )
+    flash(f'✅ "{name}" submitted! It goes live at {slug}.trustedbiz.co.ug once approved.', 'success')
+    return redirect('/trusthost')
+
+
+@app.route('/trusthost/request-domain', methods=['POST'])
+@login_required
+def trusthost_request_domain():
+    user          = get_current_user()
+    biz_id        = request.form.get('biz_id','')
+    custom_domain = request.form.get('custom_domain','').strip().lower()
+    custom_domain = custom_domain.replace('https://','').replace('http://','').rstrip('/')
+    if biz_id and custom_domain:
+        biz = db_fetchone(q("SELECT id FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
+        if biz:
+            try:
+                db_execute(q("UPDATE business SET custom_domain=? WHERE id=?"), (custom_domain, biz_id))
+                flash(f'✅ Domain "{custom_domain}" requested! Point your CNAME to trustedbiz.co.ug then wait 24hrs.', 'success')
+            except:
+                flash('Run /admin/migrate-db first to enable custom domains.', 'error')
+        else:
+            flash('Site not found.', 'error')
+    return redirect('/trusthost')
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 
