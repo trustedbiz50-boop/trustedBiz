@@ -1509,7 +1509,7 @@ def trusthost_dashboard():
         q("SELECT * FROM business WHERE owner_id=? ORDER BY created_at DESC"),
         (user['id'],)
     )
-    plan  = 'basic' if any(s['is_premium'] for s in sites) else 'free'
+    plan  = 'premium' if any(s['is_premium'] for s in sites) else 'free'
     # Simple log entries — in future connect to real request logs
     from datetime import datetime
     now = datetime.now().strftime('%H:%M:%S')
