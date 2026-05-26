@@ -1547,9 +1547,17 @@ def trusthost_deploy():
     slug   = make_slug(name)
     biz_id = db_insert(
         q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?)"),
-        (name, category, whatsapp, description, brand_color, slug, user['id'], 'pending', 1, custom_html)
+        (name, category, whatsapp, description, brand_color, slug, user['id'], 'approved', 1, custom_html)
     )
-    flash(f'✅ "{name}" submitted! It goes live at {slug}.trustedbiz.co.ug once approved.', 'success')
+    # Notify admin and ping Google for instant indexing
+    try:
+        db_execute(
+            q("INSERT INTO notifications (user_id, message) VALUES (?,?)"),
+            (0, f"🌐 TrustHost: '{name}' deployed by {user['name']} ({user['email']}) → {slug}.trustedbiz.co.ug")
+        )
+    except: pass
+    ping_google(slug)
+    flash(f'🚀 "{name}" is now LIVE at {slug}.trustedbiz.co.ug!', 'success')
     return redirect('/trusthost')
 
 
@@ -1570,6 +1578,24 @@ def trusthost_request_domain():
                 flash('Run /admin/migrate-db first to enable custom domains.', 'error')
         else:
             flash('Site not found.', 'error')
+    return redirect('/trusthost')
+
+
+@app.route('/trusthost/approve-own/<int:biz_id>', methods=['POST'])
+@login_required
+def trusthost_approve_own(biz_id):
+    """Allow owner to self-approve a TrustHost site stuck in pending (TrustHost deploys should be instant)."""
+    user = get_current_user()
+    biz  = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
+    if not biz:
+        flash('Site not found.', 'error')
+        return redirect('/trusthost')
+    if biz.get('generated_html') or biz.get('status') == 'approved':
+        db_execute(q("UPDATE business SET status='approved' WHERE id=?"), (biz_id,))
+        ping_google(biz.get('slug',''))
+        flash(f'✅ "{biz["name"]}" is now LIVE!', 'success')
+    else:
+        flash('No HTML uploaded yet — deploy your site first.', 'error')
     return redirect('/trusthost')
 
 
