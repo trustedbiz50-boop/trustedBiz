@@ -462,8 +462,33 @@ def home():
         if notifications:
             db_execute(q("UPDATE notifications SET seen=1 WHERE user_id=?"), (session['user_id'],))
 
+    # ── WEB SEARCH ─────────────────────────────────────────────────────────────
+    web_results = []
+    if query:
+        try:
+            import urllib.request, urllib.parse, json as _json
+            search_query = urllib.parse.quote(f"{query} Uganda business")
+            url = f"https://api.duckduckgo.com/?q={search_query}&format=json&no_html=1&skip_disambig=1"
+            req = urllib.request.Request(url, headers={'User-Agent': 'TrustedBiz/1.0'})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                data = _json.loads(r.read().decode())
+            for item in (data.get('RelatedTopics') or [])[:10]:
+                if isinstance(item, dict) and item.get('Text') and item.get('FirstURL'):
+                    icon = (item.get('Icon') or {}).get('URL', '')
+                    domain = item['FirstURL'].split('/')[2] if '//' in item['FirstURL'] else ''
+                    web_results.append({
+                        'title': item['Text'].split(' - ')[0][:90],
+                        'snippet': item['Text'][:220],
+                        'url': item['FirstURL'],
+                        'image': ('https://duckduckgo.com' + icon) if icon and icon.startswith('/') else icon,
+                        'source': domain,
+                    })
+        except Exception as e:
+            print(f"Web search error: {e}")
+
     return render_template('home.html',
         results=results,
+        web_results=web_results,
         current_user=get_current_user(),
         notifications=notifications)
 
