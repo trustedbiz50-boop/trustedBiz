@@ -1,557 +1,379 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>My Dashboard | TrustedBiz</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    body{font-family:'Plus Jakarta Sans','Segoe UI',sans-serif;background:#f4f6fb;color:#1f2937;}
+<title>My Dashboard | TrustedBiz</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --brand:#2b7a78;--brand-dark:#205e5c;--brand-light:#3a9e9b;
+  --brand-dim:rgba(43,122,120,.10);--brand-border:rgba(43,122,120,.22);
+  --bg:#f5f8f8;--surface:#fff;--surface2:#eef4f4;--border:#dde8e8;
+  --text:#0f1f1e;--text-mid:#4a6363;--text-dim:#8aa4a4;
+  --green:#16a34a;--green-dim:#dcfce7;
+  --yellow:#d97706;--yellow-dim:#fef3c7;
+  --red:#dc2626;--red-dim:#fee2e2;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
 
-    /* ── HEADER (your exact style) ── */
-    header{
-        background:white;padding:0 28px;height:62px;
-        display:flex;justify-content:space-between;align-items:center;
-        position:sticky;top:0;z-index:500;
-        box-shadow:0 1px 0 #e8eaf0,0 2px 12px rgba(0,0,0,.06);
-    }
-    .logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
-    .logo-mark{width:34px;height:34px;background:linear-gradient(135deg,#2b7a78,#14a8ac);border-radius:9px;display:flex;align-items:center;justify-content:center;}
-    .logo-mark svg{width:18px;height:18px;fill:white;}
-    .logo-text{font-size:19px;font-weight:800;color:#1f2937;letter-spacing:-.3px;}
-    .logo-text span{color:#2b7a78;}
-    .header-right{display:flex;align-items:center;gap:8px;}
-    .header-right a{text-decoration:none;font-weight:600;font-size:13px;padding:8px 15px;border-radius:8px;transition:all .18s;white-space:nowrap;}
-    .btn-plain{color:#6b7280;border:1.5px solid #e5e7eb;}
-    .btn-plain:hover{background:#f3f4f6;}
-    .header-greeting{font-size:13px;color:#6b7280;font-weight:500;}
+/* ── TOPBAR ── */
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  height:54px;padding:0 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none;}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,var(--brand),var(--brand-light));border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.logo-mark svg{width:16px;height:16px;fill:white;}
+.logo-text{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.3px;}
+.logo-text span{color:var(--brand);}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.topbar-name{font-size:13px;color:var(--text-mid);font-weight:500;}
+.btn-sm{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;text-decoration:none;border:1px solid var(--border);color:var(--text-mid);background:none;transition:all .15s;}
+.btn-sm:hover{color:var(--text);background:var(--surface2);}
+.btn-sm.teal{background:var(--brand);color:white;border-color:var(--brand);}
+.btn-sm.teal:hover{background:var(--brand-dark);}
 
-    /* ── PAGE ── */
-    .page{max-width:960px;margin:0 auto;padding:28px 20px 60px;}
+/* ── PAGE ── */
+.page{max-width:900px;margin:0 auto;padding:24px 18px 60px;}
 
-    /* ── WELCOME BAR ── */
-    .welcome-bar{
-        background:linear-gradient(135deg,#085255 0%,#2b7a78 60%,#14a8ac 100%);
-        border-radius:14px;padding:26px 28px;margin-bottom:24px;
-        color:white;display:flex;align-items:center;
-        justify-content:space-between;gap:16px;flex-wrap:wrap;
-    }
-    .welcome-bar h2{margin:0 0 4px;font-size:21px;font-weight:700;}
-    .welcome-bar p{margin:0;font-size:14px;opacity:.85;}
-    .add-listing-btn{
-        display:inline-flex;align-items:center;gap:7px;
-        background:white;color:#2b7a78;text-decoration:none;
-        font-weight:700;font-size:14px;padding:10px 20px;
-        border-radius:8px;white-space:nowrap;
-        box-shadow:0 2px 10px rgba(0,0,0,.15);
-        transition:transform .15s,box-shadow .2s;
-    }
-    .add-listing-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.2);}
+/* ── DAISY WELCOME BAR ── */
+.daisy-bar{
+  background:linear-gradient(135deg,var(--brand-dark),var(--brand),var(--brand-light));
+  border-radius:14px;padding:22px 24px;margin-bottom:22px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.daisy-bar-avatar{
+  width:48px;height:48px;background:rgba(255,255,255,.2);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;
+}
+.daisy-bar-text{flex:1;}
+.daisy-bar-text h2{color:white;font-size:17px;font-weight:700;margin-bottom:3px;}
+.daisy-bar-text p{color:rgba(255,255,255,.75);font-size:13px;line-height:1.5;}
+.daisy-bar-btn{
+  background:white;color:var(--brand);
+  padding:9px 18px;border-radius:9px;
+  font-size:13px;font-weight:700;
+  text-decoration:none;white-space:nowrap;
+  transition:all .15s;
+}
+.daisy-bar-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.12);}
 
-    /* ── STATS ── */
-    .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;}
-    .stat-card{background:white;border-radius:12px;padding:18px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1.5px solid #f0f0f0;}
-    .stat-number{font-size:30px;font-weight:700;color:#2b7a78;line-height:1;margin-bottom:5px;}
-    .stat-label{font-size:13px;color:#6b7280;font-weight:500;}
+/* ── FLASH ── */
+.flash{padding:10px 14px;border-radius:9px;font-size:13px;margin-bottom:16px;font-weight:500;}
+.flash.success{background:var(--green-dim);border:1px solid rgba(22,163,74,.2);color:var(--green);}
+.flash.error{background:var(--red-dim);border:1px solid rgba(220,38,38,.2);color:var(--red);}
 
-    /* ── FLASH ── */
-    .flash{background:#dcfce7;border:1.5px solid #16a34a;color:#166534;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
-    .flash-warn{background:#fef3c7;border:1.5px solid #f59e0b;color:#92400e;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+/* ── STATS ROW ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:16px 18px;text-align:center;
+}
+.stat-num{font-size:28px;font-weight:700;color:var(--brand);line-height:1;margin-bottom:4px;}
+.stat-lbl{font-size:12px;color:var(--text-dim);font-family:var(--mono);}
 
-    /* ── TABS (your style) ── */
-    .tab-nav{display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #e5e7eb;}
-    .tab-btn{padding:9px 16px;border:none;background:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .2s,border-color .2s;}
-    .tab-btn:hover{color:#1f2937;}
-    .tab-btn.active{color:#2b7a78;border-bottom-color:#2b7a78;}
-    .tab-panel{display:none;}
-    .tab-panel.active{display:block;}
+/* ── SECTION HDR ── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.sec-title{font-size:15px;font-weight:700;color:var(--text);}
 
-    /* ── SECTION TITLE ── */
-    .section-title{font-size:17px;font-weight:700;color:#1f2937;margin-bottom:14px;}
+/* ── BUSINESS CARD ── */
+.biz-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:13px;margin-bottom:14px;overflow:hidden;
+  transition:border-color .15s;
+}
+.biz-card:hover{border-color:var(--brand-border);}
+.biz-card-top{
+  padding:16px 18px 12px;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+}
+.biz-name{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.biz-cat{
+  display:inline-block;
+  background:var(--brand-dim);color:var(--brand);
+  font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;
+  margin-bottom:6px;
+}
+.biz-url{font-size:12px;color:var(--text-dim);font-family:var(--mono);}
+.status-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;padding:4px 10px;
+  border-radius:100px;white-space:nowrap;flex-shrink:0;
+}
+.s-approved{background:var(--green-dim);color:var(--green);}
+.s-pending{background:var(--yellow-dim);color:var(--yellow);}
+.s-rejected{background:var(--red-dim);color:var(--red);}
+.premium-badge{
+  background:linear-gradient(135deg,#f59e0b,#d97706);
+  color:white;font-size:10px;font-weight:700;
+  padding:2px 8px;border-radius:100px;margin-left:6px;
+}
 
-    /* ── BIZ CARD ── */
-    .biz-card{background:white;border-radius:14px;border:1.5px solid #f0f0f0;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:16px;overflow:hidden;transition:border-color .2s,box-shadow .2s;}
-    .biz-card:hover{border-color:#2b7a78;box-shadow:0 4px 18px rgba(43,122,120,.10);}
-    .biz-card-top{padding:18px 20px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-    .biz-card-name{font-size:17px;font-weight:700;color:#1f2937;margin-bottom:4px;}
-    .biz-card-cat{display:inline-block;background:#e8f7f7;color:#2b7a78;font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;margin-bottom:6px;}
-    .meta-item{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:#6b7280;margin-right:14px;}
+/* ── CARD ACTIONS ── */
+.biz-actions{
+  padding:10px 16px;border-top:1px solid var(--border);
+  display:flex;gap:7px;flex-wrap:wrap;align-items:center;
+}
+.act-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:6px 12px;border-radius:7px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  text-decoration:none;border:none;font-family:var(--font);
+  transition:all .13s;
+}
+.act-view{background:var(--brand);color:white;}
+.act-view:hover{background:var(--brand-dark);}
+.act-edit{background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);}
+.act-edit:hover{color:var(--text);}
+.act-upgrade{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;}
+.act-upgrade:hover{filter:brightness(1.08);}
+.act-activate{background:var(--green-dim);color:var(--green);border:1px solid rgba(22,163,74,.2);}
+.act-activate:hover{background:var(--green);color:white;}
+.act-regen{background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);}
+.act-regen:hover{border-color:var(--brand);color:var(--brand);}
 
-    /* ── STATUS BADGES ── */
-    .status-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 11px;border-radius:100px;white-space:nowrap;}
-    .status-approved{background:#dcfce7;color:#16a34a;}
-    .status-pending{background:#fef3c7;color:#d97706;}
-    .status-rejected{background:#fee2e2;color:#dc2626;}
-    .premium-badge{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;}
+/* plan chip on card */
+.plan-chip{
+  margin-left:auto;font-size:11px;font-weight:600;
+  color:var(--text-dim);font-family:var(--mono);
+}
 
-    /* ── CARD STATS ── */
-    .biz-card-stats{display:flex;border-top:1px solid #f3f4f6;}
-    .biz-stat{flex:1;text-align:center;padding:10px;border-right:1px solid #f3f4f6;}
-    .biz-stat:last-child{border-right:none;}
-    .biz-stat-num{font-size:18px;font-weight:700;color:#1f2937;line-height:1;}
-    .biz-stat-lbl{font-size:11px;color:#9ca3af;margin-top:2px;}
+/* ── EMPTY STATE ── */
+.empty{
+  text-align:center;padding:48px 20px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:13px;
+}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.empty h3{font-size:16px;font-weight:700;margin-bottom:6px;}
+.empty p{font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;max-width:300px;margin-left:auto;margin-right:auto;}
 
-    /* ── CARD ACTIONS ── */
-    .biz-card-actions{padding:12px 18px;display:flex;gap:8px;border-top:1px solid #f3f4f6;flex-wrap:wrap;}
-    .action-link{display:inline-flex;align-items:center;gap:5px;text-decoration:none;font-size:13px;font-weight:600;padding:7px 13px;border-radius:7px;transition:background .2s;border:none;cursor:pointer;font-family:inherit;}
-    .link-view{background:#2b7a78;color:white;}
-    .link-view:hover{background:#205e5c;}
-    .link-edit{background:#f3f4f6;color:#374151;}
-    .link-edit:hover{background:#e5e7eb;}
-    .link-branch{background:#e8f7f7;color:#2b7a78;border:1px solid #d1ede9;}
-    .link-branch:hover{background:#2b7a78;color:white;}
-    .link-regen{background:#fff8e1;color:#d97706;border:1px solid #fde68a;}
-    .link-regen:hover{background:#fef3c7;}
-    .link-premium{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;}
-    .link-premium:hover{filter:brightness(1.08);}
+/* ── UPGRADE NOTICE ── */
+.upgrade-notice{
+  background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(217,119,6,.04));
+  border:1px solid rgba(245,158,11,.25);
+  border-radius:12px;padding:16px 18px;margin-bottom:18px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.upgrade-notice p{font-size:13px;color:var(--text-mid);flex:1;line-height:1.5;}
+.upgrade-notice p strong{color:var(--text);}
+.upgrade-notice a{
+  padding:8px 16px;background:#f59e0b;color:white;
+  border-radius:8px;font-size:13px;font-weight:700;
+  text-decoration:none;white-space:nowrap;transition:filter .15s;
+}
+.upgrade-notice a:hover{filter:brightness(1.08);}
 
-    /* ── EMPTY STATE ── */
-    .empty-state{background:white;border:1.5px dashed #d1d5db;border-radius:14px;padding:50px 20px;text-align:center;}
-    .empty-state svg{width:44px;height:44px;color:#d1d5db;margin:0 auto 14px;display:block;}
-    .empty-state h3{font-size:17px;color:#374151;margin-bottom:8px;}
-    .empty-state p{font-size:14px;color:#9ca3af;margin-bottom:20px;}
-    .empty-state a{display:inline-flex;align-items:center;gap:6px;background:#2b7a78;color:white;text-decoration:none;font-weight:600;font-size:14px;padding:10px 22px;border-radius:8px;transition:background .2s;}
-    .empty-state a:hover{background:#205e5c;}
+/* ── QUICK ACTIONS ── */
+.quick-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:10px;margin-bottom:22px;
+}
+.quick-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:11px;padding:16px 14px;text-align:center;
+  cursor:pointer;transition:all .15s;text-decoration:none;
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+}
+.quick-card:hover{border-color:var(--brand-border);transform:translateY(-1px);}
+.quick-icon{font-size:24px;}
+.quick-label{font-size:12px;font-weight:600;color:var(--text-mid);}
 
-    /* ── WEBSITE BUILDER ── */
-    .website-card{background:white;border-radius:14px;border:1.5px solid #e8eaf0;padding:22px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-    .website-card h3{font-size:15px;font-weight:700;color:#1f2937;margin-bottom:6px;}
-    .website-card p{font-size:14px;color:#6b7280;margin-bottom:16px;line-height:1.6;}
-    .link-box{display:flex;align-items:center;gap:10px;background:#f0faf9;border:1.5px solid #d1ede9;border-radius:9px;padding:10px 14px;margin-bottom:8px;}
-    .link-text{flex:1;font-size:13px;color:#2b7a78;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .copy-btn{background:#2b7a78;color:white;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s;white-space:nowrap;}
-    .copy-btn:hover{background:#205e5c;}
-    .copy-ok{font-size:12px;color:#22c55e;font-weight:600;display:none;margin-top:4px;}
+/* ── COLOR PICKER FORM ── */
+.color-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;border-top:1px solid var(--border);
+}
+.color-row label{font-size:12px;color:var(--text-dim);font-family:var(--mono);}
+.color-row input[type=color]{
+  width:32px;height:32px;border:none;border-radius:6px;
+  cursor:pointer;padding:0;background:none;
+}
+.color-row button{
+  padding:6px 12px;background:var(--brand);color:white;
+  border:none;border-radius:7px;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:var(--font);
+}
 
-    /* Color picker */
-    .color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
-    .cdot{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .2s;}
-    .cdot.active{border-color:#1f2937;}
-
-    /* ── UPGRADE BANNER ── */
-    .upgrade-banner{
-        background:linear-gradient(135deg,#1a1d2e,#252840);
-        border-radius:14px;padding:22px 24px;margin-bottom:20px;
-        display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
-    }
-    .upgrade-banner h3{color:white;font-size:17px;margin-bottom:4px;}
-    .upgrade-banner p{color:#8890b8;font-size:13px;}
-    .btn-upgrade{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:9px;transition:filter .2s;white-space:nowrap;}
-    .btn-upgrade:hover{filter:brightness(1.08);}
-
-    /* ── GOOGLE MAPS TAB ── */
-    .steps-list .step-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid #f3f4f6;}
-    .steps-list .step-item:last-child{border-bottom:none;}
-    .step-num{width:30px;height:30px;border-radius:50%;background:#2b7a78;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
-    .step-body h4{font-size:14px;font-weight:700;color:#1f2937;margin-bottom:3px;}
-    .step-body p{font-size:13px;color:#6b7280;line-height:1.6;}
-    .step-body a{color:#2b7a78;font-weight:600;}
-
-    /* ── BRANCHES ── */
-    .branch-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:#f8fafc;border-radius:9px;border:1.5px solid #e8eaf0;margin-bottom:8px;}
-    .branch-name{font-size:14px;font-weight:700;color:#1f2937;}
-    .branch-meta{font-size:12px;color:#9ca3af;margin-top:2px;}
-
-    /* ── RESPONSIVE ── */
-    @media(max-width:700px){
-        .stats-row{grid-template-columns:1fr 1fr;}
-        .page{padding:18px 14px 40px;}
-        .welcome-bar{padding:18px;}
-        .biz-card-top{flex-direction:column;}
-        .tab-nav{overflow-x:auto;flex-wrap:nowrap;}
-        .tab-btn{white-space:nowrap;}
-        header{padding:0 14px;}
-        .header-greeting{display:none;}
-    }
-    @media(max-width:480px){
-        .stats-row{grid-template-columns:1fr 1fr;}
-    }
-    </style>
+@media(max-width:600px){
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .stats-row .stat-card:last-child{grid-column:span 2;}
+  .daisy-bar{flex-direction:column;text-align:center;}
+  .quick-grid{grid-template-columns:repeat(3,1fr);}
+}
+</style>
 </head>
 <body>
 
-<header>
-    <a href="/" class="logo">
-        <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-        <span class="logo-text">Trusted<span>Biz</span></span>
-    </a>
-    <div class="header-right">
-        <span class="header-greeting">Hi, {{ current_user.name.split()[0] }} 👋</span>
-        <a href="/" class="btn-plain">Home</a>
-        <a href="/logout" class="btn-plain">Logout</a>
+<!-- TOPBAR -->
+<header class="topbar">
+  <a class="logo" href="/">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/></svg>
     </div>
+    <span class="logo-text">Trusted<span>Biz</span></span>
+  </a>
+  <div class="topbar-right">
+    <span class="topbar-name">{{ current_user.name if current_user else '' }}</span>
+    <a class="btn-sm" href="/trusthost">TrustHost 🚀</a>
+    <a class="btn-sm" href="/logout">Sign out</a>
+  </div>
 </header>
 
 <div class="page">
 
-    <!-- Welcome -->
-    <div class="welcome-bar">
-        <div>
-            <h2>My Dashboard</h2>
-            <p>Manage your listings, website, and grow your business</p>
-        </div>
-        <a href="/add-business" class="add-listing-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Business
-        </a>
+  <!-- DAISY WELCOME BAR -->
+  <div class="daisy-bar">
+    <div class="daisy-bar-avatar">🌼</div>
+    <div class="daisy-bar-text">
+      <h2>Hey {{ current_user.name.split()[0] if current_user else 'there' }}! Daisy here. 👋</h2>
+      <p>Need a new website, logo, flyer or business cards? Just ask me — I'll build it in minutes.</p>
     </div>
+    <a class="daisy-bar-btn" href="/">Talk to Daisy →</a>
+  </div>
 
-    <!-- Stats -->
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-number">{{ total_listings }}</div>
-            <div class="stat-label">My Listings</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ live_count }}</div>
-            <div class="stat-label">Live Now</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ total_views }}</div>
-            <div class="stat-label">Total Views</div>
-        </div>
+  <!-- FLASH MESSAGES -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}{% for cat, msg in messages %}
+  <div class="flash {{ cat }}">{{ msg }}</div>
+  {% endfor %}{% endif %}
+  {% endwith %}
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num">{{ live_count }}</div>
+      <div class="stat-lbl">live sites</div>
     </div>
-
-
-    <!-- Flash -->
-    {% with messages = get_flashed_messages() %}{% if messages %}{% for msg in messages %}
-    <div class="flash">{{ msg }}</div>
-    {% endfor %}{% endif %}{% endwith %}
-
-    <!-- TABS -->
-    <div class="tab-nav">
-        <button class="tab-btn active" onclick="switchTab('listings',this)">📋 My Listings</button>
-        <button class="tab-btn" onclick="switchTab('website',this)">🌐 My Website</button>
-        <button class="tab-btn" onclick="switchTab('google',this)">📍 Google Maps</button>
+    <div class="stat-card">
+      <div class="stat-num">{{ total_listings }}</div>
+      <div class="stat-lbl">total listings</div>
     </div>
-
-    <!-- TAB: LISTINGS -->
-    <div class="tab-panel active" id="tab-listings">
-        <div class="section-title">My Business Listings</div>
-
-        {% if businesses|length == 0 %}
-        <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <h3>No listings yet</h3>
-            <p>Add your first business to get discovered by customers nearby.</p>
-            <a href="/add-business">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add Your Business
-            </a>
-        </div>
-        {% endif %}
-
-        {% for b in businesses %}
-        <div class="biz-card">
-            <div class="biz-card-top">
-                <div>
-                    <div class="biz-card-name">
-                        {{ b.name }}
-                        {% if b.is_premium %}<span class="premium-badge">⭐ Premium</span>{% endif %}
-                    </div>
-                    <span class="biz-card-cat">{{ b.category }}</span>
-                    <div>
-                        <span class="meta-item">📱 {{ b.whatsapp }}</span>
-                        {% if b.hours %}<span class="meta-item">🕐 {{ b.hours }}</span>{% endif %}
-                    </div>
-                </div>
-                <div style="display:flex;gap:7px;flex-wrap:wrap;">
-                    {% if b.status == 'approved' %}
-                        <span class="status-badge status-approved">✔ Live</span>
-                    {% elif b.status == 'pending' %}
-                        <span class="status-badge status-pending">⏳ Pending Review</span>
-                    {% else %}
-                        <span class="status-badge status-rejected">✘ Rejected</span>
-                    {% endif %}
-                    {% if b.verified %}<span class="status-badge" style="background:#e8f7f7;color:#2b7a78;">✔ Verified</span>{% endif %}
-                </div>
-            </div>
-
-            <!-- Stats row -->
-            <div class="biz-card-stats">
-                <div class="biz-stat">
-                    <div class="biz-stat-num">{{ b.views or 0 }}</div>
-                    <div class="biz-stat-lbl">Views</div>
-                </div>
-                <div class="biz-stat">
-                    <div class="biz-stat-num">{{ stats[b.id]['total_reviews'] if b.id in stats else 0 }}</div>
-                    <div class="biz-stat-lbl">Reviews</div>
-                </div>
-                <div class="biz-stat">
-                    <div class="biz-stat-num">
-                        {% if b.id in stats and stats[b.id]['avg_rating'] %}
-                            {{ stats[b.id]['avg_rating'] }}★
-                        {% else %}—{% endif %}
-                    </div>
-                    <div class="biz-stat-lbl">Rating</div>
-                </div>
-                <div class="biz-stat">
-                    <div class="biz-stat-num">{{ b.payment_months_late or 0 }}</div>
-                    <div class="biz-stat-lbl">Months Late</div>
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="biz-card-actions">
-                {% if b.status == 'approved' %}
-                <a href="/site/{{ b.slug or b.id }}" target="_blank" class="action-link link-view">👁 View Site</a>
-                {% endif %}
-                <a href="/edit-business/{{ b.id }}" class="action-link link-edit">✏️ Edit</a>
-                <a href="/add-branch/{{ b.id }}" class="action-link link-branch">🏢 Add Branch</a>
-                {% if b.is_premium %}
-                <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
-                </form>
-                <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
-                {% elif chosen_plan == 'promax' %}
-                <a href="/ads/{{ b.id }}" class="action-link link-premium">📢 AI Ads</a>
-                <a href="/upgrade/{{ b.id }}" class="action-link" style="background:#e8f7f7;color:#2b7a78;">⚡ Activate Plan</a>
-                {% else %}
-                <a href="/upgrade/{{ b.id }}" class="action-link link-premium">⭐ Go Premium</a>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    <!-- TAB: WEBSITE -->
-    <div class="tab-panel" id="tab-website">
-        {% set has_biz = businesses|length > 0 %}
-        {% set first_biz = businesses[0] if has_biz else None %}
-        {% set is_premium = first_biz and first_biz.is_premium %}
-        {% set on_paid_plan = chosen_plan in ['basic','promax'] %}
-
-        {% if (is_premium or on_paid_plan) and first_biz %}
-        {# PAID PLAN — show full features #}
-        <!-- PREMIUM: website builder -->
-        <div class="website-card">
-            <h3>🌐 Your Business Website</h3>
-            <p>Share this link on WhatsApp, Instagram, business cards — everywhere. This is your professional website.</p>
-            <div class="link-box">
-                <span class="link-text" id="bizLink">https://{{ first_biz.slug }}.trustedbiz.co.ug</span>
-                <button class="copy-btn" onclick="copyLink()">📋 Copy</button>
-            </div>
-            <div class="copy-ok" id="copyOk">✅ Copied!</div>
-        </div>
-
-        <div class="website-card">
-            <h3>🎨 Customize Your Website</h3>
-            <p>Change your brand color and regenerate your website instantly. The AI will redesign it around your new color.</p>
-            <form method="POST" action="/dashboard/set-template/{{ first_biz.id }}">
-                <div class="color-row">
-                    <div class="cdot {% if first_biz.brand_color == '#2b7a78' %}active{% endif %}" style="background:#2b7a78" data-c="#2b7a78" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#e85d04' %}active{% endif %}" style="background:#e85d04" data-c="#e85d04" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#7c6af7' %}active{% endif %}" style="background:#7c6af7" data-c="#7c6af7" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#c9a84c' %}active{% endif %}" style="background:#c9a84c" data-c="#c9a84c" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#ef4444' %}active{% endif %}" style="background:#ef4444" data-c="#ef4444" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#111111' %}active{% endif %}" style="background:#111111" data-c="#111111" onclick="pickC(this)"></div>
-                    <input type="color" id="customColor" onchange="pickCustom(this)" style="width:28px;height:28px;border-radius:50%;border:2px solid #e5e7eb;cursor:pointer;padding:1px;">
-                </div>
-                <input type="hidden" name="brand_color" id="selColor" value="{{ first_biz.brand_color or '#2b7a78' }}">
-                <button type="submit" style="background:#2b7a78;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s;" onclick="showGenerating(this.form)">💾 Save &amp; Build Website</button>
-            </form>
-        </div>
-
-        {% else %}
-        <!-- NOT PREMIUM -->
-        {% if chosen_plan == 'promax' %}
-        <div style="background:linear-gradient(135deg,#0d2020,#163535);border-radius:16px;padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span style="background:#f59e0b;color:white;font-size:11px;font-weight:800;padding:4px 10px;border-radius:100px;">PRO MAX</span>
-                <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:4px 10px;border-radius:100px;">&#127873; 1 Month FREE</span>
-                <span style="color:white;font-size:14px;font-weight:700;">Active Plan</span>
-            </div>
-            <span style="color:#8890b8;font-size:12px;">Add business → we review → you go live</span>
-        </div>
-        <div style="background:white;border-radius:12px;border:1.5px solid #e8eaf0;padding:20px;margin-bottom:16px;">
-            <div style="font-size:14px;font-weight:700;color:#1f2937;margin-bottom:12px;">&#11088; Your Pro Max Plan Includes:</div>
-            <p style="font-size:13px;color:#374151;line-height:2.4;">
-                &#10003; Professional business website worth UGX 1,000,000<br>
-                &#10003; Your own shareable link (trustedbiz.ug/your-name)<br>
-                &#10003; WhatsApp button, Directions, Gallery, Prices<br>
-                &#10003; Ad Creator — promote events and offers<br>
-                &#10003; Priority placement in search results<br>
-                &#10003; Multiple branches and locations<br>
-                &#10003; Customer reviews on your website<br>
-                &#10003; First month completely FREE
-            </p>
-        </div>
-        {% elif chosen_plan == 'basic' %}
-        <div style="background:linear-gradient(135deg,#0d2020,#163535);border-radius:16px;padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span style="background:#2b7a78;color:white;font-size:11px;font-weight:800;padding:4px 10px;border-radius:100px;">BASIC</span>
-                <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:4px 10px;border-radius:100px;">&#127873; 1 Month FREE</span>
-                <span style="color:white;font-size:14px;font-weight:700;">Active Plan</span>
-            </div>
-            <span style="color:#8890b8;font-size:12px;">Add business → we review → you go live</span>
-        </div>
-        <div style="background:white;border-radius:12px;border:1.5px solid #e8eaf0;padding:20px;margin-bottom:16px;">
-            <div style="font-size:14px;font-weight:700;color:#1f2937;margin-bottom:12px;">&#10003; Your Basic Plan Includes:</div>
-            <p style="font-size:13px;color:#374151;line-height:2.4;">
-                &#10003; Professional business website worth UGX 1,000,000<br>
-                &#10003; Your own shareable link (trustedbiz.ug/your-name)<br>
-                &#10003; WhatsApp button, Directions, Gallery, Prices<br>
-                &#10003; Customer reviews on your website<br>
-                &#10003; Listed in TrustedBiz directory<br>
-                &#10003; First month completely FREE
-            </p>
-        </div>
-        {% else %}
-        <div class="upgrade-banner">
-            <div>
-                <h3>&#11088; Get a Professional Website</h3>
-                <p>A real professional website worth UGX 1,000,000. Starting at UGX 5,000/month — less than a plate of food.</p>
-            </div>
-            {% if first_biz %}
-            <a href="/upgrade/{{ first_biz.id }}" class="btn-upgrade">Upgrade from UGX 5,000/mo</a>
-            {% endif %}
-        </div>
-        <div style="background:white;border-radius:12px;border:1.5px solid #e8eaf0;padding:20px;margin-top:16px;">
-            <div style="font-size:14px;font-weight:700;color:#1f2937;margin-bottom:8px;">&#127912; Customize Your Free Profile</div>
-            <p style="font-size:13px;color:#6b7280;margin-bottom:14px;">Change your brand color on your free profile.</p>
-            {% if first_biz %}
-            <form method="POST" action="/dashboard/set-template/{{ first_biz.id }}">
-                <div class="color-row">
-                    <div class="cdot {% if first_biz.brand_color == '#2b7a78' %}active{% endif %}" style="background:#2b7a78" data-c="#2b7a78" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#e85d04' %}active{% endif %}" style="background:#e85d04" data-c="#e85d04" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#7c6af7' %}active{% endif %}" style="background:#7c6af7" data-c="#7c6af7" onclick="pickC(this)"></div>
-                    <div class="cdot {% if first_biz.brand_color == '#ef4444' %}active{% endif %}" style="background:#ef4444" data-c="#ef4444" onclick="pickC(this)"></div>
-                </div>
-                <input type="hidden" name="brand_color" id="selColor" value="{{ first_biz.brand_color or '#2b7a78' }}">
-                <button type="submit" style="background:#2b7a78;color:white;padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:10px;">&#128190; Save Color</button>
-            </form>
-            {% endif %}
-        </div>
-        {% endif %}
-        </div>
-        {% endif %}
-
-        <div class="website-card">
-            <h3>What You Get</h3>
-            <p style="font-size:14px;color:#374151;line-height:2.2;margin-top:8px;">
-                ✅ Professional business website — built for your business<br>
-                ✅ Shareable link (trustedbiz.com/your-name)<br>
-                ✅ WhatsApp button, Directions, Gallery, Services, Prices<br>
-                ✅ Customer reviews shown on your website<br>
-                ✅ Works on mobile &amp; desktop<br>
-                ✅ Update anytime from your dashboard<br>
-                ✅ Add branches/campuses
-            </p>
-            <div style="margin-top:16px;background:#f0faf9;border:1px solid #d1ede9;border-radius:8px;padding:12px 16px;">
-                <div style="font-weight:700;color:#2b7a78;font-size:16px;">Basic — UGX 5,000 / month</div>
-                <div style="font-size:13px;color:#6b7280;margin-top:2px;">Pro Max — UGX 7,500 / month (includes AI ad creator)</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- TAB: GOOGLE MAPS -->
-    <div class="tab-panel" id="tab-google">
-        <div class="website-card">
-            <h3>📍 Get on Google Maps</h3>
-            <p>Getting on Google Maps is free and gets you more customers. Follow these steps:</p>
-            <div class="steps-list">
-                <div class="step-item">
-                    <div class="step-num">1</div>
-                    <div class="step-body">
-                        <h4>Go to Google Business Profile</h4>
-                        <p>Visit <a href="https://business.google.com" target="_blank">business.google.com</a> and sign in with your Google account.</p>
-                    </div>
-                </div>
-                <div class="step-item">
-                    <div class="step-num">2</div>
-                    <div class="step-body">
-                        <h4>Add Your Business</h4>
-                        <p>Click "Add your business to Google". Enter your business name and category exactly as on TrustedBiz.</p>
-                    </div>
-                </div>
-                <div class="step-item">
-                    <div class="step-num">3</div>
-                    <div class="step-body">
-                        <h4>Set Your Location</h4>
-                        <p>Pin your business on the map. Use the same coordinates you used on TrustedBiz for consistency.</p>
-                    </div>
-                </div>
-                <div class="step-item">
-                    <div class="step-num">4</div>
-                    <div class="step-body">
-                        <h4>Verify Your Business</h4>
-                        <p>Google will send a postcard or call to verify. Once verified, you appear in Google Maps searches.</p>
-                    </div>
-                </div>
-                <div class="step-item">
-                    <div class="step-num">5</div>
-                    <div class="step-body">
-                        <h4>Add Your TrustedBiz Website Link</h4>
-                        <p>In your Google Business Profile, add your TrustedBiz website link. This connects Google customers directly to your premium website.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-<script>
-function switchTab(id, btn){
-    document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
-    document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
-    document.getElementById('tab-'+id).classList.add('active');
-    btn.classList.add('active');
-}
-function copyLink(){
-    var t=document.getElementById('bizLink');
-    navigator.clipboard.writeText(t.textContent.trim()).then(function(){
-        var ok=document.getElementById('copyOk');
-        ok.style.display='block';
-        setTimeout(function(){ok.style.display='none';},2500);
-    });
-}
-function pickC(el){
-    document.querySelectorAll('.cdot').forEach(function(d){d.classList.remove('active');});
-    el.classList.add('active');
-    document.getElementById('selColor').value=el.dataset.c;
-}
-function pickCustom(el){
-    document.getElementById('selColor').value=el.value;
-    document.querySelectorAll('.cdot').forEach(function(d){d.classList.remove('active');});
-}
-</script>
-<div id="generating-overlay" style="display:none;position:fixed;inset:0;background:rgba(13,13,13,.92);z-index:9999;flex-direction:column;align-items:center;justify-content:center;">
-  <div style="text-align:center;color:white;padding:40px;">
-    <div style="font-size:48px;margin-bottom:20px;animation:spin 2s linear infinite;">⚙️</div>
-    <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;margin-bottom:12px;">Building Your Website...</h2>
-    <p style="color:rgba(255,255,255,.6);font-size:15px;margin-bottom:8px;">This takes about 30–60 seconds.</p>
-    <p style="color:rgba(255,255,255,.4);font-size:13px;">Please wait. Do not close this page.</p>
-    <div style="margin-top:28px;width:200px;height:4px;background:rgba(255,255,255,.1);border-radius:100px;overflow:hidden;">
-      <div id="progress-bar" style="height:100%;background:#2b7a78;border-radius:100px;width:0%;transition:width 60s linear;"></div>
+    <div class="stat-card">
+      <div class="stat-num">{{ total_views or 0 }}</div>
+      <div class="stat-lbl">total views</div>
     </div>
   </div>
+
+  <!-- UPGRADE NOTICE if on free -->
+  {% if chosen_plan == 'free' and businesses %}
+  <div class="upgrade-notice">
+    <span style="font-size:22px;">⭐</span>
+    <p><strong>Go Pro Max for UGX 15,000/month</strong> — get your own custom domain, Google visibility, and priority support.</p>
+    <a href="https://wa.me/256753187966?text=Hi+TrustedBiz!+I+want+to+upgrade+to+Pro+Max" target="_blank">Upgrade via WhatsApp</a>
+  </div>
+  {% endif %}
+
+  <!-- QUICK ACTIONS -->
+  <div class="sec-hdr">
+    <div class="sec-title">Quick Actions</div>
+  </div>
+  <div class="quick-grid">
+    <a class="quick-card" href="/">
+      <span class="quick-icon">🌐</span>
+      <span class="quick-label">New Website</span>
+    </a>
+    <a class="quick-card" href="/?q=logo">
+      <span class="quick-icon">✨</span>
+      <span class="quick-label">New Logo</span>
+    </a>
+    <a class="quick-card" href="/?q=flyer">
+      <span class="quick-icon">📄</span>
+      <span class="quick-label">New Flyer</span>
+    </a>
+    <a class="quick-card" href="/?q=cards">
+      <span class="quick-icon">🪪</span>
+      <span class="quick-label">Business Cards</span>
+    </a>
+    <a class="quick-card" href="/trusthost">
+      <span class="quick-icon">🚀</span>
+      <span class="quick-label">TrustHost</span>
+    </a>
+    <a class="quick-card" href="/add-business">
+      <span class="quick-icon">➕</span>
+      <span class="quick-label">Add Listing</span>
+    </a>
+  </div>
+
+  <!-- MY BUSINESSES -->
+  <div class="sec-hdr">
+    <div class="sec-title">My Businesses</div>
+    <a class="btn-sm teal" href="/add-business">+ Add New</a>
+  </div>
+
+  {% if businesses %}
+  {% for biz in businesses %}
+  <div class="biz-card">
+    <div class="biz-card-top">
+      <div>
+        <div class="biz-name">
+          {{ biz.name }}
+          {% if biz.is_premium %}<span class="premium-badge">⭐ Premium</span>{% endif %}
+        </div>
+        <span class="biz-cat">{{ biz.category }}</span>
+        <div class="biz-url">{{ biz.slug }}.trustedbiz.co.ug</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="status-badge {% if biz.status == 'approved' %}s-approved{% elif biz.status == 'pending' %}s-pending{% else %}s-rejected{% endif %}">
+          {% if biz.status == 'approved' %}● Live
+          {% elif biz.status == 'pending' %}⏳ Pending
+          {% else %}✕ Rejected{% endif %}
+        </span>
+        <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);">
+          {{ stats[biz.id].avg_rating }}★ ({{ stats[biz.id].total_reviews }} reviews)
+        </span>
+      </div>
+    </div>
+
+    <!-- Color picker -->
+    <form class="color-row" method="POST" action="/dashboard/set-template/{{ biz.id }}">
+      <label>Brand color</label>
+      <input type="color" name="brand_color" value="{{ biz.brand_color or '#2b7a78' }}">
+      <button type="submit">Apply & Rebuild</button>
+    </form>
+
+    <div class="biz-actions">
+      {% if biz.status == 'approved' %}
+      <a class="act-btn act-view" href="//{{ biz.slug }}.trustedbiz.co.ug" target="_blank">↗ View Site</a>
+      {% endif %}
+      <a class="act-btn act-edit" href="/edit-business/{{ biz.id }}">✏️ Edit Info</a>
+      {% if biz.status == 'pending' and biz.generated_html %}
+      <form method="POST" action="/trusthost/approve-own/{{ biz.id }}" style="display:inline;">
+        <button type="submit" class="act-btn act-activate">⚡ Activate</button>
+      </form>
+      {% endif %}
+      {% if biz.generated_html %}
+      <form method="POST" action="/generate-site/{{ biz.id }}" style="display:inline;">
+        <button type="submit" class="act-btn act-regen">🔄 Regenerate Site</button>
+      </form>
+      {% endif %}
+      {% if not biz.is_premium %}
+      <a class="act-btn act-upgrade" href="/upgrade/{{ biz.id }}">⭐ Upgrade</a>
+      {% endif %}
+      <span class="plan-chip">{{ chosen_plan }}</span>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon">🌐</div>
+    <h3>No businesses yet</h3>
+    <p>Talk to Daisy and she'll build your first website in minutes — or add a listing manually.</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <a class="btn-sm teal" href="/" style="padding:10px 20px;font-size:14px;">Talk to Daisy 🌼</a>
+      <a class="btn-sm" href="/add-business" style="padding:10px 20px;font-size:14px;">Add Listing</a>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
-<style>
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-</style>
-<script>
-function showGenerating(form) {
-  var overlay = document.getElementById('generating-overlay');
-  overlay.style.display = 'flex';
-  setTimeout(function(){ document.getElementById('progress-bar').style.width = '90%'; }, 100);
-  // Auto-redirect to dashboard after 65 seconds
-  setTimeout(function(){ window.location.href = '/dashboard'; }, 65000);
-  return true;
-}
-// Show success flash if website was just built
-{% with messages = get_flashed_messages() %}{% if messages %}{% for msg in messages %}
-{% if 'being built' in msg or 'regenerating' in msg %}
-document.addEventListener('DOMContentLoaded', function() {
-  var banner = document.createElement('div');
-  banner.innerHTML = '{{ msg }}';
-  banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#2b7a78;color:white;padding:14px 28px;border-radius:10px;font-weight:700;font-size:14px;z-index:9998;box-shadow:0 4px 20px rgba(0,0,0,.2);';
-  document.body.appendChild(banner);
-  setTimeout(function(){ banner.remove(); }, 5000);
-});
-{% endif %}
-{% endfor %}{% endif %}{% endwith %}
-</script>
 </body>
 </html>
