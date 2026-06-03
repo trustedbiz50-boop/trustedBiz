@@ -540,6 +540,7 @@ var LOGGED = {{ 'true' if current_user else 'false' }};
 var WA     = "256753187966";
 var FREE   = 6;
 var busy   = false, msgs = 0, gated = false;
+var history = [];  // full conversation for Daisy's memory
 var mode   = null, ctx = {}, imgs = [];
 var sid    = Math.random().toString(36).slice(2,9);
 var multiSel = {};
@@ -555,7 +556,8 @@ async function callDaisy(text, hasImg) {
       body: JSON.stringify({
         message: text, context: ctx,
         mode: mode, session_id: sid,
-        has_image: !!hasImg
+        has_image: !!hasImg,
+        history: history.slice(-12)
       })
     });
     if(!r.ok) throw 0;
@@ -869,6 +871,11 @@ async function send() {
 
   var data = await callDaisy(text, sentImgs[0]);
   var reply = data.reply || "I'm here! What do you need?";
+
+  // Save to history so Daisy remembers the full conversation
+  if(text) history.push({role:'user', content: text});
+  history.push({role:'assistant', content: reply});
+  if(history.length > 24) history = history.slice(-24);
 
   // Save context naturally
   if(text) {
