@@ -1669,6 +1669,7 @@ def daisy_chat():
     mode      = data.get('mode')
     sid       = data.get('session_id', '')
     has_img   = data.get('has_image', False)
+    history   = data.get('history', [])   # full conversation history for Daisy's memory
 
     reply = None
 
@@ -1676,10 +1677,13 @@ def daisy_chat():
     # Daisy handles Groq herself — her GROQ_API_KEY lives in her own environment
     try:
         daisy_payload = _j.dumps({
-            "user_input": user_msg + (" [image attached]" if has_img else ""),
+            "message":    user_msg,
+            "user_input": user_msg,
+            "history":    history,
             "context":    ctx,
             "mode":       mode,
             "session_id": sid,
+            "has_image":  has_img,
             "system":     DAISY_SYSTEM
         }).encode()
         req = urllib.request.Request(
