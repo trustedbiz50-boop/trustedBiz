@@ -486,11 +486,20 @@ def home():
         except Exception as e:
             print(f"Web search error: {e}")
 
+    # JSON mode for search panel (no page reload)
+    if request.args.get('json') == '1':
+        import json as _j
+        return app.response_class(
+            response=_j.dumps({'businesses': [r[0] for r in results[:20]]}),
+            mimetype='application/json'
+        )
+
     return render_template('home.html',
         results=results,
         web_results=web_results,
         current_user=get_current_user(),
-        notifications=notifications)
+        notifications=notifications,
+        groq_api_key=os.environ.get('GROQ_API_KEY',''))
 
 # ── PRICE GUARD API ───────────────────────────────────────────────────────────
 @app.route('/price-guard')
@@ -1622,6 +1631,145 @@ def trusthost_approve_own(biz_id):
     else:
         flash('No HTML uploaded yet — deploy your site first.', 'error')
     return redirect('/trusthost')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DAISY CHAT — proxies to Daisy Render service (Groq stays server-side)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Daisy lives at her own Render service — separate project, separate repo ──
+DAISY_SERVICE_URL = "https://daizy-l1aq.onrender.com"
+ADMIN_WHATSAPP    = "256753187966"
+
+DAISY_SYSTEM = """You are Daisy, the friendly AI for TrustedBiz Uganda.
+Personality: warm, short replies, like a helpful friend. Never robotic.
+You build: websites, logos, flyers, business cards, CVs, presentations, exam papers (Uganda curriculum), price checks.
+Ask ONE question at a time. When you have enough info, reply with DONE:[mode] on its own line.
+Modes: website|logo|flyer|cards|cv|presentation|exam|priceguard
+For color: ask "What color do you prefer?" — system shows swatches automatically.
+For style: ask "What design style?" — system shows cards automatically.
+For exam: ask subject and level separately.
+Free: conversation, previews, 3 exam papers/month. Paid: hosting, downloads.
+Never ask for payment. Always build first, offer delivery after.
+Be Uganda-aware. Keep replies under 3 sentences."""
+
+@app.route('/daisy/chat', methods=['POST'])
+def daisy_chat():
+    """
+    Proxy to Daisy's Render service.
+    Chain: TrustedBiz → Daisy (daizy-l1aq.onrender.com) → Groq
+    Fallback: TrustedBiz → Groq directly (if Daisy is spinning up)
+    Last resort: TrustedBiz → Claude Haiku
+    """
+    import urllib.request, urllib.parse, json as _j, os as _os, re as _re
+
+    data      = request.get_json() or {}
+    user_msg  = data.get('message', '').strip()
+    ctx       = data.get('context', {})
+    mode      = data.get('mode')
+    sid       = data.get('session_id', '')
+    has_img   = data.get('has_image', False)
+
+    reply = None
+
+    # ── STEP 1: Call Daisy's own Render service ──────────────────────────────
+    # Daisy handles Groq herself — her GROQ_API_KEY lives in her own environment
+    try:
+        daisy_payload = _j.dumps({
+            "user_input": user_msg + (" [image attached]" if has_img else ""),
+            "context":    ctx,
+            "mode":       mode,
+            "session_id": sid,
+            "system":     DAISY_SYSTEM
+        }).encode()
+        req = urllib.request.Request(
+            DAISY_SERVICE_URL + "/chat",
+            data=daisy_payload,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            daisy_resp = _j.loads(r.read().decode())
+        # Daisy returns {"response": "..."} based on her app.py
+        reply = daisy_resp.get("response") or daisy_resp.get("reply") or daisy_resp.get("message")
+        print(f"[Daisy] replied via Render service")
+    except Exception as e:
+        print(f"[Daisy] Render service unavailable ({e}) — trying Groq direct")
+
+    # ── STEP 2: Daisy spinning up (free tier cold start) — call Groq directly ─
+    if not reply:
+        groq_key = _os.environ.get('GROQ_API_KEY', '')
+        if groq_key:
+            try:
+                groq_body = _j.dumps({
+                    "model": "llama3-8b-8192",
+                    "messages": [
+                        {"role": "system", "content": DAISY_SYSTEM},
+                        {"role": "user",   "content": user_msg + (" [image attached]" if has_img else "")}
+                    ],
+                    "max_tokens": 250,
+                    "temperature": 0.85
+                }).encode()
+                req2 = urllib.request.Request(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    data=groq_body,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + groq_key
+                    }
+                )
+                with urllib.request.urlopen(req2, timeout=8) as r2:
+                    groq_data = _j.loads(r2.read().decode())
+                reply = groq_data["choices"][0]["message"]["content"].strip()
+                print(f"[Daisy] replied via Groq direct fallback")
+            except Exception as e2:
+                print(f"[Daisy] Groq direct failed ({e2}) — trying Claude")
+
+    # ── STEP 3: Last resort — Claude Haiku ───────────────────────────────────
+    if not reply:
+        client = get_anthropic_client()
+        if client:
+            try:
+                import anthropic
+                resp = client.messages.create(
+                    model="claude-haiku-4-5",
+                    max_tokens=250,
+                    system=DAISY_SYSTEM,
+                    messages=[{"role":"user","content": user_msg}]
+                )
+                reply = resp.content[0].text.strip()
+                print(f"[Daisy] replied via Claude Haiku last resort")
+            except Exception as e3:
+                print(f"[Daisy] Claude also failed ({e3})")
+
+    if not reply:
+        reply = "I'm having a small moment — try again in a second! 😊"
+
+    # ── PARSE DONE SIGNAL ─────────────────────────────────────────────────────
+    done_match = _re.search(r'DONE:(\w+)', reply)
+    done_mode  = done_match.group(1) if done_match else None
+    clean      = _re.sub(r'DONE:\w+', '', reply).strip()
+
+    return jsonify({
+        'reply': clean or "Here's what I built! 🌼",
+        'done':  bool(done_mode),
+        'mode':  done_mode
+    })
+
+
+@app.route('/daisy/claim/<int:biz_id>', methods=['POST'])
+@login_required
+def daisy_claim(biz_id):
+    user = get_current_user()
+    biz  = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=0 AND status='preview'"), (biz_id,))
+    if not biz:
+        return jsonify({'error': 'Preview not found or already claimed'}), 404
+    clean_slug = make_slug(biz['name'])
+    db_execute(
+        q("UPDATE business SET owner_id=?, status='approved', slug=? WHERE id=?"),
+        (user['id'], clean_slug, biz_id)
+    )
+    ping_google(clean_slug)
+    return jsonify({'success': True, 'url': f"https://{clean_slug}.trustedbiz.co.ug"})
 
 
 if __name__ == '__main__':
