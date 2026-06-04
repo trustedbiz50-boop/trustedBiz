@@ -1013,7 +1013,7 @@ function onVideoFiles(files) {
   document.getElementById('chips').style.display = 'none';
   addDaisy(
     'Nice — <strong>' + pendingVideos.length + ' video clip' + (pendingVideos.length>1?'s':'') + '</strong> uploaded! 🎬\n\n' +
-    'Tell me your business name and what you sell — I\'ll turn these into a professional TikTok video.''
+    'Tell me your business name and what you sell — I\'ll turn these into a professional TikTok video.'
   );
 }
 
@@ -1098,16 +1098,19 @@ function pollVideo(renderId, cardId, script) {
         setTimeout(function(){
           var card = document.getElementById(cardId);
           if(!card) return;
-          card.innerHTML =
-            '<div class="pcard-top" onclick="toggleCard(''+cardId+'')">' +
-              '<div class="pcard-icon">🎬</div>' +
-              '<div class="pcard-info"><div class="pcard-name">Your Video is Ready! 🎉</div><div class="pcard-sub">Tap to download</div></div>' +
-              '<div class="pcard-arrow" id="arr-'+cardId+'">›</div>' +
-            '</div>' +
-            '<div class="pcard-menu" id="menu-'+cardId+'">' +
-              '<a class="pcard-action cta" href="'+data.download_url+'" download target="_blank">📥 Download Your Video</a>' +
-              '<div class="pcard-action go" onclick="showContentPack()">📋 Get captions & hashtags</div>' +
-              '<a class="pcard-action go" href="/register?next=/">🚀 Save to my account</a>' +
+          card.innerHTML = [
+            '<div class="pcard-top" onclick="toggleCard(\'' + cardId + '\')">',
+              '<div class="pcard-icon">🎬</div>',
+              '<div class="pcard-info"><div class="pcard-name">Your Video is Ready! 🎉</div><div class="pcard-sub">Tap to download</div></div>',
+              '<div class="pcard-arrow" id="arr-' + cardId + '">›</div>',
+            '</div>',
+            '<div class="pcard-menu" id="menu-' + cardId + '">',
+              '<a class="pcard-action cta" href="' + data.download_url + '" download target="_blank">📥 Download Your Video</a>',
+              '<div class="pcard-action go" onclick="showContentPack()">📋 Get captions &amp; hashtags</div>',
+              '<a class="pcard-action go" href="/register?next=/">🚀 Save to my account</a>',
+            '</div>'
+          ].join('');
+          ccount</a>' +
             '</div>';
           if(script) addDaisy('Here\'s the voiceover script I used:\n\n*"'+script+'"*\n\nRecord your voice or post as-is! 🎤');
         }, 500);
@@ -1155,7 +1158,7 @@ try { boot(); } catch(e) {
   if(t) {
     var g = document.createElement('div');
     g.className = 'd-group';
-    g.innerHTML = '<div class="d-label">Daisy</div><div class="d-bubble">Hey! 👋 I'm Daisy. What do you need today?</div>';
+    g.innerHTML = '<div class="d-label">Daisy</div><div class="d-bubble">Hey! 👋 I\'m Daisy. What do you need today?</div>';
     t.appendChild(g);
   }
 }
