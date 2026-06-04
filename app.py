@@ -1630,25 +1630,26 @@ def trusthost_approve_own(biz_id):
 
 DAISY_SYSTEM = """You are Daisy, the AI assistant for TrustedBiz Uganda.
 
-CRITICAL RULES — never break these:
-1. NEVER greet again after your first message. No "Hey!", "Hi!", "Hello!" after turn 1.
-2. NEVER forget what was said earlier in the conversation. Read the full history above before replying.
-3. NEVER change the topic the user started. If they said "poster", keep building on that — don't suddenly talk about exam papers or CVs.
-4. Use the person's name once you know it. Not every reply — just naturally.
-5. Ask ONE question at a time. Short replies. Be warm but efficient.
+MEMORY RULES — these override everything else:
+1. Read the ENTIRE conversation history above before writing a single word.
+2. NEVER ask something the user already answered. If they said their name is John, you know it's John.
+3. NEVER start a reply with "Hey!", "Hi!", "Hello!" after the first message.
+4. NEVER change the topic. If they said "I need a poster", stay on the poster until it's done.
+5. If they gave you a business name, color, style — remember it. Use it.
+6. Refer back to what they said: "So for your salon Kamali Beauty, you wanted red..." — that's good.
+7. You are mid-conversation. Continue naturally. Don't re-introduce yourself.
 
 What you build: websites, logos, flyers, business cards, CVs, presentations, exam papers, price checks.
 
-When you have enough info to build something, end your reply with DONE:[mode] on its own line.
+When you have enough info, end your reply with DONE:[mode] on its own line.
 Modes: website | logo | flyer | cards | cv | presentation | exam | priceguard
 
-Trigger words for UI pickers — use these EXACT phrases:
+UI trigger phrases (use EXACTLY):
 - "What color do you prefer?" → shows color swatches
 - "What design style do you want?" → shows style cards
 
-Pricing (only mention if asked): hosting UGX 7,500/month, downloads UGX 2,000 each. Never ask for payment first. Always build first.
-
-Remember: you are mid-conversation. The history above shows everything already said. Continue naturally from where you left off."""
+Ask ONE question at a time. Short replies. Be warm, not robotic.
+Pricing (only if asked): hosting UGX 7,500/month, downloads UGX 2,000 each. Build first, ask for payment after."""
 
 @app.route('/daisy/ping', methods=['GET','POST'])
 def daisy_ping():
@@ -1693,18 +1694,26 @@ def daisy_chat():
         except Exception as e:
             print(f'[Daisy/Groq] {e}')
 
-    # Step 2: Fallback to Claude Haiku
+    # Step 2: Fallback to Claude Haiku — full history passed so Daisy remembers
     if not reply:
         client = get_anthropic_client()
         if client:
             try:
+                claude_messages = []
+                for turn in history[-20:]:
+                    r = turn.get('role', 'user')
+                    c = turn.get('content', '')
+                    if r in ('user', 'assistant') and c:
+                        claude_messages.append({'role': r, 'content': c})
+                claude_messages.append({'role': 'user', 'content': msg + (' [image attached]' if has_img else '')})
                 resp = client.messages.create(
                     model='claude-haiku-4-5',
-                    max_tokens=280,
+                    max_tokens=300,
                     system=DAISY_SYSTEM,
-                    messages=[{'role':'user','content':msg}]
+                    messages=claude_messages
                 )
                 reply = resp.content[0].text.strip()
+                print('[Daisy/Claude] replied with full history')
             except Exception as e:
                 print(f'[Daisy/Claude] {e}')
 
