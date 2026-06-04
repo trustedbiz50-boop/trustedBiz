@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>TrustedBiz — Your Business Online in Minutes</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Get a professional website, logo, flyers and business cards for your Uganda business in minutes. Powered by Daisy AI.">
+<link rel="canonical" href="https://trustedbiz.co.ug/">
+<meta property="og:title" content="TrustedBiz | Your Business Online in Minutes">
+<meta property="og:description" content="Talk to Daisy. She builds your website, logo, flyers and more — live in minutes.">
+<meta property="og:url" content="https://trustedbiz.co.ug/">
+<meta property="og:image" content="https://trustedbiz.co.ug/static/og-default.png">
+<meta name="geo.region" content="UG">
+<meta name="geo.placename" content="Kampala, Uganda">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & ROOT ─────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --brand:#2b7a78;
+  --brand-d:#1f5c5a;
+  --brand-l:#3a9e9b;
+  --brand-dim:rgba(43,122,120,.09);
+  --brand-glow:rgba(43,122,120,.18);
+  --bg:#f6f9f9;
+  --surface:#ffffff;
+  --surface2:#edf3f3;
+  --border:#e0eaea;
+  --border2:#c8dcdc;
+  --text:#0d1c1c;
+  --mid:#456060;
+  --dim:#87a3a3;
+  --shadow:0 2px 16px rgba(43,122,120,.08);
+  --shadow2:0 4px 28px rgba(43,122,120,.13);
+  --font:'DM Sans',sans-serif;
+  --mono:'DM Mono',monospace;
+  --radius:14px;
+}
+html{height:100%;-webkit-text-size-adjust:100%;font-size:15px;}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);
+  height:100%;display:flex;flex-direction:column;
+  position:fixed;inset:0;overflow:hidden;
+}
+
+/* ── TOPBAR ───────────────────────────────────────────────────── */
+.bar{
+  height:56px;padding:0 18px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none;}
+.logo-badge{
+  width:34px;height:34px;flex-shrink:0;
+  background:linear-gradient(145deg,var(--brand),var(--brand-l));
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px var(--brand-glow);
+}
+.logo-badge svg{width:18px;height:18px;fill:#fff;}
+.logo-name{font-size:17px;font-weight:700;letter-spacing:-.4px;color:var(--text);}
+.logo-name b{color:var(--brand);}
+.menu-btn{
+  width:38px;height:38px;flex-shrink:0;
+  background:none;border:1.5px solid var(--border);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--mid);font-size:18px;
+  transition:border-color .15s,color .15s;
+}
+.menu-btn:hover{border-color:var(--brand);color:var(--brand);}
+
+/* ── SLIDE MENU ───────────────────────────────────────────────── */
+.veil{
+  position:fixed;inset:0;background:rgba(0,0,0,.22);z-index:300;
+  opacity:0;pointer-events:none;transition:opacity .22s;
+}
+.veil.on{opacity:1;pointer-events:all;}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;
+  width:min(288px,88vw);
+  background:var(--surface);border-left:1px solid var(--border);
+  z-index:301;
+  display:flex;flex-direction:column;
+  padding:18px 14px 24px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  transform:translateX(110%);
+  transition:transform .27s cubic-bezier(.4,0,.2,1);
+  box-shadow:-6px 0 32px rgba(0,0,0,.09);
+}
+.drawer.on{transform:none;}
+.drawer-close{
+  width:32px;height:32px;margin-bottom:20px;
+  background:var(--surface2);border:none;border-radius:8px;
+  cursor:pointer;color:var(--mid);font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  align-self:flex-start;
+}
+.grp{margin-bottom:20px;}
+.grp-lbl{
+  font-size:10px;font-weight:700;letter-spacing:1.8px;
+  text-transform:uppercase;color:var(--dim);font-family:var(--mono);
+  padding:0 8px;margin-bottom:6px;
+}
+.item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 10px;border-radius:10px;
+  font-size:14px;font-weight:500;color:var(--mid);
+  cursor:pointer;transition:all .13s;
+  text-decoration:none;border:none;background:none;
+  font-family:var(--font);width:100%;text-align:left;
+}
+.item:hover{background:var(--surface2);color:var(--text);}
+.item.hi{background:var(--brand-dim);color:var(--brand);font-weight:600;}
+.item-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+.hdivider{height:1px;background:var(--border);margin:8px 0;}
+.drawer-foot{
+  margin-top:auto;padding-top:18px;
+  font-size:11px;color:var(--dim);font-family:var(--mono);
+  padding-left:8px;
+}
+
+/* ── CHAT AREA ────────────────────────────────────────────────── */
+.chat{
+  flex:1;overflow-y:auto;
+  padding:24px 16px 8px;
+  -webkit-overflow-scrolling:touch;
+  scroll-behavior:smooth;
+}
+.chat::-webkit-scrollbar{width:3px;}
+.chat::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+.thread{
+  max-width:620px;margin:0 auto;
+  display:flex;flex-direction:column;gap:6px;
+}
+
+/* ── MESSAGE GROUPS ───────────────────────────────────────────── */
+/* Daisy messages — no avatar spam, just a subtle left accent */
+.d-group{
+  display:flex;flex-direction:column;gap:3px;
+  align-items:flex-start;
+  margin-bottom:10px;
+  animation:fadeUp .2s ease both;
+}
+.d-label{
+  font-size:11px;font-weight:600;color:var(--brand);
+  font-family:var(--mono);margin-bottom:4px;padding-left:4px;
+  display:flex;align-items:center;gap:6px;
+}
+.d-label::before{
+  content:'';width:6px;height:6px;
+  background:var(--brand);border-radius:50%;
+  display:inline-block;
+}
+.d-bubble{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:0 var(--radius) var(--radius) var(--radius);
+  padding:12px 16px;
+  font-size:15px;line-height:1.65;color:var(--text);
+  max-width:92%;
+  box-shadow:var(--shadow);
+}
+.d-bubble strong{font-weight:700;}
+.d-bubble em{font-style:italic;color:var(--mid);}
+.d-bubble a{color:var(--brand);}
+
+/* User messages — right aligned, brand color */
+.u-group{
+  display:flex;flex-direction:column;
+  align-items:flex-end;
+  margin-bottom:10px;
+  animation:fadeUp .2s ease both;
+}
+.u-bubble{
+  background:var(--brand);color:#fff;
+  border-radius:var(--radius) 0 var(--radius) var(--radius);
+  padding:11px 15px;
+  font-size:15px;line-height:1.6;
+  max-width:82%;
+  box-shadow:0 2px 10px var(--brand-glow);
+}
+.u-bubble .upload-row{
+  display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;
+}
+.u-bubble .thumb{
+  width:56px;height:56px;border-radius:8px;
+  object-fit:cover;border:2px solid rgba(255,255,255,.3);
+}
+
+/* Typing indicator */
+.typing-row{display:flex;align-items:center;gap:5px;padding:10px 4px;animation:fadeUp .2s ease;}
+.typing-row .dot{
+  width:7px;height:7px;background:var(--brand);border-radius:50%;opacity:.3;
+  animation:pulse .9s infinite;
+}
+.typing-row .dot:nth-child(2){animation-delay:.18s;}
+.typing-row .dot:nth-child(3){animation-delay:.36s;}
+@keyframes pulse{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-5px);opacity:1}}
+
+/* Cursor blink while typing */
+.tcursor::after{
+  content:'▋';color:var(--brand);
+  animation:blink .65s infinite;font-size:13px;
+}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ── PICKER TRAY ──────────────────────────────────────────────── */
+/* Appears inline below Daisy's message — feels like she's handing you something */
+.tray{
+  margin:6px 0 10px 0;
+  max-width:92%;
+  animation:fadeUp .2s ease both;
+}
+.tray-label{
+  font-size:12px;font-weight:600;color:var(--mid);
+  margin-bottom:9px;font-family:var(--mono);
+}
+/* Color swatches */
+.swatches{display:flex;gap:8px;flex-wrap:wrap;}
+.swatch{
+  width:44px;height:44px;border-radius:11px;
+  border:2.5px solid transparent;cursor:pointer;
+  transition:transform .15s,border-color .15s;
+  display:flex;align-items:flex-end;justify-content:center;
+  padding-bottom:3px;font-size:9px;font-weight:700;color:white;
+  text-shadow:0 1px 3px rgba(0,0,0,.4);
+}
+.swatch:hover{transform:scale(1.18);}
+.swatch.rainbow{background:linear-gradient(135deg,#f59e0b,#ec4899,#6366f1,#10b981);}
+/* Style cards */
+.style-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.style-card{
+  padding:12px 11px;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:12px;
+  cursor:pointer;transition:all .15s;text-align:left;
+  font-family:var(--font);
+}
+.style-card:hover{border-color:var(--brand);background:var(--brand-dim);}
+.style-card .sc-icon{font-size:22px;margin-bottom:5px;display:block;}
+.style-card .sc-name{font-size:13px;font-weight:700;color:var(--text);}
+.style-card .sc-desc{font-size:11px;color:var(--dim);margin-top:2px;}
+/* Chips for level/subject */
+.chip-tray{display:flex;flex-wrap:wrap;gap:6px;}
+.tray-chip{
+  padding:8px 15px;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:100px;
+  font-size:13px;font-weight:600;color:var(--mid);
+  cursor:pointer;transition:all .13s;font-family:var(--font);
+}
+.tray-chip:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-dim);}
+/* Multi-select (pages) */
+.multi-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.multi-opt{
+  padding:8px 14px;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:9px;
+  font-size:13px;font-weight:600;color:var(--mid);
+  cursor:pointer;transition:all .13s;font-family:var(--font);
+  display:flex;align-items:center;gap:5px;
+}
+.multi-opt.sel{background:var(--brand-dim);border-color:var(--brand);color:var(--brand);}
+.multi-confirm{
+  padding:9px 20px;background:var(--brand);color:#fff;
+  border:none;border-radius:9px;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:var(--font);
+  margin-top:4px;
+}
+
+/* ── PRODUCT CARD ─────────────────────────────────────────────── */
+/* Looks like a real file folder she's handing you */
+.pcard{
+  max-width:92%;margin:8px 0 4px;
+  background:var(--surface);
+  border:1.5px solid var(--brand-glow);
+  border-radius:var(--radius);overflow:hidden;
+  box-shadow:var(--shadow2);
+  animation:fadeUp .25s ease both;
+}
+.pcard-top{
+  padding:14px 15px;display:flex;align-items:center;gap:13px;
+  cursor:pointer;transition:background .15s;
+  border-bottom:1px solid var(--border);
+}
+.pcard-top:hover{background:var(--brand-dim);}
+.pcard-icon{
+  width:46px;height:46px;border-radius:11px;
+  background:linear-gradient(145deg,var(--brand),var(--brand-l));
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;
+  box-shadow:0 3px 10px var(--brand-glow);
+}
+.pcard-info{flex:1;min-width:0;}
+.pcard-name{font-size:15px;font-weight:700;color:var(--text);}
+.pcard-sub{font-size:11px;color:var(--dim);font-family:var(--mono);margin-top:2px;}
+.pcard-arrow{color:var(--dim);font-size:20px;transition:transform .2s;}
+.pcard-arrow.open{transform:rotate(90deg);}
+.pcard-menu{display:none;flex-direction:column;}
+.pcard-menu.open{display:flex;}
+.pcard-action{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;font-size:13px;font-weight:600;
+  color:var(--mid);cursor:pointer;
+  text-decoration:none;transition:background .13s;
+  border-bottom:1px solid var(--border);
+  font-family:var(--font);
+}
+.pcard-action:last-child{border-bottom:none;}
+.pcard-action:hover{background:var(--surface2);}
+.pcard-action.go{color:var(--brand);}
+.pcard-action.cta{
+  background:var(--brand);color:#fff;
+  justify-content:center;font-size:14px;
+  letter-spacing:-.2px;
+}
+.pcard-action.cta:hover{background:var(--brand-d);}
+.pcard-price{font-size:11px;font-family:var(--mono);opacity:.65;}
+
+/* ── GATE CARD (soft — feels like an invitation, not a wall) ──── */
+.gate{
+  max-width:92%;margin:6px 0 4px;
+  background:linear-gradient(135deg,rgba(43,122,120,.06),rgba(43,122,120,.02));
+  border:1.5px solid var(--brand-glow);
+  border-radius:var(--radius);padding:18px 16px;
+  animation:fadeUp .25s ease both;
+}
+.gate h4{font-size:15px;font-weight:700;color:var(--text);margin-bottom:5px;}
+.gate p{font-size:13px;color:var(--mid);line-height:1.55;margin-bottom:14px;}
+.gate-btns{display:flex;gap:8px;}
+.gate-btn{
+  flex:1;padding:10px;border-radius:10px;
+  font-size:13px;font-weight:700;text-align:center;
+  text-decoration:none;transition:all .15s;
+  font-family:var(--font);border:none;cursor:pointer;
+}
+.gate-btn.p{background:var(--brand);color:#fff;}
+.gate-btn.p:hover{background:var(--brand-d);}
+.gate-btn.s{
+  background:var(--surface);color:var(--mid);
+  border:1.5px solid var(--border);
+}
+.gate-btn.s:hover{border-color:var(--brand);color:var(--brand);}
+
+/* ── CHIPS ROW ────────────────────────────────────────────────── */
+.chips{
+  max-width:620px;width:100%;margin:0 auto;
+  padding:0 16px 8px;
+  display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;
+}
+.chip{
+  padding:7px 14px;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:100px;
+  font-size:13px;font-weight:600;color:var(--mid);
+  cursor:pointer;transition:all .13s;font-family:var(--font);
+}
+.chip:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-dim);}
+
+/* ── INPUT BAR ────────────────────────────────────────────────── */
+.ibar{
+  padding:10px 16px 18px;flex-shrink:0;
+  background:var(--surface);
+  border-top:1px solid var(--border);
+}
+.ibar-inner{
+  max-width:620px;margin:0 auto;
+  display:flex;gap:7px;align-items:flex-end;
+}
+.ifield{
+  flex:1;padding:12px 14px;
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:12px;font-size:15px;font-family:var(--font);
+  color:var(--text);outline:none;resize:none;
+  line-height:1.5;max-height:100px;overflow-y:auto;
+  transition:border-color .18s;
+}
+.ifield::placeholder{color:var(--dim);}
+.ifield:focus{border-color:var(--brand-glow);}
+.iactions{display:flex;gap:6px;align-items:flex-end;}
+.ibtn{
+  width:42px;height:42px;border-radius:11px;
+  border:1.5px solid var(--border);
+  background:var(--surface2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:19px;transition:all .15s;flex-shrink:0;
+  position:relative;
+}
+.ibtn:hover{border-color:var(--brand);background:var(--brand-dim);}
+.ibtn.send{background:var(--brand);border-color:var(--brand);color:#fff;}
+.ibtn.send:hover{background:var(--brand-d);}
+.ibtn.send:disabled{opacity:.4;cursor:not-allowed;}
+.ubadge{
+  position:absolute;top:-5px;right:-5px;
+  width:16px;height:16px;background:var(--brand);color:#fff;
+  border-radius:50%;font-size:9px;font-weight:700;
+  display:none;align-items:center;justify-content:center;
+  font-family:var(--mono);
+}
+.ubadge.on{display:flex;}
+.ihint{
+  text-align:center;font-size:11px;color:var(--dim);
+  font-family:var(--mono);margin-top:7px;
+}
+#ufile{display:none;}
+
+/* ── RESPONSIVE ───────────────────────────────────────────────── */
+@media(max-width:480px){
+  .chat{padding:18px 12px 6px;}
+  .chips{padding:0 12px 6px;}
+  .ibar{padding:8px 12px 16px;}
+  .d-bubble,.u-bubble{font-size:14px;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="bar">
+  <a class="logo" href="/">
+    <div class="logo-badge">
+      <svg viewBox="0 0 24 24"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/></svg>
+    </div>
+    <span class="logo-name">Trusted<b>Biz</b></span>
+  </a>
+  <button class="menu-btn" onclick="openDrawer()" aria-label="Menu">&#9776;</button>
+</header>
+
+<!-- VEIL + DRAWER -->
+<div class="veil" id="veil" onclick="closeDrawer()"></div>
+<nav class="drawer" id="drawer">
+  <button class="drawer-close" onclick="closeDrawer()">✕</button>
+
+  <div class="grp">
+    <div class="grp-lbl">Get Started</div>
+    <button class="item hi" onclick="closeDrawer()">
+      <span class="item-icon">🌼</span>Talk to Daisy
+    </button>
+    <a class="item" href="/search">
+      <span class="item-icon">🔍</span>Search Businesses
+    </a>
+    <a class="item" href="/price-guard">
+      <span class="item-icon">🛡️</span>Price Guard
+    </a>
+  </div>
+
+  <div class="hdivider"></div>
+
+  <div class="grp">
+    <div class="grp-lbl">What Daisy Builds</div>
+    <button class="item" onclick="closeDrawer();go('I need a website for my business')">
+      <span class="item-icon">🌐</span>Business Website
+    </button>
+    <button class="item" onclick="closeDrawer();go('I need a logo')">
+      <span class="item-icon">✨</span>Logo Design
+    </button>
+    <button class="item" onclick="closeDrawer();go('I need business cards')">
+      <span class="item-icon">🪪</span>Business Cards PDF
+    </button>
+    <button class="item" onclick="closeDrawer();go('I need a flyer or poster')">
+      <span class="item-icon">📄</span>Flyers & Posters
+    </button>
+    <button class="item" onclick="closeDrawer();go('I need a presentation')">
+      <span class="item-icon">📊</span>Presentations
+    </button>
+    <button class="item" onclick="closeDrawer();go('I need a CV')">
+      <span class="item-icon">📋</span>CV / Resume
+    </button>
+    <button class="item" onclick="closeDrawer();go('I need an exam paper Uganda curriculum')">
+      <span class="item-icon">📝</span>Exam Papers
+    </button>
+  </div>
+
+  <div class="hdivider"></div>
+
+  <div class="grp">
+    <div class="grp-lbl">Account</div>
+    {% if current_user %}
+    <a class="item" href="/dashboard"><span class="item-icon">📊</span>My Dashboard</a>
+    <a class="item" href="/trusthost"><span class="item-icon">🚀</span>TrustHost</a>
+    <a class="item" href="/logout"><span class="item-icon">🚪</span>Sign Out</a>
+    {% else %}
+    <a class="item" href="/login"><span class="item-icon">🔑</span>Sign In</a>
+    <a class="item" href="/register"><span class="item-icon">👤</span>Create Account</a>
+    {% endif %}
+  </div>
+
+  <div class="hdivider"></div>
+
+  <div class="grp">
+    <div class="grp-lbl">More</div>
+    <a class="item" href="/trusthost"><span class="item-icon">🌐</span>TrustHost Hosting</a>
+    <a class="item" href="/join"><span class="item-icon">🤝</span>Become an Agent</a>
+    <a class="item" href="/privacy"><span class="item-icon">📜</span>Privacy Policy</a>
+    <a class="item" href="/terms"><span class="item-icon">📋</span>Terms of Use</a>
+  </div>
+
+  <div class="drawer-foot">Made by Kazibwe Benjamin · Uganda 🇺🇬</div>
+</nav>
+
+<!-- CHAT -->
+<div class="chat" id="chat">
+  <div class="thread" id="thread"></div>
+</div>
+
+<!-- CHIPS -->
+<div class="chips" id="chips">
+  <button class="chip" onclick="go('I need a website')">Website 🌐</button>
+  <button class="chip" onclick="go('I need a logo')">Logo ✨</button>
+  <button class="chip" onclick="go('I need a flyer')">Flyer 📄</button>
+  <button class="chip" onclick="go('I need business cards')">Cards 🪪</button>
+  <button class="chip" onclick="go('I need a CV')">CV 📋</button>
+  <button class="chip" onclick="go('I need an exam paper')">Exam 📝</button>
+</div>
+
+<!-- INPUT -->
+<div class="ibar">
+  <div class="ibar-inner">
+    <textarea class="ifield" id="ifield" rows="1"
+      placeholder="Tell Daisy what you need..."
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"
+      oninput="resize(this)"></textarea>
+    <div class="iactions">
+      <button class="ibtn" id="ubtn" onclick="document.getElementById('ufile').click()" title="Attach image">
+        📎<span class="ubadge" id="ubadge">0</span>
+      </button>
+      <button class="ibtn" id="vbtn" onclick="document.getElementById('vfile').click()" title="Upload video clips 🎬" style="font-size:17px;">
+        🎬<span class="ubadge" id="vbadge">0</span>
+      </button>
+      <button class="ibtn send" id="sbtn" onclick="send()">↑</button>
+    </div>
+  </div>
+  <div class="ihint">Enter · 📎 image · 🎬 video clips</div>
+</div>
+<input type="file" id="ufile" accept="image/*" multiple onchange="onFiles(this.files)" style="display:none">
+<input type="file" id="vfile" accept="video/*" multiple onchange="onVideoFiles(this.files)" style="display:none">
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+var LOGGED = {{ 'true' if current_user else 'false' }};
+var WA     = "256753187966";
+var FREE   = 6;
+var busy   = false, msgs = 0, gated = false;
+var history = [];  // full conversation for Daisy's memory
+var mode   = null, ctx = {}, imgs = [];
+var sid    = Math.random().toString(36).slice(2,9);
+var multiSel = {};
+
+// ════════════════════════════════════════════════════════════════
+// CALL DAISY — through TrustedBiz backend (Groq key stays safe)
+// ════════════════════════════════════════════════════════════════
+async function callDaisy(text, hasImg) {
+  // Daisy is on Render free tier — can take 50s to cold start
+  // We try twice: first with 55s timeout, show waiting message if slow
+  var slowTimer = setTimeout(function(){
+    // After 8s with no reply, reassure the user Daisy is waking up
+    var d = document.getElementById('dots');
+    if(d) {
+      var w = document.createElement('div');
+      w.id = 'wake-msg';
+      w.style.cssText = 'font-size:12px;color:var(--dim);font-family:var(--mono);padding:6px 4px;animation:fadeUp .3s ease;';
+      w.textContent = 'Daisy is waking up — just a moment... ☕';
+      d.parentNode.insertBefore(w, d.nextSibling);
+    }
+  }, 8000);
+
+  try {
+    var ctrl = new AbortController();
+    var timeout = setTimeout(function(){ ctrl.abort(); }, 55000);
+
+    var r = await fetch('/daisy/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        message: text, context: ctx,
+        mode: mode, session_id: sid,
+        has_image: !!hasImg,
+        history: history.slice(-12)
+      })
+    });
+    clearTimeout(timeout);
+    clearTimeout(slowTimer);
+    var w = document.getElementById('wake-msg'); if(w) w.remove();
+
+    if(!r.ok) throw new Error('status ' + r.status);
+    var data = await r.json();
+    // Normalise — Daisy returns 'response' or 'reply'
+    if(!data.reply && data.response) data.reply = data.response;
+    return data;
+
+  } catch(e) {
+    clearTimeout(slowTimer);
+    var w = document.getElementById('wake-msg'); if(w) w.remove();
+
+    if(e.name === 'AbortError') {
+      return {reply:"Daisy took too long to wake up — she's on a free server. Try sending your message again, she should be ready now! 😊", done:false};
+    }
+    return {reply:"I'm having a small moment — try again! 😊", done:false};
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════════════════════
+function fmt(t) {
+  return (t||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/\n/g,'<br>');
+}
+
+function addDaisy(html, extra) {
+  var t = document.getElementById('thread');
+  var g = document.createElement('div');
+  g.className = 'd-group';
+  g.innerHTML =
+    '<div class="d-label">Daisy</div>' +
+    '<div class="d-bubble">' + html + '</div>' +
+    (extra || '');
+  t.appendChild(g);
+  scrollDown();
+  return g;
+}
+
+function addUser(text, imgArr) {
+  var t = document.getElementById('thread');
+  var g = document.createElement('div');
+  g.className = 'u-group';
+  var imgs_html = '';
+  if(imgArr && imgArr.length) {
+    imgs_html = '<div class="upload-row">' +
+      imgArr.map(function(s){return '<img class="thumb" src="'+s+'">';}).join('') +
+      '</div>';
+  }
+  g.innerHTML = '<div class="u-bubble">' + fmt(text || '📎') + imgs_html + '</div>';
+  t.appendChild(g);
+  scrollDown();
+}
+
+function showDots() {
+  var t = document.getElementById('thread');
+  var d = document.createElement('div');
+  d.className='typing-row'; d.id='dots';
+  d.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  t.appendChild(d); scrollDown();
+}
+function hideDots() { var d=document.getElementById('dots'); if(d)d.remove(); }
+function scrollDown() { var c=document.getElementById('chat'); c.scrollTop=c.scrollHeight; }
+function sleep(ms){ return new Promise(function(r){setTimeout(r,ms);}); }
+
+// ════════════════════════════════════════════════════════════════
+// OPENING — Daisy types her greeting
+// ════════════════════════════════════════════════════════════════
+async function boot() {
+  await sleep(480);
+  showDots();
+  await sleep(1300);
+  hideDots();
+
+  var t   = document.getElementById('thread');
+  var g   = document.createElement('div');
+  g.className = 'd-group';
+  g.innerHTML = '<div class="d-label">Daisy</div><div class="d-bubble"><span id="otxt"></span><span class="tcursor"></span></div>';
+  t.appendChild(g);
+
+  var full = "Hey! 👋 I'm Daisy.\n\nI build websites, logos, flyers, business cards, CVs, exam papers and more — for you, in minutes.\n\nWhat do you need today?";
+  var el   = document.getElementById('otxt');
+  var i    = 0;
+
+  // Typing speed varies with message length — feels natural
+  var speed = full.length > 80 ? 12 : 18;
+
+  await new Promise(function(resolve) {
+    var iv = setInterval(function() {
+      if(i < full.length) {
+        el.innerHTML = fmt(full.slice(0, ++i));
+        scrollDown();
+      } else {
+        clearInterval(iv);
+        g.querySelector('.tcursor').remove();
+        resolve();
+      }
+    }, speed);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// PICKERS — visual UI that slides in inline
+// ════════════════════════════════════════════════════════════════
+var COLORS = [
+  {v:'#2b7a78',n:'Teal'},    {v:'#1e3a5f',n:'Navy'},
+  {v:'#6d28d9',n:'Purple'},  {v:'#ea580c',n:'Orange'},
+  {v:'#16a34a',n:'Green'},   {v:'#dc2626',n:'Red'},
+  {v:'#111827',n:'Black'},   {v:'surprise',n:'Surprise 🎨'}
+];
+var STYLES = [
+  {v:'modern',  i:'✨', n:'Modern',   d:'Clean & minimal'},
+  {v:'bold',    i:'🎨', n:'Bold',     d:'Eye-catching'},
+  {v:'classic', i:'🏛️', n:'Classic',  d:'Traditional'},
+  {v:'playful', i:'🎉', n:'Playful',  d:'Fun & friendly'}
+];
+var PAGES = [
+  {v:'home',i:'🏠',n:'Home'},      {v:'about',i:'👥',n:'About'},
+  {v:'services',i:'⚙️',n:'Services'},{v:'gallery',i:'📷',n:'Gallery'},
+  {v:'contact',i:'📞',n:'Contact'}, {v:'shop',i:'🛒',n:'Menu/Shop'}
+];
+var LEVELS   = ['Primary (P1–P7)','O-Level (S1–S4)','A-Level (S5–S6)','University'];
+var SUBJECTS = ['Mathematics','English','Biology','Chemistry','Physics','History','Geography','Economics'];
+
+function showPicker(type, cb) {
+  var tray = document.createElement('div');
+  tray.className = 'tray';
+
+  if(type === 'color') {
+    tray.innerHTML = '<div class="tray-label">Pick a brand color:</div><div class="swatches"></div>';
+    var sw = tray.querySelector('.swatches');
+    COLORS.forEach(function(c) {
+      var b = document.createElement('button');
+      b.className = 'swatch' + (c.v==='surprise'?' rainbow':'');
+      b.title = c.n;
+      if(c.v !== 'surprise') b.style.background = c.v;
+      b.onclick = function() { tray.remove(); cb(c.v, c.n); };
+      sw.appendChild(b);
+    });
+
+  } else if(type === 'style') {
+    tray.innerHTML = '<div class="tray-label">Choose a style:</div><div class="style-grid"></div>';
+    var sg = tray.querySelector('.style-grid');
+    STYLES.forEach(function(s) {
+      var b = document.createElement('button');
+      b.className = 'style-card';
+      b.innerHTML = '<span class="sc-icon">'+s.i+'</span><div class="sc-name">'+s.n+'</div><div class="sc-desc">'+s.d+'</div>';
+      b.onclick = function() { tray.remove(); cb(s.v, s.n); };
+      sg.appendChild(b);
+    });
+
+  } else if(type === 'pages') {
+    multiSel[type] = [];
+    tray.innerHTML = '<div class="tray-label">What pages do you need?</div><div class="multi-grid"></div><button class="multi-confirm">Done ✓</button>';
+    var mg = tray.querySelector('.multi-grid');
+    PAGES.forEach(function(p) {
+      var b = document.createElement('button');
+      b.className = 'multi-opt'; b.id = 'mo-'+p.v;
+      b.innerHTML = p.i+' '+p.n;
+      b.onclick = function() {
+        var arr = multiSel[type], idx = arr.indexOf(p.v);
+        if(idx===-1){ arr.push(p.v); b.classList.add('sel'); }
+        else        { arr.splice(idx,1); b.classList.remove('sel'); }
+      };
+      mg.appendChild(b);
+    });
+    tray.querySelector('.multi-confirm').onclick = function() {
+      var arr = multiSel[type];
+      var labels = arr.length
+        ? arr.map(function(v){return PAGES.find(function(p){return p.v===v;}).n;}).join(', ')
+        : 'Home, Contact';
+      tray.remove(); cb(arr.join(','), labels);
+    };
+
+  } else if(type === 'level') {
+    tray.innerHTML = '<div class="tray-label">What level?</div><div class="chip-tray"></div>';
+    LEVELS.forEach(function(l) {
+      var b = document.createElement('button');
+      b.className='tray-chip'; b.textContent=l;
+      b.onclick=function(){tray.remove(); cb(l,l);};
+      tray.querySelector('.chip-tray').appendChild(b);
+    });
+
+  } else if(type === 'subject') {
+    tray.innerHTML = '<div class="tray-label">Which subject?</div><div class="chip-tray"></div>';
+    SUBJECTS.forEach(function(s) {
+      var b = document.createElement('button');
+      b.className='tray-chip'; b.textContent=s;
+      b.onclick=function(){tray.remove(); cb(s,s);};
+      tray.querySelector('.chip-tray').appendChild(b);
+    });
+  }
+
+  document.getElementById('thread').appendChild(tray);
+  scrollDown();
+}
+
+function maybePicker(reply, cb) {
+  var r = reply.toLowerCase();
+  if(r.includes('color')||r.includes('colour'))  { setTimeout(function(){showPicker('color',  cb);},280); return; }
+  if(r.includes('style')||r.includes('design s')) { setTimeout(function(){showPicker('style',  cb);},280); return; }
+  if(r.includes('pages')||r.includes('sections')) { setTimeout(function(){showPicker('pages',  cb);},280); return; }
+  if(r.includes('level')||r.includes('form ')||r.includes('class'))
+                                                   { setTimeout(function(){showPicker('level',  cb);},280); return; }
+  if(r.includes('subject'))                        { setTimeout(function(){showPicker('subject',cb);},280); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PRODUCT CARD
+// ════════════════════════════════════════════════════════════════
+var ICONS  = {website:'🌐',logo:'✨',flyer:'📄',cards:'🪪',cv:'📋',presentation:'📊',exam:'📝',priceguard:'🛡️'};
+var LABELS = {website:'Your Website',logo:'Your Logo',flyer:'Your Flyer',cards:'Your Business Cards',cv:'Your CV',presentation:'Your Presentation',exam:'Your Exam Paper',priceguard:'Price Guard Report'};
+var PRICES = {logo:'UGX 2,000',flyer:'UGX 2,000',cards:'UGX 2,000',cv:'UGX 2,000',presentation:'UGX 3,000',exam:'Free'};
+
+function makeCard(modeKey, ctxData) {
+  var icon  = ICONS[modeKey]  || '📁';
+  var label = LABELS[modeKey] || 'Your File';
+  var name  = ctxData.name || ctxData.fullname || ctxData.topic || ctxData.subject || 'Document';
+  var price = PRICES[modeKey];
+  var cid   = 'pc'+Date.now();
+
+  var waMsg = 'Hi TrustedBiz! I want my '+label+' for '+name+'. Details: '+JSON.stringify(ctxData);
+  var waUrl = 'https://wa.me/'+WA+'?text='+encodeURIComponent(waMsg);
+
+  var actions = '';
+  if(modeKey === 'website') {
+    var waBasic  = 'https://wa.me/'+WA+'?text='+encodeURIComponent('Hi TrustedBiz! Basic Plan for '+name+' (UGX 7,500/month)');
+    var waPromax = 'https://wa.me/'+WA+'?text='+encodeURIComponent('Hi TrustedBiz! Pro Max Plan for '+name+' (UGX 15,000/month)');
+    actions +=
+      '<a class="pcard-action cta" href="/register?next=/">🚀 Claim your site — free to start</a>'+
+      '<div class="pcard-action go" onclick="startHost(\''+cid+'\')">🌐 Host on TrustHost <span class="pcard-price">from UGX 7,500/mo</span></div>'+
+      '<a class="pcard-action" href="'+waBasic+'" target="_blank">📱 Basic — UGX 7,500/month <span class="pcard-price">WhatsApp</span></a>'+
+      '<a class="pcard-action" href="'+waPromax+'" target="_blank">⭐ Pro Max — UGX 15,000/month <span class="pcard-price">Custom domain</span></a>';
+  } else if(modeKey === 'exam') {
+    actions +=
+      '<a class="pcard-action cta" href="'+waUrl+'" target="_blank">📥 Get via WhatsApp — Free</a>'+
+      '<a class="pcard-action go" href="/register">👤 Save to my account</a>';
+  } else {
+    actions +=
+      '<a class="pcard-action cta" href="'+waUrl+'" target="_blank">📱 Pay '+price+' & get it on WhatsApp</a>'+
+      '<a class="pcard-action go" href="/register?next=/">👤 Save to my account</a>';
+  }
+
+  var html =
+    '<div class="pcard" id="'+cid+'">'+
+      '<div class="pcard-top" onclick="toggleCard(\''+cid+'\')">'+
+        '<div class="pcard-icon">'+icon+'</div>'+
+        '<div class="pcard-info">'+
+          '<div class="pcard-name">'+label+'</div>'+
+          '<div class="pcard-sub">'+name+' · tap to open</div>'+
+        '</div>'+
+        '<div class="pcard-arrow" id="arr-'+cid+'">›</div>'+
+      '</div>'+
+      '<div class="pcard-menu" id="menu-'+cid+'">'+actions+'</div>'+
+    '</div>';
+
+  return html;
+}
+
+function toggleCard(id) {
+  var m = document.getElementById('menu-'+id);
+  var a = document.getElementById('arr-'+id);
+  if(!m) return;
+  m.classList.toggle('open');
+  a.classList.toggle('open');
+}
+
+function startHost(cid) {
+  var m = document.getElementById('menu-'+cid);
+  if(m) m.classList.remove('open');
+  daisySay("Let's get your site live! 🚀\n\nI just need to set up your account — takes 30 seconds.\n\nWhat's your full name?");
+  mode = 'hosting'; ctx = {};
+}
+
+function daisySay(text) {
+  addDaisy(fmt(text));
+}
+
+// ════════════════════════════════════════════════════════════════
+// SOFT GATE — invitation, not a wall
+// ════════════════════════════════════════════════════════════════
+function showGate() {
+  if(gated || LOGGED) return;
+  gated = true;
+  var extra =
+    '<div class="gate">'+
+      '<h4>✨ Continue with a free account</h4>'+
+      '<p>You\'ve used your free messages. Sign up free in 10 seconds — your conversation and everything Daisy built stays here.</p>'+
+      '<div class="gate-btns">'+
+        '<a class="gate-btn p" href="/register?next=/">Create free account</a>'+
+        '<a class="gate-btn s" href="/login">Sign in</a>'+
+      '</div>'+
+    '</div>';
+  addDaisy("You\'re doing great! I\'d love to keep building with you. 🌼", extra);
+}
+
+// ════════════════════════════════════════════════════════════════
+// SEND
+// ════════════════════════════════════════════════════════════════
+async function send() {
+  var f    = document.getElementById('ifield');
+  var text = f.value.trim();
+  if((!text && !imgs.length) || busy) return;
+
+  busy = true;
+  document.getElementById('sbtn').disabled = true;
+  document.getElementById('chips').style.display = 'none';
+
+  var sentImgs = imgs.slice(); imgs = []; resetUpload();
+  addUser(text, sentImgs);
+  f.value=''; resize(f);
+  msgs++;
+
+  try {
+    showDots();
+    await sleep(300);
+
+    var data = await callDaisy(text, sentImgs[0]);
+    hideDots();
+    var reply = data.reply || "I'm here! What do you need?";
+
+    if(text) history.push({role:'user', content: text});
+    history.push({role:'assistant', content: reply});
+    if(history.length > 24) history = history.slice(-24);
+
+    if(text) {
+      if(!ctx.name)             ctx.name        = text;
+      else if(!ctx.description) ctx.description = text;
+      else if(!ctx.location)    ctx.location    = text;
+      else if(!ctx.whatsapp && /\d{9,}/.test(text)) ctx.whatsapp = text;
+    }
+    if(data.mode) mode = data.mode;
+
+    if(pendingVideos.length > 0 && ctx.name && ctx.description) {
+      var bInfo = (ctx.name||'') + '. ' + (ctx.description||'') + '. Location: ' + (ctx.location||'Uganda');
+      startVideoRender(bInfo, ctx.color||'#2b7a78', ctx.style||'energetic');
+      mode=null; ctx={};
+    } else if(data.done && data.mode) {
+      var card = makeCard(data.mode, ctx);
+      addDaisy(fmt(reply), card);
+      mode=null; ctx={};
+    } else {
+      addDaisy(fmt(reply));
+      maybePicker(reply, async function(val, label) {
+        var r = reply.toLowerCase();
+        if(r.includes('color')||r.includes('colour')) ctx.color = val;
+        else if(r.includes('style')) ctx.style = val;
+        else if(r.includes('pages')) ctx.pages = val;
+        else if(r.includes('level')||r.includes('class')) ctx.level = val;
+        else if(r.includes('subject')) ctx.subject = val;
+
+        addUser(label, null);
+        showDots();
+        await sleep(400);
+        hideDots();
+        var d2 = await callDaisy(label, null);
+        if(d2.mode) mode = d2.mode;
+        if(d2.done && d2.mode) {
+          addDaisy(fmt(d2.reply||'Here it is! 🌼'), makeCard(d2.mode, ctx));
+          mode=null; ctx={};
+        } else {
+          addDaisy(fmt(d2.reply||'Got it!'));
+        }
+      });
+    }
+
+    if(msgs >= FREE && !LOGGED && !gated) {
+      await sleep(500); showGate();
+    }
+
+  } catch(err) {
+    hideDots();
+    addDaisy("Something went wrong — try again! 😊");
+    console.error('[send error]', err);
+  } finally {
+    busy = false;
+    document.getElementById('sbtn').disabled = false;
+    document.getElementById('ifield').focus();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════
+function go(t){ document.getElementById('ifield').value=t; send(); }
+
+function onFiles(files) {
+  if(!files||!files.length) return;
+  Array.from(files).forEach(function(f){
+    var r=new FileReader();
+    r.onload=function(e){
+      imgs.push(e.target.result);
+      var b=document.getElementById('ubadge');
+      b.textContent=imgs.length; b.classList.add('on');
+      document.getElementById('ubtn').style.borderColor='var(--brand)';
+    };
+    r.readAsDataURL(f);
+  });
+}
+function resetUpload(){
+  document.getElementById('ubadge').classList.remove('on');
+  document.getElementById('ubtn').style.borderColor='';
+}
+
+function openDrawer(){ document.getElementById('veil').classList.add('on'); document.getElementById('drawer').classList.add('on'); }
+function closeDrawer(){ document.getElementById('veil').classList.remove('on'); document.getElementById('drawer').classList.remove('on'); }
+
+function resize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
+
+// ════════════════════════════════════════════════════════════════
+// VIDEO GENERATION
+// ════════════════════════════════════════════════════════════════
+var pendingVideos = [];
+var videoPollers  = {};
+
+function onVideoFiles(files) {
+  if(!files || !files.length) return;
+  pendingVideos = Array.from(files).slice(0, 6);
+  var badge = document.getElementById('vbadge');
+  badge.textContent = pendingVideos.length;
+  badge.classList.add('on');
+  document.getElementById('vbtn').style.borderColor = 'var(--brand)';
+  document.getElementById('chips').style.display = 'none';
+  addDaisy(
+    'Nice — <strong>' + pendingVideos.length + ' video clip' + (pendingVideos.length>1?'s':'') + '</strong> uploaded! 🎬\n\n' +
+    'Tell me your business name and what you sell — I\'ll turn these into a professional TikTok video.''
+  );
+}
+
+async function startVideoRender(businessInfo, brandColor, style) {
+  var cardId = 'vc' + Date.now();
+  var prog =
+    '<div class="pcard" id="'+cardId+'" style="margin-top:10px;">'+
+      '<div class="pcard-top" style="cursor:default;">'+
+        '<div class="pcard-icon">🎬</div>'+
+        '<div class="pcard-info">'+
+          '<div class="pcard-name">Editing your video...</div>'+
+          '<div class="pcard-sub">Usually 60-90 seconds ⏳</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="height:3px;background:var(--border);margin:0 16px 14px;border-radius:2px;">'+
+        '<div id="'+cardId+'bar" style="height:100%;background:var(--brand);width:5%;border-radius:2px;transition:width 2s;"></div>'+
+      '</div>'+
+    '</div>';
+  addDaisy('Your video is being created! 🎬', prog);
+
+  // Animate progress bar
+  var pct = 5;
+  var pbar = setInterval(function(){
+    pct = Math.min(pct + 3, 90);
+    var b = document.getElementById(cardId+'bar');
+    if(b) b.style.width = pct + '%';
+  }, 3000);
+
+  var formData = new FormData();
+  pendingVideos.forEach(function(f,i){ formData.append('clips', f, 'clip'+i+'.mp4'); });
+  formData.append('business_info', businessInfo);
+  formData.append('brand_color',   brandColor || '#2b7a78');
+  formData.append('style',         style || 'energetic');
+  formData.append('session_id',    sid);
+  pendingVideos = [];
+  document.getElementById('vbadge').classList.remove('on');
+  document.getElementById('vbtn').style.borderColor = '';
+
+  try {
+    var r = await fetch('/video/create', {method:'POST', body:formData});
+    var data = await r.json();
+    clearInterval(pbar);
+
+    if(data.error === 'free_limit' || data.error === 'limit_reached') {
+      var card = document.getElementById(cardId);
+      if(card) card.innerHTML =
+        '<div style="padding:16px;">'+
+          '<div style="font-weight:700;margin-bottom:6px;">🎬 You\'ve used your 2 free videos!</div>'+
+          '<div style="font-size:13px;color:var(--mid);margin-bottom:12px;">'+data.message+'</div>'+
+          '<div style="display:flex;gap:8px;">'+
+            '<a href="/register?next=/" style="flex:1;padding:10px;border-radius:9px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;background:var(--brand);color:#fff;">Create Free Account</a>'+
+            '<a href="/login" style="flex:1;padding:10px;border-radius:9px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;background:var(--surface);color:var(--mid);border:1.5px solid var(--border);">Sign In</a>'+
+          '</div>'+
+        '</div>';
+      return;
+    }
+    if(data.error) {
+      var card = document.getElementById(cardId);
+      if(card) card.innerHTML = '<div style="padding:14px;font-size:13px;color:var(--dim);">❌ '+data.error+'</div>';
+      return;
+    }
+    pollVideo(data.render_id, cardId, data.script || '');
+  } catch(e) {
+    clearInterval(pbar);
+    var card = document.getElementById(cardId);
+    if(card) card.innerHTML = '<div style="padding:14px;font-size:13px;color:var(--dim);">❌ Something went wrong. Try again!</div>';
+  }
+}
+
+function pollVideo(renderId, cardId, script) {
+  var attempts = 0;
+  videoPollers[renderId] = setInterval(async function(){
+    attempts++;
+    if(attempts > 40){ clearInterval(videoPollers[renderId]); return; }
+    try {
+      var r    = await fetch('/video/status/'+renderId);
+      var data = await r.json();
+      if(data.status === 'done') {
+        clearInterval(videoPollers[renderId]);
+        var b = document.getElementById(cardId+'bar');
+        if(b) b.style.width = '100%';
+        setTimeout(function(){
+          var card = document.getElementById(cardId);
+          if(!card) return;
+          card.innerHTML =
+            '<div class="pcard-top" onclick="toggleCard(''+cardId+'')">' +
+              '<div class="pcard-icon">🎬</div>' +
+              '<div class="pcard-info"><div class="pcard-name">Your Video is Ready! 🎉</div><div class="pcard-sub">Tap to download</div></div>' +
+              '<div class="pcard-arrow" id="arr-'+cardId+'">›</div>' +
+            '</div>' +
+            '<div class="pcard-menu" id="menu-'+cardId+'">' +
+              '<a class="pcard-action cta" href="'+data.download_url+'" download target="_blank">📥 Download Your Video</a>' +
+              '<div class="pcard-action go" onclick="showContentPack()">📋 Get captions & hashtags</div>' +
+              '<a class="pcard-action go" href="/register?next=/">🚀 Save to my account</a>' +
+            '</div>';
+          if(script) addDaisy('Here\'s the voiceover script I used:\n\n*"'+script+'"*\n\nRecord your voice or post as-is! 🎤');
+        }, 500);
+      }
+    } catch(e){}
+  }, 5000);
+}
+
+async function showContentPack() {
+  var info = (ctx.name||'My business') + '. ' + (ctx.description||'') + '. Uganda.';
+  showDots();
+  try {
+    var r    = await fetch('/video/content-pack',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business_info:info})});
+    var pack = await r.json();
+    hideDots();
+    addDaisy(fmt(
+      '📋 **Content Pack**\n\n'+
+      '🎯 **Hook:** '+pack.hook+'\n\n'+
+      '📱 **Caption:** '+(pack.captions||[])[0]+'\n\n'+
+      '#️⃣ '+(pack.hashtags||[]).slice(0,12).join(' ')+'\n\n'+
+      '🕐 Post at: '+(pack.best_times||[]).join(', ')+'\n\n'+
+      '💡 '+pack.viral_tip
+    ));
+  } catch(e){ hideDots(); }
+}
+
+// ════════════════════════════════════════════════════════════════
+// KEEP DAISY WARM — ping every 4min so free tier never cold-starts
+// ════════════════════════════════════════════════════════════════
+function keepDaisyWarm() {
+  fetch('/daisy/ping', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+    .catch(function(){}); // silent — just keeping her awake
+}
+// Ping immediately on load, then every 4 minutes
+keepDaisyWarm();
+setInterval(keepDaisyWarm, 4 * 60 * 1000);
+
+// ════════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════════
+try { boot(); } catch(e) { 
+  console.error('[boot error]', e);
+  // Still show something even if boot crashes
+  var t = document.getElementById('thread');
+  if(t) {
+    var g = document.createElement('div');
+    g.className = 'd-group';
+    g.innerHTML = '<div class="d-label">Daisy</div><div class="d-bubble">Hey! 👋 I'm Daisy. What do you need today?</div>';
+    t.appendChild(g);
+  }
+}
+</script>
+</body>
+</html>
