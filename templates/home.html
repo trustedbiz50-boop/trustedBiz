@@ -549,10 +549,28 @@ var multiSel = {};
 // CALL DAISY — through TrustedBiz backend (Groq key stays safe)
 // ════════════════════════════════════════════════════════════════
 async function callDaisy(text, hasImg) {
+  // Daisy is on Render free tier — can take 50s to cold start
+  // We try twice: first with 55s timeout, show waiting message if slow
+  var slowTimer = setTimeout(function(){
+    // After 8s with no reply, reassure the user Daisy is waking up
+    var d = document.getElementById('dots');
+    if(d) {
+      var w = document.createElement('div');
+      w.id = 'wake-msg';
+      w.style.cssText = 'font-size:12px;color:var(--dim);font-family:var(--mono);padding:6px 4px;animation:fadeUp .3s ease;';
+      w.textContent = 'Daisy is waking up — just a moment... ☕';
+      d.parentNode.insertBefore(w, d.nextSibling);
+    }
+  }, 8000);
+
   try {
+    var ctrl = new AbortController();
+    var timeout = setTimeout(function(){ ctrl.abort(); }, 55000);
+
     var r = await fetch('/daisy/chat', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
+      signal: ctrl.signal,
       body: JSON.stringify({
         message: text, context: ctx,
         mode: mode, session_id: sid,
@@ -560,9 +578,23 @@ async function callDaisy(text, hasImg) {
         history: history.slice(-12)
       })
     });
-    if(!r.ok) throw 0;
-    return await r.json();
+    clearTimeout(timeout);
+    clearTimeout(slowTimer);
+    var w = document.getElementById('wake-msg'); if(w) w.remove();
+
+    if(!r.ok) throw new Error('status ' + r.status);
+    var data = await r.json();
+    // Normalise — Daisy returns 'response' or 'reply'
+    if(!data.reply && data.response) data.reply = data.response;
+    return data;
+
   } catch(e) {
+    clearTimeout(slowTimer);
+    var w = document.getElementById('wake-msg'); if(w) w.remove();
+
+    if(e.name === 'AbortError') {
+      return {reply:"Daisy took too long to wake up — she's on a free server. Try sending your message again, she should be ready now! 😊", done:false};
+    }
     return {reply:"I'm having a small moment — try again! 😊", done:false};
   }
 }
@@ -957,6 +989,17 @@ function openDrawer(){ document.getElementById('veil').classList.add('on'); docu
 function closeDrawer(){ document.getElementById('veil').classList.remove('on'); document.getElementById('drawer').classList.remove('on'); }
 
 function resize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
+
+// ════════════════════════════════════════════════════════════════
+// KEEP DAISY WARM — ping every 4min so free tier never cold-starts
+// ════════════════════════════════════════════════════════════════
+function keepDaisyWarm() {
+  fetch('/daisy/ping', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+    .catch(function(){}); // silent — just keeping her awake
+}
+// Ping immediately on load, then every 4 minutes
+keepDaisyWarm();
+setInterval(keepDaisyWarm, 4 * 60 * 1000);
 
 // ════════════════════════════════════════════════════════════════
 // BOOT
