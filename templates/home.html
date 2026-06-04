@@ -533,8 +533,8 @@ body{
   </div>
   <div class="ihint">Enter · 📎 image · 🎬 video clips</div>
 </div>
-<input type="file" id="ufile" accept="image/*" multiple onchange="onFiles(this.files)">
-<input type="file" id="vfile" accept="video/*" multiple onchange="onVideoFiles(this.files)">
+<input type="file" id="ufile" accept="image/*" multiple onchange="onFiles(this.files)" style="display:none">
+<input type="file" id="vfile" accept="video/*" multiple onchange="onVideoFiles(this.files)" style="display:none">
 
 <script>
 // ════════════════════════════════════════════════════════════════
@@ -1013,7 +1013,7 @@ function onVideoFiles(files) {
   document.getElementById('chips').style.display = 'none';
   addDaisy(
     'Nice — <strong>' + pendingVideos.length + ' video clip' + (pendingVideos.length>1?'s':'') + '</strong> uploaded! 🎬\n\n' +
-    'Tell me your business name and what you sell — I'll turn these into a professional TikTok video.'
+    'Tell me your business name and what you sell — I\'ll turn these into a professional TikTok video.''
   );
 }
 
@@ -1061,7 +1061,7 @@ async function startVideoRender(businessInfo, brandColor, style) {
       var card = document.getElementById(cardId);
       if(card) card.innerHTML =
         '<div style="padding:16px;">'+
-          '<div style="font-weight:700;margin-bottom:6px;">🎬 You've used your 2 free videos!</div>'+
+          '<div style="font-weight:700;margin-bottom:6px;">🎬 You\'ve used your 2 free videos!</div>'+
           '<div style="font-size:13px;color:var(--mid);margin-bottom:12px;">'+data.message+'</div>'+
           '<div style="display:flex;gap:8px;">'+
             '<a href="/register?next=/" style="flex:1;padding:10px;border-radius:9px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;background:var(--brand);color:#fff;">Create Free Account</a>'+
@@ -1109,7 +1109,7 @@ function pollVideo(renderId, cardId, script) {
               '<div class="pcard-action go" onclick="showContentPack()">📋 Get captions & hashtags</div>' +
               '<a class="pcard-action go" href="/register?next=/">🚀 Save to my account</a>' +
             '</div>';
-          if(script) addDaisy('Here's the voiceover script I used:\n\n*"'+script+'"*\n\nRecord your voice or post as-is! 🎤');
+          if(script) addDaisy('Here\'s the voiceover script I used:\n\n*"'+script+'"*\n\nRecord your voice or post as-is! 🎤');
         }, 500);
       }
     } catch(e){}
@@ -1148,7 +1148,17 @@ setInterval(keepDaisyWarm, 4 * 60 * 1000);
 // ════════════════════════════════════════════════════════════════
 // BOOT
 // ════════════════════════════════════════════════════════════════
-boot();
+try { boot(); } catch(e) { 
+  console.error('[boot error]', e);
+  // Still show something even if boot crashes
+  var t = document.getElementById('thread');
+  if(t) {
+    var g = document.createElement('div');
+    g.className = 'd-group';
+    g.innerHTML = '<div class="d-label">Daisy</div><div class="d-bubble">Hey! 👋 I'm Daisy. What do you need today?</div>';
+    t.appendChild(g);
+  }
+}
 </script>
 </body>
 </html>
