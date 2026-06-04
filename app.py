@@ -1691,10 +1691,14 @@ def daisy_chat():
             data=daisy_payload,
             headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=55) as r:  # Daisy free tier cold start can take 50s
             daisy_resp = _j.loads(r.read().decode())
-        # Daisy returns {"response": "..."} based on her app.py
-        reply = daisy_resp.get("response") or daisy_resp.get("reply") or daisy_resp.get("message")
+        # Daisy returns "response" or "reply" — check both
+        reply = (daisy_resp.get("response") or
+                 daisy_resp.get("reply") or
+                 daisy_resp.get("message") or
+                 daisy_resp.get("output") or "")
+        reply = reply.strip() if reply else ""
         print(f"[Daisy] replied via Render service")
     except Exception as e:
         print(f"[Daisy] Render service unavailable ({e}) — trying Groq direct")
@@ -1758,6 +1762,23 @@ def daisy_chat():
         'done':  bool(done_mode),
         'mode':  done_mode
     })
+
+
+
+@app.route('/daisy/ping', methods=['POST','GET'])
+def daisy_ping():
+    """Keep Daisy's free Render instance warm — called every 4min from browser."""
+    import urllib.request, json as _j
+    try:
+        req = urllib.request.Request(
+            DAISY_SERVICE_URL + "/",
+            headers={"Content-Type":"application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            pass
+    except:
+        pass  # silent — just keeping her awake
+    return jsonify({"status":"pinged"})
 
 
 @app.route('/daisy/claim/<int:biz_id>', methods=['POST'])
