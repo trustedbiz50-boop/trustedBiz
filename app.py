@@ -336,6 +336,7 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS agents (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS template_pool (id SERIAL PRIMARY KEY, category TEXT NOT NULL, html TEXT NOT NULL, quality_score INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS invite_codes (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'promax', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS daisy_training (id SERIAL PRIMARY KEY, input TEXT NOT NULL, output TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         ]
         cur = conn.cursor()
         for t in tables: cur.execute(t)
@@ -353,6 +354,7 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS agents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS template_pool (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, html TEXT NOT NULL, quality_score INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS invite_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'promax', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS daisy_training (id INTEGER PRIMARY KEY AUTOINCREMENT, input TEXT NOT NULL, output TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         ]
         for t in tables: conn.execute(t)
         conn.commit()
@@ -1654,6 +1656,40 @@ Pricing (only if asked): hosting UGX 7,500/month, downloads UGX 2,000 each. Buil
 @app.route('/daisy/ping', methods=['GET','POST'])
 def daisy_ping():
     return jsonify({"status":"alive","name":"Daisy"})
+
+@app.route('/daisy/save-training', methods=['POST'])
+def daisy_save_training():
+    """Save a Daisy Q&A pair to the database so it persists across restarts."""
+    data = request.get_json() or {}
+    inp  = (data.get('input') or '').strip()
+    out  = (data.get('output') or '').strip()
+    if not inp or not out:
+        return jsonify({'saved': False, 'reason': 'empty'})
+    try:
+        # Skip exact duplicates
+        existing = db_fetchone(q("SELECT id FROM daisy_training WHERE input=?"), (inp,))
+        if existing:
+            return jsonify({'saved': False, 'reason': 'duplicate'})
+        db_insert(q("INSERT INTO daisy_training (input, output) VALUES (?,?)"), (inp, out))
+        total = (db_fetchone(q("SELECT COUNT(*) as c FROM daisy_training")) or {}).get('c', 0)
+        return jsonify({'saved': True, 'total': total})
+    except Exception as e:
+        print(f'[Daisy/SaveTraining] {e}')
+        return jsonify({'saved': False, 'reason': str(e)})
+
+@app.route('/admin/export-training')
+@admin_required
+def export_training():
+    """Download all Daisy training data as training_data.json — replace file in repo and redeploy."""
+    import json as _j
+    rows = db_fetchall(q("SELECT input, output FROM daisy_training ORDER BY id ASC"))
+    pairs = [{'input': r['input'], 'output': r['output']} for r in rows]
+    from flask import Response
+    return Response(
+        _j.dumps(pairs, ensure_ascii=False, indent=2),
+        mimetype='application/json',
+        headers={'Content-Disposition': 'attachment; filename=training_data.json'}
+    )
 
 @app.route('/daisy/chat', methods=['POST'])
 def daisy_chat():
