@@ -1705,8 +1705,9 @@ def daisy_save_testimonial():
     text = (data.get('text') or '').strip()
     if len(text) < 10:
         return jsonify({'saved': False, 'reason': 'too short'})
-    user_id = current_user.id if current_user and current_user.is_authenticated else None
-    user_name = getattr(current_user, 'name', None) or getattr(current_user, 'username', None) or 'Anonymous'
+    _u = get_current_user()
+    user_id = _u['id'] if _u else None
+    user_name = (_u.get('name') if _u else None) or 'Anonymous'
     try:
         db_insert(q("INSERT INTO daisy_training (input, output) VALUES (?,?)"),
                   (f"[TESTIMONIAL from {user_name}]", text))
