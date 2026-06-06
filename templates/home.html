@@ -302,8 +302,8 @@ body{
     <a class="ditem" href="/trusthost"><span class="dicon">&#128640;</span>TrustHost</a>
     <a class="ditem" href="/logout"><span class="dicon">&#128682;</span>Sign Out</a>
     {% else %}
-    <a class="ditem" href="/login"><span class="dicon">&#128273;</span>Sign In</a>
-    <a class="ditem" href="/register"><span class="dicon">&#128100;</span>Create Account</a>
+    <a class="ditem" href="/login" onclick="saveHistToStorage()"><span class="dicon">&#128273;</span>Sign In</a>
+    <a class="ditem" href="/register" onclick="saveHistToStorage()"><span class="dicon">&#128100;</span>Create Account</a>
     {% endif %}
   </div>
   <div class="ddiv"></div>
@@ -474,6 +474,17 @@ async function boot() {
     + "<div class=\"dbubble\"><span id=\"otxt\"></span><span class=\"tcur\"></span></div>";
   t.appendChild(g);
 
+  // Restore conversation from before signup/login
+  var restored = loadHistFromStorage();
+  if (restored) {
+    hist.forEach(function(turn) {
+      if (turn.role === 'user') addU(turn.content, null);
+      else addD(fmt(turn.content));
+    });
+    addD("Welcome back! I remember our conversation. &#127804; What would you like to do next?");
+    return;
+  }
+
   var full = "Hey! I'm Daisy.\n\nI build websites, logos, flyers, business cards, CVs, exam papers and more — for you, in minutes.\n\nWhat do you need today?";
   var el = document.getElementById("otxt");
   var i  = 0;
@@ -543,17 +554,46 @@ function toggleC(id) {
 }
 
 // ── SOFT GATE ────────────────────────────────────────────────────
+function saveHistToStorage() {
+  try {
+    localStorage.setItem('daisy_hist', JSON.stringify(hist));
+    localStorage.setItem('daisy_ctx',  JSON.stringify(ctx));
+    localStorage.setItem('daisy_msgs', String(msgs));
+  } catch(e) {}
+}
+
+function loadHistFromStorage() {
+  try {
+    var h = localStorage.getItem('daisy_hist');
+    var c = localStorage.getItem('daisy_ctx');
+    var m = localStorage.getItem('daisy_msgs');
+    if (h) { hist = JSON.parse(h); localStorage.removeItem('daisy_hist'); }
+    if (c) { ctx  = JSON.parse(c); localStorage.removeItem('daisy_ctx'); }
+    if (m) { msgs = parseInt(m) || 0; localStorage.removeItem('daisy_msgs'); }
+    return hist.length > 0;
+  } catch(e) { return false; }
+}
+
+function saveTraining(userMsg, daisyReply) {
+  if (!userMsg || !daisyReply) return;
+  fetch('/daisy/save-training', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({input: userMsg, output: daisyReply})
+  }).catch(function(){});
+}
+
 function showGate() {
   if (gated || LOGGED) return;
   gated = true;
   var extra = "<div class=\"gate\">"
     + "<h4>Continue with a free account</h4>"
-    + "<p>You've used your free messages. Sign up in 10 seconds &mdash; your conversation stays here.</p>"
+    + "<p>You\'ve used your free messages. Sign up in 10 seconds &mdash; your conversation stays here.</p>"
     + "<div class=\"gate-btns\">"
-    + "<a class=\"gbtn p\" href=\"/register?next=/\">Create free account</a>"
-    + "<a class=\"gbtn s\" href=\"/login\">Sign in</a>"
+    + "<a class=\"gbtn p\" href=\"/register?next=/\" onclick=\"saveHistToStorage()\">Create free account</a>"
+    + "<a class=\"gbtn s\" href=\"/login\" onclick=\"saveHistToStorage()\">Sign in</a>"
     + "</div></div>";
-  addD("You're doing great! Keep going. &#127804;", extra);
+  addD("You\'re doing great! Keep going. &#127804;", extra);
 }
 
 // ── COLOR / STYLE PICKERS ────────────────────────────────────────
@@ -655,6 +695,8 @@ async function send() {
     if (text) hist.push({ role: "user", content: text });
     hist.push({ role: "assistant", content: reply });
     if (hist.length > 24) hist = hist.slice(-24);
+    // Save to Daisy training so she learns
+    if (text) saveTraining(text, reply);
 
     // Save context
     if (text) {
