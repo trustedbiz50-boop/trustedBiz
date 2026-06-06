@@ -267,10 +267,19 @@ body{
 /* SOCIAL PROOF STRIP */
 .proof-strip{
   display:flex;gap:10px;padding:8px 14px 2px;
-  overflow-x:auto;-webkit-overflow-scrolling:touch;
-  scrollbar-width:none;flex-shrink:0;
+  overflow:hidden;flex-shrink:0;
+  position:relative;
 }
-.proof-strip::-webkit-scrollbar{display:none;}
+.proof-track{
+  display:flex;gap:10px;
+  animation:proofScroll 28s linear infinite;
+  will-change:transform;
+}
+.proof-strip:hover .proof-track{animation-play-state:paused;}
+@keyframes proofScroll{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-50%);}
+}
 .proof-card{
   flex-shrink:0;background:var(--surface);
   border:1.5px solid var(--border);border-radius:13px;
@@ -280,6 +289,89 @@ body{
 .proof-quote{font-size:12px;color:var(--mid);line-height:1.5;}
 .proof-name{font-size:11px;color:var(--dim);margin-top:5px;font-family:var(--mono);}
 .proof-stars{color:#f59e0b;font-size:11px;letter-spacing:1px;}
+
+/* BUILD EXPERIENCE */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes stepIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@keyframes barFill{from{width:0}to{width:100%}}
+
+.build-box{
+  max-width:92%;margin:6px 0;
+  background:var(--surface);border:1.5px solid var(--brand-glow);
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 3px 16px rgba(43,122,120,.1);
+  animation:up .25s ease both;
+}
+.build-header{
+  padding:14px 16px;display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--border);
+}
+.build-spinner{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  border:2.5px solid var(--brand-glow);
+  border-top-color:var(--brand);
+  animation:spin .8s linear infinite;
+}
+.build-spinner.done{animation:none;border:none;font-size:22px;display:flex;align-items:center;justify-content:center;}
+.build-title{font-size:14px;font-weight:700;color:var(--text);}
+.build-sub{font-size:11px;color:var(--dim);font-family:var(--mono);margin-top:2px;}
+.build-steps{padding:10px 16px 4px;}
+.build-step{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 0;font-size:12px;color:var(--dim);
+  font-family:var(--mono);border-bottom:1px solid var(--border);
+  opacity:0;
+}
+.build-step:last-child{border-bottom:none;}
+.build-step.active{color:var(--brand);opacity:1;animation:stepIn .3s ease both;}
+.build-step.done-step{color:#16a34a;opacity:1;}
+.build-step.done-step .step-icon::after{content:"✓";}
+.build-step .step-icon{width:16px;text-align:center;font-size:13px;flex-shrink:0;}
+.build-bar-wrap{height:3px;background:var(--border);margin:0 16px 14px;border-radius:2px;overflow:hidden;}
+.build-bar{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-l));width:0;border-radius:2px;transition:width .4s ease;}
+
+/* PREVIEW MODAL */
+.prev-modal{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,.7);
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+}
+.prev-inner{
+  background:var(--surface);border-radius:16px;
+  width:100%;max-width:900px;max-height:90vh;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 24px 64px rgba(0,0,0,.4);
+}
+.prev-bar{
+  padding:12px 16px;display:flex;align-items:center;
+  justify-content:space-between;border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.prev-bar-title{font-size:14px;font-weight:700;color:var(--text);}
+.prev-close{
+  background:var(--surface2);border:none;border-radius:8px;
+  width:30px;height:30px;cursor:pointer;font-size:16px;color:var(--mid);
+  display:flex;align-items:center;justify-content:center;
+}
+.prev-frame{flex:1;border:none;width:100%;min-height:300px;}
+.prev-actions{
+  padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;
+  border-top:1px solid var(--border);flex-shrink:0;
+}
+.prev-btn{
+  flex:1;min-width:120px;padding:11px 16px;border-radius:10px;
+  font-size:13px;font-weight:700;text-align:center;
+  cursor:pointer;border:none;font-family:var(--font);
+  text-decoration:none;display:flex;align-items:center;
+  justify-content:center;gap:6px;
+}
+.prev-btn.primary{background:var(--brand);color:#fff;}
+.prev-btn.primary:hover{background:var(--brand-d);}
+.prev-btn.secondary{background:var(--surface2);color:var(--mid);border:1.5px solid var(--border);}
+.prev-btn.secondary:hover{border-color:var(--brand);color:var(--brand);}
+.prev-btn.wa{background:#25D366;color:#fff;}
+.prev-btn.wa:hover{background:#1eaa52;}
 </style>
 </head>
 <body>
@@ -338,6 +430,7 @@ body{
 </div>
 
 <div class="proof-strip" id="proofStrip">
+  <div class="proof-track" id="proofTrack">
   <div class="proof-card">
     <div class="proof-biz">Mama Rosa Kitchen &middot; Kampala</div>
     <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
@@ -361,6 +454,31 @@ body{
     <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"Set up in minutes. My business finally looks serious online."</div>
     <div class="proof-name">&mdash; Ivan M., Pharmacist</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-biz">Mama Rosa Kitchen &middot; Kampala</div>
+    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+    <div class="proof-quote">"I got my website in 5 minutes. Customers now find me on Google."</div>
+    <div class="proof-name">&mdash; Rosa N., Restaurant owner</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-biz">FixIt Garage &middot; Jinja</div>
+    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+    <div class="proof-quote">"Daisy made my logo and flyer. People think I paid a designer millions."</div>
+    <div class="proof-name">&mdash; Dennis K., Mechanic</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-biz">GlowUp Salon &middot; Entebbe</div>
+    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+    <div class="proof-quote">"My clients book through my TrustedBiz page now. So professional."</div>
+    <div class="proof-name">&mdash; Grace A., Salon owner</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-biz">QuickMeds Pharmacy &middot; Mbarara</div>
+    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+    <div class="proof-quote">"Set up in minutes. My business finally looks serious online."</div>
+    <div class="proof-name">&mdash; Ivan M., Pharmacist</div>
+  </div>
   </div>
 </div>
 <div class="chips" id="chips">
@@ -551,40 +669,203 @@ var ICONS  = {website:"&#127760;",logo:"&#10024;",flyer:"&#128196;",cards:"&#128
 var LABELS = {website:"Your Website",logo:"Your Logo",flyer:"Your Flyer",cards:"Your Business Cards",cv:"Your CV",presentation:"Your Presentation",exam:"Your Exam Paper",priceguard:"Price Report"};
 var PRICES = {logo:"UGX 2,000",flyer:"UGX 2,000",cards:"UGX 2,000",cv:"UGX 2,000",presentation:"UGX 3,000",exam:"Free"};
 
-function makeCard(modeKey, ctxData) {
-  var ctxData = ctxData || ctx;
+// ── BUILD STEPS per mode ─────────────────────────────────────────
+var BUILD_STEPS = {
+  website:  ["Reading your business details","Choosing layout and style","Writing your sections","Adding your brand colors","Polishing the design","Almost ready..."],
+  logo:     ["Reading your brand name","Choosing shapes and style","Laying out the mark","Applying your colors","Refining the details","Finishing up..."],
+  flyer:    ["Reading your message","Choosing layout","Writing the copy","Adding visual flair","Applying your colors","Finishing up..."],
+  cards:    ["Reading your details","Designing front side","Designing back side","Applying brand style","Polishing typography","Finishing up..."],
+  cv:       ["Reading your details","Structuring sections","Writing professional copy","Applying clean layout","Final formatting","Almost ready..."],
+  presentation: ["Reading your topic","Building slide structure","Writing slide content","Applying visual theme","Adding finishing touches","Almost ready..."],
+  exam:     ["Reading subject details","Setting difficulty level","Writing questions","Adding mark scheme","Formatting paper","Almost ready..."],
+  priceguard: ["Reading your item","Checking market data","Comparing local prices","Calculating fair range","Writing your report","Almost ready..."]
+};
+
+// ── PREVIEW MODAL ─────────────────────────────────────────────────
+var _prevContent = null;
+var _prevMode    = null;
+
+function openPreview(htmlContent, modeKey, name) {
+  _prevContent = htmlContent;
+  _prevMode    = modeKey;
+  var modal = document.getElementById("prevModal");
+  var frame = document.getElementById("prevFrame");
+  var title = document.getElementById("prevTitle");
+  if (!modal) return;
+  title.textContent = (LABELS[modeKey] || "Preview") + " — " + name;
+  // Write into iframe
+  var doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open(); doc.write(htmlContent); doc.close();
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function closePreview() {
+  var modal = document.getElementById("prevModal");
+  if (modal) modal.style.display = "none";
+  document.body.style.overflow = "";
+}
+
+function downloadResult() {
+  if (!_prevContent) return;
+  var ext = (_prevMode === "logo") ? "svg" : "html";
+  var blob = new Blob([_prevContent], {type: "text/html"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (_prevMode || "document") + "." + ext;
+  a.click();
+}
+
+// ── BUILD FLOW ────────────────────────────────────────────────────
+async function runBuild(modeKey, ctxData) {
+  var name  = ctxData.name || ctxData.fullname || ctxData.topic || ctxData.subject || "Document";
   var icon  = ICONS[modeKey]  || "&#128193;";
   var label = LABELS[modeKey] || "Your File";
-  var name  = ctx.name || ctx.fullname || ctx.topic || ctx.subject || "Document";
-  var price = PRICES[modeKey];
-  var cid   = "pc" + Date.now();
+  var steps = BUILD_STEPS[modeKey] || ["Preparing your file","Building structure","Adding details","Applying style","Finishing up...","Almost ready..."];
+  var bid   = "build" + Date.now();
 
-  var waMsg = "Hi TrustedBiz! I want my " + label + " for " + name + ". Details: " + JSON.stringify(ctx);
-  var waUrl = "https://wa.me/" + WA + "?text=" + encodeURIComponent(waMsg);
+  // Build the box HTML
+  var stepsHtml = steps.map(function(s, i) {
+    return "<div class=\"build-step\" id=\"" + bid + "s" + i + "\">"
+      + "<span class=\"step-icon\">&#9679;</span>" + s + "</div>";
+  }).join("");
 
-  var acts = "";
-  if (modeKey === "website") {
-    var waB = "https://wa.me/" + WA + "?text=" + encodeURIComponent("Hi TrustedBiz! Basic Plan for " + name + " (UGX 7,500/month)");
-    var waP = "https://wa.me/" + WA + "?text=" + encodeURIComponent("Hi TrustedBiz! Pro Max Plan for " + name + " (UGX 15,000/month)");
-    acts = "<a class=\"pact cta\" href=\"/register?next=/\">Claim your site &mdash; free to start</a>"
-         + "<a class=\"pact go\" href=\"" + waB + "\" target=\"_blank\">Basic &mdash; UGX 7,500/month <span class=\"pact-price\">WhatsApp</span></a>"
-         + "<a class=\"pact go\" href=\"" + waP + "\" target=\"_blank\">Pro Max &mdash; UGX 15,000/month <span class=\"pact-price\">Custom domain</span></a>";
-  } else if (modeKey === "exam") {
-    acts = "<a class=\"pact cta\" href=\"" + waUrl + "\" target=\"_blank\">Get via WhatsApp &mdash; Free</a>"
-         + "<a class=\"pact go\" href=\"/register\">Save to my account</a>";
-  } else {
-    acts = "<a class=\"pact cta\" href=\"" + waUrl + "\" target=\"_blank\">Pay " + price + " on WhatsApp &mdash; Instant delivery</a>"
-         + "<a class=\"pact go\" href=\"/register?next=/\">Save to my account</a>";
+  var boxHtml = "<div class=\"build-box\" id=\"" + bid + "\">"
+    + "<div class=\"build-header\">"
+    + "<div class=\"build-spinner\" id=\"" + bid + "sp\"></div>"
+    + "<div><div class=\"build-title\">" + icon + " Building " + label + "</div>"
+    + "<div class=\"build-sub\">" + name + " &middot; Daisy is working...</div></div>"
+    + "</div>"
+    + "<div class=\"build-steps\">" + stepsHtml + "</div>"
+    + "<div class=\"build-bar-wrap\"><div class=\"build-bar\" id=\"" + bid + "bar\"></div></div>"
+    + "</div>";
+
+  // Inject into thread (no extra Daisy bubble, the box IS the reply)
+  var t = document.getElementById("thread");
+  var wrapper = document.createElement("div");
+  wrapper.className = "dg";
+  wrapper.innerHTML = "<div class=\"dlabel\">Daisy</div>" + boxHtml;
+  t.appendChild(wrapper);
+  scrl();
+
+  // Animate steps while calling backend
+  var bar = document.getElementById(bid + "bar");
+  var stepDelay = 0;
+  steps.forEach(function(s, i) {
+    setTimeout(function() {
+      // Mark previous done
+      if (i > 0) {
+        var prev = document.getElementById(bid + "s" + (i-1));
+        if (prev) { prev.classList.remove("active"); prev.classList.add("done-step"); prev.querySelector(".step-icon").textContent = "✓"; }
+      }
+      var el = document.getElementById(bid + "s" + i);
+      if (el) el.classList.add("active");
+      if (bar) bar.style.width = Math.round(((i+1)/steps.length)*85) + "%";
+    }, i * 900);
+    stepDelay = (i+1) * 900;
+  });
+
+  // Call backend to generate
+  var result = null;
+  try {
+    var resp = await fetch("/daisy/build", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({mode: modeKey, context: ctxData, seed: Date.now()})
+    });
+    if (resp.ok) result = await resp.json();
+  } catch(e) { console.log("build error", e); }
+
+  // Wait for animations to finish before revealing
+  await slp(Math.max(stepDelay + 600, 2200));
+
+  // Mark last step done
+  var lastEl = document.getElementById(bid + "s" + (steps.length-1));
+  if (lastEl) { lastEl.classList.remove("active"); lastEl.classList.add("done-step"); lastEl.querySelector(".step-icon").textContent = "✓"; }
+  if (bar) bar.style.width = "100%";
+
+  // Swap spinner to checkmark
+  var sp = document.getElementById(bid + "sp");
+  if (sp) { sp.classList.add("done"); sp.innerHTML = "&#9989;"; }
+
+  // Update subtitle
+  var box = document.getElementById(bid);
+  if (box) {
+    var sub = box.querySelector(".build-sub");
+    if (sub) sub.textContent = name + " · Ready to preview";
   }
 
-  return "<div class=\"pcard\" id=\"" + cid + "\">"
-    + "<div class=\"pcard-top\" onclick=\"toggleC('" + cid + "')\">"
-    + "<div class=\"pcard-ico\">" + icon + "</div>"
-    + "<div class=\"pcard-info\"><div class=\"pcard-name\">" + label + "</div><div class=\"pcard-sub\">" + name + " &middot; tap to open</div></div>"
-    + "<div class=\"pcard-arr\" id=\"arr-" + cid + "\">&#8250;</div>"
-    + "</div>"
-    + "<div class=\"pcard-menu\" id=\"menu-" + cid + "\">" + acts + "</div>"
+  // Get the generated HTML
+  var html = (result && result.html) ? result.html : _fallbackHtml(modeKey, ctxData);
+  var waMsg = "Hi TrustedBiz! I want to download my " + label + " for " + name + ". Details: " + JSON.stringify(ctxData);
+  var waUrl = "https://wa.me/" + WA + "?text=" + encodeURIComponent(waMsg);
+
+  // Store html safely in a map keyed by bid - no inline injection
+  window._daisyBuilds = window._daisyBuilds || {};
+  window._daisyBuilds[bid] = {html: html, mode: modeKey, name: name};
+
+  var isSmall = ["logo","flyer","cards","cv","exam"].indexOf(modeKey) > -1;
+  var dlBtn = isSmall
+    ? "<button class=\"prev-btn secondary\" onclick=\"_dlByKey('" + bid + "')\">&#11015; Download Free</button>"
+    : "<a class=\"prev-btn wa\" href=\"" + waUrl + "\" target=\"_blank\">&#128247; Get Full Version</a>";
+
+  var actionsHtml = "<div style=\"display:flex;gap:8px;flex-wrap:wrap;padding:6px 0;max-width:92%;\">"
+    + "<button class=\"prev-btn primary\" onclick=\"_previewByKey('" + bid + "')\">&#128065; Preview</button>"
+    + dlBtn
     + "</div>";
+
+  var aw = document.createElement("div");
+  aw.className = "dg";
+  aw.innerHTML = "<div class=\"dlabel\">Daisy</div>" + actionsHtml;
+  t.appendChild(aw);
+  scrl();
+}
+
+function _previewByKey(bid) {
+  var d = (window._daisyBuilds || {})[bid];
+  if (!d) return;
+  _prevContent = d.html; _prevMode = d.mode;
+  openPreview(d.html, d.mode, d.name);
+}
+
+function _dlByKey(bid) {
+  var d = (window._daisyBuilds || {})[bid];
+  if (!d) return;
+  _prevContent = d.html; _prevMode = d.mode;
+  downloadResult();
+}
+
+function _fallbackHtml(modeKey, ctx) {
+  var name = ctx.name || "Your Business";
+  var color = ctx.color || "#2b7a78";
+  return "<!DOCTYPE html><html><head><meta charset=UTF-8><title>" + name + "</title>"
+    + "<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f8f8;}"
+    + ".box{text-align:center;padding:40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);}"
+    + "h1{color:" + color + ";font-size:2em;margin-bottom:12px;}"
+    + "p{color:#6b7280;}</style></head><body>"
+    + "<div class=box><h1>" + name + "</h1><p>Your " + (LABELS[modeKey]||"file") + " is ready.</p>"
+    + "<p style=margin-top:16px;font-size:13px;color:#9ca3af>Powered by TrustedBiz Uganda</p></div>
+<!-- PREVIEW MODAL -->
+<div class="prev-modal" id="prevModal" style="display:none" onclick="if(event.target===this)closePreview()">
+  <div class="prev-inner">
+    <div class="prev-bar">
+      <span class="prev-bar-title" id="prevTitle">Preview</span>
+      <button class="prev-close" onclick="closePreview()">&#10005;</button>
+    </div>
+    <iframe class="prev-frame" id="prevFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+    <div class="prev-actions">
+      <button class="prev-btn secondary" onclick="closePreview()">&#8592; Back</button>
+      <button class="prev-btn primary" onclick="downloadResult()">&#11015; Download</button>
+    </div>
+  </div>
+</div>
+</body></html>";
+}
+
+function makeCard(modeKey, ctxData) {
+  // Replaced — now triggers the animated build flow
+  runBuild(modeKey, ctxData || ctx);
+  return ""; // send() appends this, we return empty since runBuild injects directly
 }
 
 function toggleC(id) {
@@ -739,6 +1020,7 @@ async function send() {
     if (hist.length > 24) hist = hist.slice(-24);
     // Save to Daisy training so she learns
     if (text) saveTraining(text, reply);
+    maybeTestimonialGate();
 
     // Save context
     if (text) {
@@ -750,7 +1032,8 @@ async function send() {
     if (data.mode) mode = data.mode;
 
     if (data.done && data.mode) {
-      addD(fmt(reply), makeCard(data.mode, ctx));
+      addD(fmt(reply));
+      makeCard(data.mode, ctx);
       mode = null; ctx = {};
     } else {
       addD(fmt(reply));
@@ -820,6 +1103,66 @@ setInterval(ping, 4 * 60 * 1000);
 
 // Boot
 boot();
+
+// ── PROOF STRIP: hide after 60s, return after 5min ───────────────
+(function() {
+  var strip = document.getElementById('proofStrip');
+  if (!strip) return;
+  setTimeout(function() {
+    strip.style.transition = 'opacity .8s, max-height .8s';
+    strip.style.opacity = '0';
+    strip.style.maxHeight = '0';
+    strip.style.overflow = 'hidden';
+    strip.style.padding = '0';
+    setTimeout(function() {
+      strip.style.opacity = '1';
+      strip.style.maxHeight = '120px';
+      strip.style.padding = '';
+    }, 5 * 60 * 1000);
+  }, 60 * 1000);
+})();
+
+// ── TESTIMONIAL GATE: after 20 msgs ask for testimonial to continue ──
+var _testGiven = false;
+var _testChecked = false;
+
+function maybeTestimonialGate() {
+  if (_testGiven || _testChecked || msgs < 20 || !LOGGED) return;
+  _testChecked = true;
+  var tid = 'tgate' + Date.now();
+  var box = "<div class=\"gate\" id=\"" + tid + "\">"
+    + "<h4>&#127804; You're a power user!</h4>"
+    + "<p>You've gotten a lot of value from Daisy. Would you share a quick testimonial? It helps other Ugandan businesses trust TrustedBiz &mdash; and unlocks your next session.</p>"
+    + "<textarea id=\"ttext\" style=\"width:100%;border-radius:8px;border:1.5px solid var(--border);"
+    + "padding:10px;font-family:var(--font);font-size:13px;resize:none;height:72px;margin-bottom:10px;"
+    + "background:var(--surface2);color:var(--text);outline:none\" placeholder=\"What has Daisy helped you build?\"></textarea>"
+    + "<div style=\"display:flex;gap:8px;\">"
+    + "<button class=\"gbtn p\" onclick=\"submitTestimonial('" + tid + "')\">Share &amp; Continue</button>"
+    + "<button class=\"gbtn s\" onclick=\"skipTestimonial('" + tid + "')\">Maybe later</button>"
+    + "</div></div>";
+  addD("One moment &#128522;", box);
+}
+
+function submitTestimonial(tid) {
+  var txt = (document.getElementById('ttext') || {}).value || '';
+  if (txt.trim().length < 10) {
+    alert('Please write a little more — even one sentence helps!'); return;
+  }
+  fetch('/daisy/save-testimonial', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text: txt.trim()})
+  }).catch(function(){});
+  _testGiven = true;
+  var box = document.getElementById(tid);
+  if (box) { box.innerHTML = "<p style=\"font-size:13px;color:var(--brand)\">&#10003; Thank you! That means a lot. Keep building &#127804;</p>"; }
+  setTimeout(function(){ var b=document.getElementById(tid); if(b) b.style.display='none'; }, 3000);
+}
+
+function skipTestimonial(tid) {
+  _testGiven = true;
+  var box = document.getElementById(tid);
+  if (box) box.style.display = 'none';
+}
 </script>
 </body>
 </html>
