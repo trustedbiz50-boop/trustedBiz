@@ -1657,6 +1657,64 @@ Pricing (only if asked): hosting UGX 7,500/month, downloads UGX 2,000 each. Buil
 def daisy_ping():
     return jsonify({"status":"alive","name":"Daisy"})
 
+
+@app.route('/daisy/build', methods=['POST'])
+def daisy_build():
+    import hashlib as _hl
+    from daisy_builders import (_daisy_logo, _daisy_flyer, _daisy_cards,
+                                _daisy_cv, _daisy_exam, _daisy_generic)
+    data  = request.get_json() or {}
+    mode  = (data.get('mode') or '').strip()
+    ctx   = data.get('context') or {}
+    seed  = data.get('seed') or 0
+    name  = str(ctx.get('name') or ctx.get('fullname') or ctx.get('topic') or 'Business')
+    color = str(ctx.get('color') or '#2b7a78')
+    style = str(ctx.get('style') or 'modern')
+    desc  = str(ctx.get('description') or '')
+    wa    = str(ctx.get('whatsapp') or '')
+    uid   = _hl.md5(f"{name}{seed}".encode()).hexdigest()[:8]
+    try:
+        if mode == 'logo':
+            html = _daisy_logo(name, color, style, uid)
+        elif mode == 'flyer':
+            html = _daisy_flyer(name, color, style, desc, uid)
+        elif mode in ('cards', 'card'):
+            html = _daisy_cards(name, color, style, wa, desc, uid)
+        elif mode == 'cv':
+            html = _daisy_cv(ctx, uid)
+        elif mode == 'website':
+            from ai_generator import generate_business_website
+            biz = {'name': name, 'category': mode, 'description': desc,
+                   'whatsapp': wa, 'brand_color': color,
+                   'hours': ctx.get('hours', 'Mon-Sat 8am-7pm')}
+            html = generate_business_website(biz, 'basic')
+        elif mode == 'exam':
+            html = _daisy_exam(ctx, uid)
+        else:
+            html = _daisy_generic(name, mode, color, uid)
+        return jsonify({'html': html, 'mode': mode, 'uid': uid})
+    except Exception as e:
+        print(f'[Daisy/Build] {e}')
+        return jsonify({'html': _daisy_generic(name, mode, color, uid), 'mode': mode, 'uid': uid})
+
+
+@app.route('/daisy/save-testimonial', methods=['POST'])
+def daisy_save_testimonial():
+    """Save a user testimonial to the DB so it can appear on the homepage."""
+    data = request.get_json() or {}
+    text = (data.get('text') or '').strip()
+    if len(text) < 10:
+        return jsonify({'saved': False, 'reason': 'too short'})
+    user_id = current_user.id if current_user and current_user.is_authenticated else None
+    user_name = getattr(current_user, 'name', None) or getattr(current_user, 'username', None) or 'Anonymous'
+    try:
+        db_insert(q("INSERT INTO daisy_training (input, output) VALUES (?,?)"),
+                  (f"[TESTIMONIAL from {user_name}]", text))
+        return jsonify({'saved': True})
+    except Exception as e:
+        print(f'[Testimonial] {e}')
+        return jsonify({'saved': False, 'reason': str(e)})
+
 @app.route('/daisy/save-training', methods=['POST'])
 def daisy_save_training():
     """Save a Daisy Q&A pair to the database so it persists across restarts."""
