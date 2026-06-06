@@ -263,6 +263,23 @@ body{
   .ibar{padding:8px 12px 14px;}
   .dbubble,.ububble{font-size:14px;}
 }
+
+/* SOCIAL PROOF STRIP */
+.proof-strip{
+  display:flex;gap:10px;padding:8px 14px 2px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;flex-shrink:0;
+}
+.proof-strip::-webkit-scrollbar{display:none;}
+.proof-card{
+  flex-shrink:0;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:13px;
+  padding:10px 13px;min-width:200px;max-width:230px;
+}
+.proof-biz{font-size:12px;font-weight:700;color:var(--brand);margin-bottom:2px;}
+.proof-quote{font-size:12px;color:var(--mid);line-height:1.5;}
+.proof-name{font-size:11px;color:var(--dim);margin-top:5px;font-family:var(--mono);}
+.proof-stars{color:#f59e0b;font-size:11px;letter-spacing:1px;}
 </style>
 </head>
 <body>
@@ -281,8 +298,7 @@ body{
   <div class="dgrp">
     <div class="dlbl">Get Started</div>
     <button class="ditem hi" onclick="closeD()"><span class="dicon">&#127804;</span>Talk to Daisy</button>
-    <a class="ditem" href="/search"><span class="dicon">&#128269;</span>Search Businesses</a>
-    <a class="ditem" href="/price-guard"><span class="dicon">&#128737;</span>Price Guard</a>
+
   </div>
   <div class="ddiv"></div>
   <div class="dgrp">
@@ -321,6 +337,32 @@ body{
   <div class="thread" id="thread"></div>
 </div>
 
+<div class="proof-strip" id="proofStrip">
+  <div class="proof-card">
+    <div class="proof-biz">Mama Rosa Kitchen &middot; Kampala</div>
+    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+    <div class="proof-quote">"I got my website in 5 minutes. Customers now find me on Google."</div>
+    <div class="proof-name">&mdash; Rosa N., Restaurant owner</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-biz">FixIt Garage &middot; Jinja</div>
+    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+    <div class="proof-quote">"Daisy made my logo and flyer. People think I paid a designer millions."</div>
+    <div class="proof-name">&mdash; Dennis K., Mechanic</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-biz">GlowUp Salon &middot; Entebbe</div>
+    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+    <div class="proof-quote">"My clients book through my TrustedBiz page now. So professional."</div>
+    <div class="proof-name">&mdash; Grace A., Salon owner</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-biz">QuickMeds Pharmacy &middot; Mbarara</div>
+    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+    <div class="proof-quote">"Set up in minutes. My business finally looks serious online."</div>
+    <div class="proof-name">&mdash; Ivan M., Pharmacist</div>
+  </div>
+</div>
 <div class="chips" id="chips">
   <button class="chip" onclick="go('I need a website')">Website &#127760;</button>
   <button class="chip" onclick="go('I need a logo')">Logo &#10024;</button>
@@ -350,7 +392,7 @@ body{
 <script>
 var LOGGED = {{ 'true' if current_user else 'false' }};
 var WA     = "256753187966";
-var FREE   = 6;
+var FREE   = 12;
 var busy   = false;
 var msgs   = 0;
 var gated  = false;
@@ -587,13 +629,13 @@ function showGate() {
   if (gated || LOGGED) return;
   gated = true;
   var extra = "<div class=\"gate\">"
-    + "<h4>Continue with a free account</h4>"
-    + "<p>You\'ve used your free messages. Sign up in 10 seconds &mdash; your conversation stays here.</p>"
+    + "<h4>Save your work &mdash; it\'s free</h4>"
+    + "<p>Create a free account to keep building. Your conversation will be right here waiting for you.</p>"
     + "<div class=\"gate-btns\">"
     + "<a class=\"gbtn p\" href=\"/register?next=/\" onclick=\"saveHistToStorage()\">Create free account</a>"
     + "<a class=\"gbtn s\" href=\"/login\" onclick=\"saveHistToStorage()\">Sign in</a>"
     + "</div></div>";
-  addD("You\'re doing great! Keep going. &#127804;", extra);
+  addD("Almost there! &#127804; One last step to save everything.", extra);
 }
 
 // ── COLOR / STYLE PICKERS ────────────────────────────────────────
