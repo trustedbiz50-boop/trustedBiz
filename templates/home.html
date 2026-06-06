@@ -844,23 +844,10 @@ function _fallbackHtml(modeKey, ctx) {
     + "h1{color:" + color + ";font-size:2em;margin-bottom:12px;}"
     + "p{color:#6b7280;}</style></head><body>"
     + "<div class=box><h1>" + name + "</h1><p>Your " + (LABELS[modeKey]||"file") + " is ready.</p>"
-    + "<p style=margin-top:16px;font-size:13px;color:#9ca3af>Powered by TrustedBiz Uganda</p></div>
-<!-- PREVIEW MODAL -->
-<div class="prev-modal" id="prevModal" style="display:none" onclick="if(event.target===this)closePreview()">
-  <div class="prev-inner">
-    <div class="prev-bar">
-      <span class="prev-bar-title" id="prevTitle">Preview</span>
-      <button class="prev-close" onclick="closePreview()">&#10005;</button>
-    </div>
-    <iframe class="prev-frame" id="prevFrame" sandbox="allow-scripts allow-same-origin"></iframe>
-    <div class="prev-actions">
-      <button class="prev-btn secondary" onclick="closePreview()">&#8592; Back</button>
-      <button class="prev-btn primary" onclick="downloadResult()">&#11015; Download</button>
-    </div>
-  </div>
-</div>
-</body></html>";
+    + "<p style=margin-top:16px;font-size:13px;color:#9ca3af>Powered by TrustedBiz Uganda</p></div></body></html>";
 }
+
+
 
 function makeCard(modeKey, ctxData) {
   // Replaced — now triggers the animated build flow
