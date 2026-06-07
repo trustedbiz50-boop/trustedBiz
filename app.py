@@ -1669,19 +1669,16 @@ def daisy_build():
     # Register template saver so every generation goes to template_pool
     def _save_to_pool(mode_key, html):
         try:
-            import hashlib as _hh
-            html_hash = _hh.md5(html.encode()).hexdigest()
-            # Use hash to avoid comparing huge HTML strings in DB
             existing = db_fetchone(
-                q("SELECT id FROM template_pool WHERE category=? AND quality_score=?"),
-                (mode_key + ':' + html_hash, 99)
+                q("SELECT id FROM template_pool WHERE category=? AND html=?"),
+                (mode_key, html)
             )
             if not existing:
                 db_insert(
                     q("INSERT INTO template_pool (category, html, quality_score) VALUES (?,?,?)"),
-                    (mode_key + ':' + html_hash, html, 99)
+                    (mode_key, html, 80)
                 )
-                print(f"[Daisy/Template] Saved new {mode_key} template ({len(html)} chars)")
+                print(f"[Daisy/Template] Saved new {mode_key} template to pool")
         except Exception as e:
             print(f"[Daisy/TemplateSave] {e}")
 
@@ -1691,18 +1688,25 @@ def daisy_build():
     mode  = (data.get('mode') or '').strip()
     ctx   = data.get('context') or {}
     seed  = data.get('seed') or 0
+    # Pull full conversation history so builders know what user actually asked for
+    history = data.get('history') or []
+    # Extract the user's description from history — what they actually said they wanted
+    user_requests = [t.get('content','') for t in history if t.get('role') == 'user']
+    full_request  = ' '.join(user_requests[-4:])  # last 4 user messages
     name  = str(ctx.get('name') or ctx.get('fullname') or ctx.get('topic') or 'Business')
     color = str(ctx.get('color') or '#2b7a78')
     style = str(ctx.get('style') or 'modern')
-    desc  = str(ctx.get('description') or '')
+    desc  = str(ctx.get('description') or full_request or '')
     wa    = str(ctx.get('whatsapp') or '')
     uid   = _hl.md5(f"{name}{seed}".encode()).hexdigest()[:8]
+    # Enrich ctx with full request so builders use it
+    ctx['full_request'] = full_request
+    ctx['description']  = ctx.get('description') or full_request
 
     html = None
-    print(f"[Daisy/Build] mode={mode} name={name} uid={uid}")
     try:
         if mode == 'logo':
-            html = _daisy_logo(name, color, style, uid)
+            html = _daisy_logo(name, color, style, uid, ctx=ctx)
         elif mode == 'flyer':
             html = _daisy_flyer(name, color, style, desc, uid)
         elif mode in ('cards', 'card'):
@@ -1724,12 +1728,10 @@ def daisy_build():
         else:
             html = _daisy_generic(name, mode, color, uid)
     except Exception as e:
-        import traceback
-        print(f'[Daisy/Build] ERROR: {e}')
-        print(traceback.format_exc())
+        print(f'[Daisy/Build] {e}')
 
-    print(f"[Daisy/Build] result: {'OK ' + str(len(html)) + ' chars' if html else 'NONE'}")
     if not html:
+        # Claude couldn't generate — honest error, don't pretend with a fallback
         return jsonify({
             'html': None,
             'error': 'Daisy is thinking hard on this one. Please try again in a moment.',

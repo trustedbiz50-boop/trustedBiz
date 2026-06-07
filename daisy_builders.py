@@ -76,11 +76,15 @@ def _claude(prompt, max_tokens=8000):
 
 # ── LOGO ──────────────────────────────────────────────────────────────────────
 
-def _daisy_logo(name, color, style, uid):
+def _daisy_logo(name, color, style, uid, ctx=None):
+    full_req = (ctx or {}).get('full_request') or (ctx or {}).get('description') or ''
+    design_brief = f"The user specifically asked for: {full_req}" if full_req else ""
+
     prompt = f"""Create a professional standalone SVG logo for a business called "{name}".
 
 Brand color: {color}
 Style: {style}
+{design_brief}
 Size: 400x400 viewBox
 
 RULES — follow exactly:
