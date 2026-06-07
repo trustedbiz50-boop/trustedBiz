@@ -1,46 +1,35 @@
 """
-daisy_builders.py — Daizy's production engine
-==============================================
-Claude (Haiku) generates everything.
-No fallback templates — if Claude can't do it, we say so honestly.
-Every successful output is saved to template_pool for future reuse.
+daisy_builders.py — Daizy's production engine v3
+=================================================
+Claude generates professional, usable outputs.
+- Logo: single clean SVG file, not a webpage
+- Flyer: print-ready A5, looks like a real agency made it
+- Cards: two clean business cards, front and back
+- CV: single page, premium template quality
+- Exam: authentic Uganda curriculum paper
+- Presentation: real slides with navigation
+- Catalog: mobile WhatsApp catalog
 """
 import hashlib, os, re
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _daisy_hex_dark(h):
-    try:
-        h = h.lstrip('#')
-        if len(h) == 3: h = ''.join(c*2 for c in h)
-        r,g,b = int(h[0:2],16), int(h[2:4],16), int(h[4:6],16)
-        dr,dg,db = max(0,r-40), max(0,g-40), max(0,b-40)
-        return '#'+h, f"#{dr:02x}{dg:02x}{db:02x}"
-    except:
-        return '#2b7a78', '#1f5c5a'
-
-def _daisy_variant(uid):
-    v = [
-        dict(font='DM Sans', radius='16px', weight='800', align='center', justify='center'),
-        dict(font='Syne',    radius='4px',  weight='900', align='left',   justify='flex-start'),
-        dict(font='DM Sans', radius='50px', weight='700', align='center', justify='center'),
-        dict(font='Syne',    radius='12px', weight='800', align='center', justify='center'),
-        dict(font='DM Sans', radius='0px',  weight='900', align='left',   justify='flex-start'),
-        dict(font='DM Sans', radius='8px',  weight='700', align='center', justify='center'),
-        dict(font='Syne',    radius='24px', weight='800', align='center', justify='center'),
-        dict(font='DM Sans', radius='2px',  weight='900', align='left',   justify='flex-start'),
-    ]
-    return v[int(uid[:2], 16) % len(v)]
 
 def _uid(name, seed):
     return hashlib.md5(f"{name}{seed}".encode()).hexdigest()[:8]
 
+_save_template_fn = None
 
-# ── Claude caller ─────────────────────────────────────────────────────────────
+def register_template_saver(fn):
+    global _save_template_fn
+    _save_template_fn = fn
 
-def _claude(prompt, max_tokens=4000):
-    """Call Claude Haiku. Returns clean HTML string or None."""
-    # Try shared client from app.py first, then direct key lookup
+def _save(mode, html):
+    if _save_template_fn and html and len(html) > 300:
+        try:
+            _save_template_fn(mode, html)
+        except Exception as e:
+            print(f"[Daisy/SaveTemplate] {e}")
+
+def _claude(prompt, max_tokens=8000):
+    """Call Claude. Handles truncation. Returns output string or None."""
     client = None
     try:
         from app import get_anthropic_client
@@ -48,9 +37,9 @@ def _claude(prompt, max_tokens=4000):
     except Exception:
         pass
     if client is None:
-        key = os.environ.get("ANTHROPIC_API_KEY", "")
-        print(f"[Daisy/Claude] fallback key={'SET' if key else 'MISSING'} len={len(key)}")
+        key = os.environ.get("ANTHROPIC_API_KEY","")
         if not key:
+            print("[Daisy/Claude] No API key")
             return None
         try:
             import anthropic
@@ -59,8 +48,7 @@ def _claude(prompt, max_tokens=4000):
             print(f"[Daisy/Claude] init error: {e}")
             return None
     try:
-        import anthropic as _ant  # ensure available for type checks
-        messages = [{"role": "user", "content": prompt}]
+        messages = [{"role":"user","content":prompt}]
         full_text = ""
         for rnd in range(3):
             msg = client.messages.create(
@@ -73,65 +61,73 @@ def _claude(prompt, max_tokens=4000):
             print(f"[Daisy/Claude] round={rnd+1} stop={msg.stop_reason} len={len(full_text)}")
             if msg.stop_reason != "max_tokens":
                 break
-            messages.append({"role": "assistant", "content": chunk})
-            messages.append({"role": "user", "content": "Continue exactly where you stopped. Output only remaining HTML."})
+            messages.append({"role":"assistant","content":chunk})
+            messages.append({"role":"user","content":"Continue exactly where you stopped."})
+
         text = full_text.strip()
-        text = re.sub(r'^```html\s*', '', text, flags=re.IGNORECASE)
-        text = re.sub(r'^```\s*', '', text)
-        text = re.sub(r'\s*```$', '', text)
-        if text and '</html>' not in text[-200:]:
-            text = text.rstrip() + "\n</body>\n</html>"
-        if len(text) > 300:
-            return text
-        print(f"[Daisy/Claude] Too short ({len(text)} chars)")
-        return None
+        # Strip markdown fences
+        text = re.sub(r'^```[a-z]*\s*','',text,flags=re.IGNORECASE)
+        text = re.sub(r'\s*```$','',text)
+        return text if len(text) > 200 else None
     except Exception as e:
         print(f"[Daisy/Claude] {e}")
         return None
 
 
-# ── Template saver (called back from app.py after generation) ─────────────────
-
-_save_template_fn = None   # set by app.py on startup
-
-def register_template_saver(fn):
-    """app.py calls this with a function that saves to template_pool DB."""
-    global _save_template_fn
-    _save_template_fn = fn
-
-def _save(mode, html):
-    """Save a generated output to the template pool."""
-    if _save_template_fn and html and len(html) > 500:
-        try:
-            _save_template_fn(mode, html)
-        except Exception as e:
-            print(f"[Daisy/SaveTemplate] {e}")
-
-
 # ── LOGO ──────────────────────────────────────────────────────────────────────
 
 def _daisy_logo(name, color, style, uid):
-    prompt = f"""You are a world-class logo designer. Create a PROFESSIONAL, UNIQUE logo page in pure HTML+CSS+SVG.
+    prompt = f"""Create a professional standalone SVG logo for a business called "{name}".
 
-Business name: {name}
 Brand color: {color}
 Style: {style}
-Unique ID: {uid}
+Size: 400x400 viewBox
 
-REQUIREMENTS:
-1. Full standalone HTML page (<!DOCTYPE html> to </html>)
-2. Large SVG logo mark — design a REAL icon, not just a letter. Use geometric shapes, abstract marks, or a monogram with design flair that feels intentional.
-3. Show the logo in 3 variants side by side: LIGHT background, DARK (#0d1c1c) background, COLOR ({color}) background
-4. Business name in large Syne font below the mark
-5. Tagline: "Uganda · Verified" in small caps
-6. Google Fonts: DM Sans + Syne (import via link tag)
-7. Brand color {color} used powerfully
-8. Clean white page, centered card layout, professional padding
-9. No placeholder text. No lorem ipsum.
-10. OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown, no backticks."""
+RULES — follow exactly:
+1. Output ONLY the SVG. Start with <svg and end with </svg>. Nothing else.
+2. No HTML wrapper. No markdown. No explanation. Just the SVG.
+3. Design a REAL logo mark — geometric shapes, abstract icon, or letterform with design intent. Not clip art.
+4. Include the business name "{name}" as text inside the SVG using a clean sans-serif font
+5. Use {color} as the primary color. Can use lighter/darker shades of it.
+6. Clean white or transparent background
+7. Professional enough to print on a business card, signboard or shirt
+8. The design must be unique and specific to "{name}" — not generic
+9. No external fonts or images — embed everything in the SVG
+10. Make it look like it was designed by a professional logo designer, not generated
 
-    html = _claude(prompt, max_tokens=3000)
-    if html:
+Output the SVG now:"""
+
+    result = _claude(prompt, max_tokens=4000)
+    if result and '<svg' in result:
+        # Strip anything before the <svg tag
+        svg_start = result.find('<svg')
+        svg_end   = result.rfind('</svg>') + 6
+        if svg_start > 0:
+            result = result[svg_start:svg_end]
+        # Wrap in minimal HTML for preview/download
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>{name} Logo</title>
+<style>
+* {{ margin:0;padding:0;box-sizing:border-box; }}
+body {{ background:#f8f8f8;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif; }}
+.card {{ background:#fff;border-radius:16px;padding:48px;box-shadow:0 4px 32px rgba(0,0,0,.1);text-align:center; }}
+.card svg {{ width:280px;height:280px; }}
+.on-dark {{ background:#111;border-radius:12px;padding:32px;margin-top:24px;display:inline-block; }}
+.on-dark svg {{ width:160px;height:160px; }}
+p {{ margin-top:16px;font-size:12px;color:#999;letter-spacing:1px;text-transform:uppercase; }}
+</style>
+</head>
+<body>
+<div class="card">
+{result}
+<p>{name} · TrustedBiz Uganda</p>
+<div class="on-dark">{result}</div>
+</div>
+</body>
+</html>"""
         _save('logo', html)
         return html
     return None
@@ -140,29 +136,33 @@ REQUIREMENTS:
 # ── FLYER ─────────────────────────────────────────────────────────────────────
 
 def _daisy_flyer(name, color, style, description, uid):
-    prompt = f"""You are a world-class graphic designer. Create a STUNNING promotional flyer as a standalone HTML page.
+    prompt = f"""Design a professional promotional flyer as a complete standalone HTML page.
 
-Business name: {name}
-Brand color: {color}
+Business: {name}
+Color: {color}
 Style: {style}
 Description: {description}
-Unique ID: {uid}
 
-REQUIREMENTS:
-1. Full standalone HTML page
-2. Portrait flyer card (420×594px) centered on the page with a light gray background behind it
-3. Rich background using {color}: bold gradients, geometric CSS shapes, layered elements — make it feel designed
-4. Large bold business name as the hero text
-5. Short punchy tagline pulled from the description
-6. "Contact Us" call-to-action button
-7. "TrustedBiz Uganda Verified" badge at the bottom
-8. Google Fonts: Syne (headings) + DM Sans (body)
-9. NO external images or assets beyond Google Fonts
-10. Looks like a real agency flyer — each design should feel unique based on the uid {uid}
-11. OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown."""
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Single A5 flyer card (420×594px) centered on a neutral background
+3. The flyer must look like it was designed by a professional agency in Uganda
+4. Use {color} powerfully — bold gradient backgrounds, strong typography
+5. Large impactful headline using the business name
+6. Short punchy tagline from the description (max 8 words)
+7. One clear call to action
+8. "TrustedBiz Verified" small badge
+9. Google Fonts via @import: Syne for headings, DM Sans for body
+10. NO lorem ipsum. NO placeholder text. Real content only.
+11. Design must be striking — someone should want to share it on WhatsApp
+12. No external images. CSS only for decoration.
 
-    html = _claude(prompt, max_tokens=2500)
-    if html:
+Output the HTML now:"""
+
+    html = _claude(prompt, max_tokens=5000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
         _save('flyer', html)
         return html
     return None
@@ -171,29 +171,32 @@ REQUIREMENTS:
 # ── BUSINESS CARDS ────────────────────────────────────────────────────────────
 
 def _daisy_cards(name, color, style, whatsapp, description, uid):
-    prompt = f"""You are a world-class card designer. Create PROFESSIONAL double-sided business cards as a standalone HTML page.
+    prompt = f"""Design professional double-sided business cards as a complete standalone HTML page.
 
-Business name: {name}
-Brand color: {color}
+Business: {name}
+Color: {color}
 Style: {style}
-Description: {description}
-WhatsApp: {whatsapp}
-Unique ID: {uid}
+Role/tagline: {description}
+WhatsApp: +{whatsapp}
 
-REQUIREMENTS:
-1. Full standalone HTML page
-2. Two cards displayed: FRONT and BACK (side by side on desktop, stacked on mobile)
-3. Card size: 350×200px each
-4. FRONT: Use {color} as background via gradient, large business name in Syne font, role/tagline, small geometric logo mark in CSS/SVG
-5. BACK: White/light background, left color accent strip ({color}), WhatsApp number (+{whatsapp}), "Uganda · Verified" tagline, "trustedbiz.co.ug" domain
-6. Real geometric design accents — not plain rectangles
-7. Google Fonts: Syne + DM Sans
-8. "TrustedBiz Verified" checkmark badge on front
-9. NO external images
-10. OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown."""
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Show FRONT card and BACK card side by side (stacked on mobile)
+3. Card dimensions: 350×200px each
+4. FRONT: {color} gradient background, business name in large bold Syne font, role/tagline, small geometric mark in SVG, "TrustedBiz ✓" badge
+5. BACK: Clean white, business name in {color}, WhatsApp number prominently, "trustedbiz.co.ug", thin {color} left border accent
+6. Each card must look premium — like a Moo.com or Canva premium card
+7. Google Fonts: Syne + DM Sans via @import
+8. Crisp typography, tight spacing, no clutter
+9. No lorem ipsum. Real content only.
+10. Cards must be practical — someone prints this and hands it out
 
-    html = _claude(prompt, max_tokens=2500)
-    if html:
+Output the HTML now:"""
+
+    html = _claude(prompt, max_tokens=4000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
         _save('cards', html)
         return html
     return None
@@ -204,35 +207,38 @@ REQUIREMENTS:
 def _daisy_cv(ctx, uid):
     name   = str(ctx.get('fullname') or ctx.get('name') or 'Your Name')
     role   = str(ctx.get('role') or ctx.get('title') or ctx.get('description') or 'Professional')
-    email  = str(ctx.get('email') or '')
+    email  = str(ctx.get('email') or 'email@example.com')
     phone  = str(ctx.get('phone') or ctx.get('whatsapp') or '')
     color  = str(ctx.get('color') or '#2b7a78')
     skills = str(ctx.get('skills') or '')
 
-    prompt = f"""You are a professional CV/resume designer. Create a BEAUTIFUL, ATS-friendly CV as a standalone HTML page.
+    prompt = f"""Design a professional CV/resume as a complete standalone HTML page.
 
-Full name: {name}
-Role/Title: {role}
+Name: {name}
+Role: {role}
 Email: {email}
-Phone/WhatsApp: {phone}
-Brand color: {color}
-Skills: {skills or 'infer from role'}
-Unique ID: {uid}
+Phone: {phone}
+Color: {color}
+Skills hint: {skills or 'infer from role'}
 
-REQUIREMENTS:
-1. Full standalone HTML page — single page CV layout
-2. Colored top header band using {color} with name, role, and contact details in white
-3. Sections: Profile Summary, Key Skills, Experience, Education, Contact
-4. Write REAL professional content inferred from "{role}" — not generic placeholders
-5. Skills: 6–8 skills relevant to a {role} in Uganda
-6. Typography: DM Sans body, Syne for name and section headings
-7. Max-width 800px, print-ready margins, clean layout
-8. Design quality: looks like a premium Canva template
-9. {color} used for sidebar accents, skill tags, section title borders
-10. OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown."""
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Single page layout, max-width 780px, centered, print-ready
+3. Top header band in {color} — name, role, contact details in white
+4. Sections: Profile Summary, Key Skills (tag pills), Experience, Education
+5. Write REAL professional content for a {role} working in Uganda — no placeholders
+6. Skills: 6 relevant skills as colored pill badges using {color}
+7. Google Fonts: DM Sans body, Syne for name
+8. Design quality: looks like a ¢50,000 Canva Pro template
+9. {color} for headings, skill tags, section dividers
+10. This CV must be ready to send to an employer TODAY
 
-    html = _claude(prompt, max_tokens=3500)
-    if html:
+Output the HTML now:"""
+
+    html = _claude(prompt, max_tokens=6000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
         _save('cv', html)
         return html
     return None
@@ -244,27 +250,31 @@ def _daisy_exam(ctx, uid):
     subject = str(ctx.get('subject') or ctx.get('topic') or 'General Knowledge')
     level   = str(ctx.get('level') or 'O-Level')
 
-    prompt = f"""You are an experienced Uganda curriculum teacher. Create a REAL, complete exam paper as a standalone HTML page.
+    prompt = f"""Create a complete, authentic Uganda curriculum exam paper as a standalone HTML page.
 
 Subject: {subject}
 Level: {level}
 Year: 2026
 Paper ID: {uid.upper()}
 
-REQUIREMENTS:
-1. Full standalone HTML page, print-ready
-2. Header: "REPUBLIC OF UGANDA", subject name in capitals, level, "2026 Examination", Time: 2hrs 30min
-3. Instructions box: answer ALL Section A, any THREE from Section B
-4. Section A — Short Answer (40 marks): 10 REAL {subject} questions for {level}. 2 marks each. Leave 2 answer lines per question.
-5. Section B — Essay Questions (60 marks): 4 REAL {subject} essay questions for {level}. 20 marks each. Leave 8 answer lines per question.
-6. Questions must be AUTHENTIC — like a real Uganda national exam
-7. Typography: Georgia serif, professional look like a printed exam paper
-8. Total marks clearly shown: 80
-9. Footer: Paper ID {uid.upper()}, "TrustedBiz Uganda"
-10. OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown."""
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Looks exactly like a real Uganda National Examinations Board paper
+3. Header: REPUBLIC OF UGANDA, subject, level, time (2hrs 30min), paper ID
+4. Instructions box with proper UNEB style instructions
+5. Section A — 10 SHORT ANSWER questions. Real {subject} questions for {level}. 2 marks each. 2 answer lines per question.
+6. Section B — 4 ESSAY questions. Real {subject} questions for {level}. 20 marks each. 8 answer lines per question.
+7. Questions MUST be real, specific, curriculum-accurate — not vague
+8. Georgia serif font, proper academic typography
+9. Print-ready — a teacher could photocopy this tomorrow
+10. Total marks: 80
 
-    html = _claude(prompt, max_tokens=4000)
-    if html:
+Output the HTML now:"""
+
+    html = _claude(prompt, max_tokens=8000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
         _save('exam', html)
         return html
     return None
@@ -273,34 +283,36 @@ REQUIREMENTS:
 # ── PRESENTATION ──────────────────────────────────────────────────────────────
 
 def _daisy_presentation(ctx, uid):
-    name  = str(ctx.get('name') or ctx.get('topic') or 'Presentation')
-    topic = str(ctx.get('description') or ctx.get('topic') or name)
+    topic = str(ctx.get('description') or ctx.get('topic') or ctx.get('name') or 'Presentation')
     color = str(ctx.get('color') or '#2b7a78')
     style = str(ctx.get('style') or 'modern')
 
-    prompt = f"""You are a world-class presentation designer. Create a BEAUTIFUL multi-slide presentation as a standalone HTML page.
+    prompt = f"""Create a professional multi-slide presentation as a complete standalone HTML page.
 
 Topic: {topic}
-Brand color: {color}
+Color: {color}
 Style: {style}
-Unique ID: {uid}
 
-REQUIREMENTS:
-1. Full standalone HTML page with slide navigation
-2. 6–8 slides: Title, Agenda, 3–4 content slides, Conclusion/CTA
-3. Each slide: full viewport height (100vh), distinct section design
-4. Navigation: arrow buttons (← →) and slide counter "3 / 7"
-5. Keyboard navigation: left/right arrow keys
-6. Slide transitions: smooth CSS fade or slide
-7. Rich design: {color} used boldly, geometric backgrounds, large typography
-8. Content relevant to "{topic}" — real, useful content not placeholders
-9. Google Fonts: Syne (headings) + DM Sans (body)
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. 7 slides minimum: Title, Agenda, 4 content slides, Call to Action
+3. Each slide fills 100vh, clean full-screen design
+4. Navigation: ← → arrow buttons + "2 / 7" counter, fixed bottom center
+5. Left/right keyboard arrows also work
+6. CSS transitions between slides (fade or slide)
+7. {color} used boldly — full color slide backgrounds, large typography
+8. Real, useful content about "{topic}" — no lorem ipsum
+9. Google Fonts: Syne headings, DM Sans body via @import
 10. Mobile responsive
-11. "TrustedBiz Uganda" watermark in footer of each slide
-12. OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown."""
+11. Looks like a ¢200,000 PowerPoint template
+12. "TrustedBiz Uganda" small footer on each slide
 
-    html = _claude(prompt, max_tokens=5000)
-    if html:
+Output the HTML now:"""
+
+    html = _claude(prompt, max_tokens=8000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
         _save('presentation', html)
         return html
     return None
@@ -314,33 +326,35 @@ def _daisy_catalog(ctx, uid):
     color = str(ctx.get('color') or '#2b7a78')
     wa    = str(ctx.get('whatsapp') or '')
     items = ctx.get('items') or []
+    items_text = '\n'.join([f"- {i}" for i in items]) if items else 'infer 6 products/services from the business'
 
-    items_text = '\n'.join([f"- {i}" for i in items]) if items else '(infer 6 products/services from the business description)'
+    prompt = f"""Create a professional WhatsApp product catalog as a complete standalone HTML page.
 
-    prompt = f"""You are a product catalog designer. Create a BEAUTIFUL WhatsApp-style product catalog as a standalone HTML page.
-
-Business name: {name}
+Business: {name}
 Description: {desc}
 WhatsApp: {wa}
-Brand color: {color}
+Color: {color}
 Products/Services:
 {items_text}
-Unique ID: {uid}
 
-REQUIREMENTS:
-1. Full standalone HTML page
-2. Header: business name, logo mark, "Order on WhatsApp" button (wa.me/{wa})
-3. Product/service grid: 2 columns on mobile, 3 on desktop
-4. Each card: icon (emoji or SVG), name, short description, "Order" button linking to WhatsApp
-5. Categories if applicable
-6. Brand color {color} for header, buttons, accents
-7. Clean, mobile-first design — this will be shared on WhatsApp
-8. Google Fonts: DM Sans
-9. "TrustedBiz Verified" badge in header
-10. OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown."""
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Header: business name, colorful logo mark, "Order on WhatsApp" button → wa.me/{wa}
+3. Product grid: 2 columns mobile, 3 columns desktop
+4. Each product card: emoji icon, product name, 1-line description, price (UGX), "Order" button → WhatsApp
+5. {color} for header, buttons, card accents
+6. Clean mobile-first design — this gets shared on WhatsApp
+7. Google Fonts: DM Sans via @import
+8. "TrustedBiz Verified ✓" badge in header
+9. Real product names and descriptions — no placeholders
+10. Someone should be able to share this link and get orders TODAY
 
-    html = _claude(prompt, max_tokens=3500)
-    if html:
+Output the HTML now:"""
+
+    html = _claude(prompt, max_tokens=5000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
         _save('catalog', html)
         return html
     return None
@@ -349,19 +363,19 @@ REQUIREMENTS:
 # ── GENERIC ───────────────────────────────────────────────────────────────────
 
 def _daisy_generic(name, mode, color, uid):
-    """Last resort — Claude tries to build anything."""
-    prompt = f"""You are a skilled designer. Create a professional {mode} as a standalone HTML page.
+    prompt = f"""Create a professional {mode} as a complete standalone HTML page.
 
-Name/Title: {name}
-Brand color: {color}
-Type: {mode}
-Unique ID: {uid}
+Name: {name}
+Color: {color}
 
-Create the best possible {mode} page. Full HTML, professional design, Google Fonts (DM Sans + Syne), brand color {color} used throughout.
-OUTPUT: Raw HTML only. Start with <!DOCTYPE html>. No markdown."""
+Output complete, professional HTML. Google Fonts (DM Sans + Syne). {color} used throughout.
+Real content — no placeholders. Ready to use TODAY.
+Start with <!DOCTYPE html>:"""
 
-    html = _claude(prompt, max_tokens=3000)
-    if html:
+    html = _claude(prompt, max_tokens=5000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
         _save(mode, html)
         return html
     return None
