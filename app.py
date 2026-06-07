@@ -1669,16 +1669,19 @@ def daisy_build():
     # Register template saver so every generation goes to template_pool
     def _save_to_pool(mode_key, html):
         try:
+            import hashlib as _hh
+            html_hash = _hh.md5(html.encode()).hexdigest()
+            # Use hash to avoid comparing huge HTML strings in DB
             existing = db_fetchone(
-                q("SELECT id FROM template_pool WHERE category=? AND html=?"),
-                (mode_key, html)
+                q("SELECT id FROM template_pool WHERE category=? AND quality_score=?"),
+                (mode_key + ':' + html_hash, 99)
             )
             if not existing:
                 db_insert(
                     q("INSERT INTO template_pool (category, html, quality_score) VALUES (?,?,?)"),
-                    (mode_key, html, 80)
+                    (mode_key + ':' + html_hash, html, 99)
                 )
-                print(f"[Daisy/Template] Saved new {mode_key} template to pool")
+                print(f"[Daisy/Template] Saved new {mode_key} template ({len(html)} chars)")
         except Exception as e:
             print(f"[Daisy/TemplateSave] {e}")
 
@@ -1696,6 +1699,7 @@ def daisy_build():
     uid   = _hl.md5(f"{name}{seed}".encode()).hexdigest()[:8]
 
     html = None
+    print(f"[Daisy/Build] mode={mode} name={name} uid={uid}")
     try:
         if mode == 'logo':
             html = _daisy_logo(name, color, style, uid)
@@ -1720,10 +1724,12 @@ def daisy_build():
         else:
             html = _daisy_generic(name, mode, color, uid)
     except Exception as e:
-        print(f'[Daisy/Build] {e}')
+        import traceback
+        print(f'[Daisy/Build] ERROR: {e}')
+        print(traceback.format_exc())
 
+    print(f"[Daisy/Build] result: {'OK ' + str(len(html)) + ' chars' if html else 'NONE'}")
     if not html:
-        # Claude couldn't generate — honest error, don't pretend with a fallback
         return jsonify({
             'html': None,
             'error': 'Daisy is thinking hard on this one. Please try again in a moment.',
