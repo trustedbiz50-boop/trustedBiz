@@ -40,22 +40,51 @@ def _uid(name, seed):
 
 def _claude(prompt, max_tokens=4000):
     """Call Claude Haiku. Returns clean HTML string or None."""
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key:
-        return None
+    # Try shared client from app.py first, then direct key lookup
+    client = None
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=key)
-        msg = client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        text = msg.content[0].text.strip() if msg.content else ""
+        from app import get_anthropic_client
+        client = get_anthropic_client()
+    except Exception:
+        pass
+    if client is None:
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+        print(f"[Daisy/Claude] fallback key={'SET' if key else 'MISSING'} len={len(key)}")
+        if not key:
+            return None
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=key)
+        except Exception as e:
+            print(f"[Daisy/Claude] init error: {e}")
+            return None
+    try:
+        import anthropic as _ant  # ensure available for type checks
+        messages = [{"role": "user", "content": prompt}]
+        full_text = ""
+        for rnd in range(3):
+            msg = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=max_tokens,
+                messages=messages
+            )
+            chunk = msg.content[0].text if msg.content else ""
+            full_text += chunk
+            print(f"[Daisy/Claude] round={rnd+1} stop={msg.stop_reason} len={len(full_text)}")
+            if msg.stop_reason != "max_tokens":
+                break
+            messages.append({"role": "assistant", "content": chunk})
+            messages.append({"role": "user", "content": "Continue exactly where you stopped. Output only remaining HTML."})
+        text = full_text.strip()
         text = re.sub(r'^```html\s*', '', text, flags=re.IGNORECASE)
         text = re.sub(r'^```\s*', '', text)
         text = re.sub(r'\s*```$', '', text)
-        return text if (len(text) > 300 and '</html>' in text) else None
+        if text and '</html>' not in text[-200:]:
+            text = text.rstrip() + "\n</body>\n</html>"
+        if len(text) > 300:
+            return text
+        print(f"[Daisy/Claude] Too short ({len(text)} chars)")
+        return None
     except Exception as e:
         print(f"[Daisy/Claude] {e}")
         return None
