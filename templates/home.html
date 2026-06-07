@@ -372,6 +372,49 @@ body{
 .prev-btn.secondary:hover{border-color:var(--brand);color:var(--brand);}
 .prev-btn.wa{background:#25D366;color:#fff;}
 .prev-btn.wa:hover{background:#1eaa52;}
+
+/* FILE CARD */
+.file-card{
+  max-width:92%;background:var(--surface);
+  border:1.5px solid var(--border);border-radius:14px;
+  overflow:hidden;margin:4px 0;
+  box-shadow:0 2px 12px rgba(0,0,0,.06);
+}
+.file-card-top{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 14px 10px;
+}
+.file-icon{font-size:26px;flex-shrink:0;}
+.file-info{flex:1;min-width:0;}
+.file-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.file-meta{font-size:11px;color:var(--dim);margin-top:2px;font-family:var(--mono);}
+.file-menu-btn{
+  background:none;border:none;font-size:20px;
+  color:var(--mid);cursor:pointer;padding:4px 8px;
+  border-radius:8px;flex-shrink:0;
+}
+.file-menu-btn:hover{background:var(--surface2);}
+.file-menu{
+  border-top:1px solid var(--border);
+  display:flex;flex-direction:column;
+}
+.file-action{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;font-size:13px;font-weight:600;
+  color:var(--text);background:none;border:none;
+  cursor:pointer;text-align:left;text-decoration:none;
+  font-family:var(--font);border-bottom:1px solid var(--border);
+  transition:background .15s;
+}
+.file-action:last-child{border-bottom:none;}
+.file-action:hover{background:var(--surface2);color:var(--brand);}
+.file-preview-strip{
+  padding:10px 16px;cursor:pointer;
+  background:linear-gradient(90deg,var(--brand)08,transparent);
+  display:flex;align-items:center;
+}
+.file-preview-strip:hover{background:var(--brand)12;}
+.file-preview-hint{font-size:12px;color:var(--brand);font-weight:600;}
 </style>
 </head>
 <body>
@@ -686,15 +729,14 @@ var PRICES = {logo:"UGX 2,000",flyer:"UGX 2,000",cards:"UGX 2,000",cv:"UGX 2,000
 
 // ── BUILD STEPS per mode ─────────────────────────────────────────
 var BUILD_STEPS = {
-  website:      ["Reading your business details","Choosing layout and style","Writing your sections","Adding your brand colors","Polishing the design","Almost ready..."],
-  logo:         ["Reading your brand name","Choosing shapes and style","Laying out the mark","Applying your colors","Refining the details","Finishing up..."],
-  flyer:        ["Reading your message","Choosing layout","Writing the copy","Adding visual flair","Applying your colors","Finishing up..."],
-  cards:        ["Reading your details","Designing front side","Designing back side","Applying brand style","Polishing typography","Finishing up..."],
-  cv:           ["Reading your details","Structuring sections","Writing professional copy","Applying clean layout","Final formatting","Almost ready..."],
+  website:  ["Reading your business details","Choosing layout and style","Writing your sections","Adding your brand colors","Polishing the design","Almost ready..."],
+  logo:     ["Reading your brand name","Choosing shapes and style","Laying out the mark","Applying your colors","Refining the details","Finishing up..."],
+  flyer:    ["Reading your message","Choosing layout","Writing the copy","Adding visual flair","Applying your colors","Finishing up..."],
+  cards:    ["Reading your details","Designing front side","Designing back side","Applying brand style","Polishing typography","Finishing up..."],
+  cv:       ["Reading your details","Structuring sections","Writing professional copy","Applying clean layout","Final formatting","Almost ready..."],
   presentation: ["Reading your topic","Building slide structure","Writing slide content","Applying visual theme","Adding finishing touches","Almost ready..."],
-  exam:         ["Reading subject details","Setting difficulty level","Writing real questions","Adding mark scheme","Formatting paper","Almost ready..."],
-  catalog:      ["Reading your products","Designing the layout","Building product cards","Adding order buttons","Polishing for WhatsApp","Almost ready..."],
-  priceguard:   ["Reading your item","Checking market data","Comparing local prices","Calculating fair range","Writing your report","Almost ready..."]
+  exam:     ["Reading subject details","Setting difficulty level","Writing questions","Adding mark scheme","Formatting paper","Almost ready..."],
+  priceguard: ["Reading your item","Checking market data","Comparing local prices","Calculating fair range","Writing your report","Almost ready..."]
 };
 
 // ── PREVIEW MODAL ─────────────────────────────────────────────────
@@ -794,7 +836,7 @@ async function runBuild(modeKey, ctxData) {
     var resp = await fetch("/daisy/build", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({mode: modeKey, context: ctxData, seed: Date.now()})
+      body: JSON.stringify({mode: modeKey, context: ctxData, history: hist.slice(-10), seed: Date.now()})
     });
     if (resp.ok) result = await resp.json();
   } catch(e) { console.log("build error", e); }
@@ -823,38 +865,34 @@ async function runBuild(modeKey, ctxData) {
   var waMsg = "Hi TrustedBiz! I want to download my " + label + " for " + name + ". Details: " + JSON.stringify(ctxData);
   var waUrl = "https://wa.me/" + WA + "?text=" + encodeURIComponent(waMsg);
 
-  // Handle Claude returning null (busy/unavailable)
-  if (!html) {
-    var box = document.getElementById(bid);
-    if (box) {
-      var sp2 = document.getElementById(bid + 'sp');
-      if (sp2) { sp2.classList.add('done'); sp2.innerHTML = '&#10060;'; }
-      var sub2 = box.querySelector('.build-sub');
-      if (sub2) sub2.textContent = 'Could not generate right now. Please try again.';
-    }
-    var retryHtml = "<div style=\"padding:6px 0;max-width:92%;\">"
-      + "<button class=\"prev-btn secondary\" onclick=\"send()\">&#8635; Try again</button>"
-      + "</div>";
-    var rw = document.createElement('div');
-    rw.className = 'dg';
-    rw.innerHTML = '<div class=\"dlabel\">Daisy</div>' + retryHtml;
-    t.appendChild(rw);
-    scrl();
-    return;
-  }
-
   // Store html safely in a map keyed by bid - no inline injection
   window._daisyBuilds = window._daisyBuilds || {};
   window._daisyBuilds[bid] = {html: html, mode: modeKey, name: name};
 
   var isSmall = ["logo","flyer","cards","cv","exam","presentation","catalog"].indexOf(modeKey) > -1;
-  var dlBtn = isSmall
-    ? "<button class=\"prev-btn secondary\" onclick=\"_dlByKey('" + bid + "')\">&#11015; Download Free</button>"
-    : "<a class=\"prev-btn wa\" href=\"" + waUrl + "\" target=\"_blank\">&#128247; Get Full Version</a>";
+  var ext = (modeKey === "logo") ? "svg" : "html";
 
-  var actionsHtml = "<div style=\"display:flex;gap:8px;flex-wrap:wrap;padding:6px 0;max-width:92%;\">"
-    + "<button class=\"prev-btn primary\" onclick=\"_previewByKey('" + bid + "')\">&#128065; Preview</button>"
-    + dlBtn
+  // File card with menu
+  var actionsHtml = "<div class=\"file-card\">"
+    + "<div class=\"file-card-top\">"
+    + "<div class=\"file-icon\">" + (ICONS[modeKey] || "&#128196;") + "</div>"
+    + "<div class=\"file-info\">"
+    + "<div class=\"file-name\">" + (LABELS[modeKey] || modeKey) + "</div>"
+    + "<div class=\"file-meta\">" + name + " &middot; Ready</div>"
+    + "</div>"
+    + "<button class=\"file-menu-btn\" onclick=\"toggleFileMenu(\'" + bid + "\')\">&#8942;</button>"
+    + "</div>"
+    + "<div class=\"file-menu\" id=\"fm-" + bid + "\" style=\"display:none\">"
+    + "<button class=\"file-action\" onclick=\"_previewByKey(\'" + bid + "\');toggleFileMenu(\'" + bid + "\')\">&#128065; Preview</button>"
+    + (isSmall
+        ? "<button class=\"file-action\" onclick=\"_dlByKey(\'" + bid + "\');toggleFileMenu(\'" + bid + "\')\">&#11015; Download Free</button>"
+        : "<a class=\"file-action\" href=\"" + waUrl + "\" target=\"_blank\">&#128247; Get Full Version</a>")
+    + "<button class=\"file-action\" onclick=\"_copyByKey(\'" + bid + "\');toggleFileMenu(\'" + bid + "\')\">&#128203; Copy HTML</button>"
+    + "<button class=\"file-action\" onclick=\"_shareByKey(\'" + bid + "\');toggleFileMenu(\'" + bid + "\')\">&#128279; Share</button>"
+    + "</div>"
+    + "<div class=\"file-preview-strip\" onclick=\"_previewByKey(\'" + bid + "\')\">"
+    + "<span class=\"file-preview-hint\">Tap to preview &rarr;</span>"
+    + "</div>"
     + "</div>";
 
   var aw = document.createElement("div");
@@ -876,6 +914,41 @@ function _dlByKey(bid) {
   if (!d) return;
   _prevContent = d.html; _prevMode = d.mode;
   downloadResult();
+}
+
+function _copyByKey(bid) {
+  var d = (window._daisyBuilds || {})[bid];
+  if (!d) return;
+  try {
+    navigator.clipboard.writeText(d.html).then(function(){
+      addD("HTML copied to clipboard. You can paste it anywhere. &#128203;");
+    });
+  } catch(e) {
+    addD("Copy failed — try the Download button instead.");
+  }
+}
+
+function _shareByKey(bid) {
+  var d = (window._daisyBuilds || {})[bid];
+  if (!d) return;
+  if (navigator.share) {
+    var blob = new Blob([d.html], {type:'text/html'});
+    var file = new File([blob], (d.mode || 'file') + '.html', {type:'text/html'});
+    navigator.share({title: d.name, files: [file]}).catch(function(){
+      addD("Share cancelled.");
+    });
+  } else {
+    addD("Sharing not supported on this browser — use Download instead.");
+  }
+}
+
+function toggleFileMenu(bid) {
+  var m = document.getElementById('fm-' + bid);
+  if (!m) return;
+  var open = m.style.display !== 'none';
+  // Close all other menus first
+  document.querySelectorAll('.file-menu').forEach(function(el){ el.style.display='none'; });
+  m.style.display = open ? 'none' : 'block';
 }
 
 function _fallbackHtml(modeKey, ctx) {
