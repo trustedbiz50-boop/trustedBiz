@@ -686,14 +686,15 @@ var PRICES = {logo:"UGX 2,000",flyer:"UGX 2,000",cards:"UGX 2,000",cv:"UGX 2,000
 
 // ── BUILD STEPS per mode ─────────────────────────────────────────
 var BUILD_STEPS = {
-  website:  ["Reading your business details","Choosing layout and style","Writing your sections","Adding your brand colors","Polishing the design","Almost ready..."],
-  logo:     ["Reading your brand name","Choosing shapes and style","Laying out the mark","Applying your colors","Refining the details","Finishing up..."],
-  flyer:    ["Reading your message","Choosing layout","Writing the copy","Adding visual flair","Applying your colors","Finishing up..."],
-  cards:    ["Reading your details","Designing front side","Designing back side","Applying brand style","Polishing typography","Finishing up..."],
-  cv:       ["Reading your details","Structuring sections","Writing professional copy","Applying clean layout","Final formatting","Almost ready..."],
+  website:      ["Reading your business details","Choosing layout and style","Writing your sections","Adding your brand colors","Polishing the design","Almost ready..."],
+  logo:         ["Reading your brand name","Choosing shapes and style","Laying out the mark","Applying your colors","Refining the details","Finishing up..."],
+  flyer:        ["Reading your message","Choosing layout","Writing the copy","Adding visual flair","Applying your colors","Finishing up..."],
+  cards:        ["Reading your details","Designing front side","Designing back side","Applying brand style","Polishing typography","Finishing up..."],
+  cv:           ["Reading your details","Structuring sections","Writing professional copy","Applying clean layout","Final formatting","Almost ready..."],
   presentation: ["Reading your topic","Building slide structure","Writing slide content","Applying visual theme","Adding finishing touches","Almost ready..."],
-  exam:     ["Reading subject details","Setting difficulty level","Writing questions","Adding mark scheme","Formatting paper","Almost ready..."],
-  priceguard: ["Reading your item","Checking market data","Comparing local prices","Calculating fair range","Writing your report","Almost ready..."]
+  exam:         ["Reading subject details","Setting difficulty level","Writing real questions","Adding mark scheme","Formatting paper","Almost ready..."],
+  catalog:      ["Reading your products","Designing the layout","Building product cards","Adding order buttons","Polishing for WhatsApp","Almost ready..."],
+  priceguard:   ["Reading your item","Checking market data","Comparing local prices","Calculating fair range","Writing your report","Almost ready..."]
 };
 
 // ── PREVIEW MODAL ─────────────────────────────────────────────────
@@ -822,11 +823,31 @@ async function runBuild(modeKey, ctxData) {
   var waMsg = "Hi TrustedBiz! I want to download my " + label + " for " + name + ". Details: " + JSON.stringify(ctxData);
   var waUrl = "https://wa.me/" + WA + "?text=" + encodeURIComponent(waMsg);
 
+  // Handle Claude returning null (busy/unavailable)
+  if (!html) {
+    var box = document.getElementById(bid);
+    if (box) {
+      var sp2 = document.getElementById(bid + 'sp');
+      if (sp2) { sp2.classList.add('done'); sp2.innerHTML = '&#10060;'; }
+      var sub2 = box.querySelector('.build-sub');
+      if (sub2) sub2.textContent = 'Could not generate right now. Please try again.';
+    }
+    var retryHtml = "<div style=\"padding:6px 0;max-width:92%;\">"
+      + "<button class=\"prev-btn secondary\" onclick=\"send()\">&#8635; Try again</button>"
+      + "</div>";
+    var rw = document.createElement('div');
+    rw.className = 'dg';
+    rw.innerHTML = '<div class=\"dlabel\">Daisy</div>' + retryHtml;
+    t.appendChild(rw);
+    scrl();
+    return;
+  }
+
   // Store html safely in a map keyed by bid - no inline injection
   window._daisyBuilds = window._daisyBuilds || {};
   window._daisyBuilds[bid] = {html: html, mode: modeKey, name: name};
 
-  var isSmall = ["logo","flyer","cards","cv","exam"].indexOf(modeKey) > -1;
+  var isSmall = ["logo","flyer","cards","cv","exam","presentation","catalog"].indexOf(modeKey) > -1;
   var dlBtn = isSmall
     ? "<button class=\"prev-btn secondary\" onclick=\"_dlByKey('" + bid + "')\">&#11015; Download Free</button>"
     : "<a class=\"prev-btn wa\" href=\"" + waUrl + "\" target=\"_blank\">&#128247; Get Full Version</a>";
