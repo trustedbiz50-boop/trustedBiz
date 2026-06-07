@@ -1661,8 +1661,29 @@ def daisy_ping():
 @app.route('/daisy/build', methods=['POST'])
 def daisy_build():
     import hashlib as _hl
-    from daisy_builders import (_daisy_logo, _daisy_flyer, _daisy_cards,
-                                _daisy_cv, _daisy_exam, _daisy_generic)
+    from daisy_builders import (register_template_saver,
+                                _daisy_logo, _daisy_flyer, _daisy_cards,
+                                _daisy_cv, _daisy_exam, _daisy_generic,
+                                _daisy_presentation, _daisy_catalog)
+
+    # Register template saver so every generation goes to template_pool
+    def _save_to_pool(mode_key, html):
+        try:
+            existing = db_fetchone(
+                q("SELECT id FROM template_pool WHERE category=? AND html=?"),
+                (mode_key, html)
+            )
+            if not existing:
+                db_insert(
+                    q("INSERT INTO template_pool (category, html, quality_score) VALUES (?,?,?)"),
+                    (mode_key, html, 80)
+                )
+                print(f"[Daisy/Template] Saved new {mode_key} template to pool")
+        except Exception as e:
+            print(f"[Daisy/TemplateSave] {e}")
+
+    register_template_saver(_save_to_pool)
+
     data  = request.get_json() or {}
     mode  = (data.get('mode') or '').strip()
     ctx   = data.get('context') or {}
@@ -1673,6 +1694,8 @@ def daisy_build():
     desc  = str(ctx.get('description') or '')
     wa    = str(ctx.get('whatsapp') or '')
     uid   = _hl.md5(f"{name}{seed}".encode()).hexdigest()[:8]
+
+    html = None
     try:
         if mode == 'logo':
             html = _daisy_logo(name, color, style, uid)
@@ -1684,18 +1707,31 @@ def daisy_build():
             html = _daisy_cv(ctx, uid)
         elif mode == 'website':
             from ai_generator import generate_business_website
-            biz = {'name': name, 'category': mode, 'description': desc,
-                   'whatsapp': wa, 'brand_color': color,
+            biz = {'name': name, 'category': ctx.get('category', mode),
+                   'description': desc, 'whatsapp': wa, 'brand_color': color,
                    'hours': ctx.get('hours', 'Mon-Sat 8am-7pm')}
             html = generate_business_website(biz, 'basic')
         elif mode == 'exam':
             html = _daisy_exam(ctx, uid)
+        elif mode == 'presentation':
+            html = _daisy_presentation(ctx, uid)
+        elif mode == 'catalog':
+            html = _daisy_catalog(ctx, uid)
         else:
             html = _daisy_generic(name, mode, color, uid)
-        return jsonify({'html': html, 'mode': mode, 'uid': uid})
     except Exception as e:
         print(f'[Daisy/Build] {e}')
-        return jsonify({'html': _daisy_generic(name, mode, color, uid), 'mode': mode, 'uid': uid})
+
+    if not html:
+        # Claude couldn't generate — honest error, don't pretend with a fallback
+        return jsonify({
+            'html': None,
+            'error': 'Daisy is thinking hard on this one. Please try again in a moment.',
+            'mode': mode,
+            'uid': uid
+        }), 503
+
+    return jsonify({'html': html, 'mode': mode, 'uid': uid})
 
 
 @app.route('/daisy/save-testimonial', methods=['POST'])
