@@ -233,6 +233,124 @@ body{
 }
 .ubadge.on{display:flex;}
 .ihint{text-align:center;font-size:11px;color:var(--dim);font-family:var(--mono);margin-top:6px;}
+/* ── ATTACH MENU & + BUTTON ─────────────────────────────── */
+.ibtn.plus{
+  background:var(--surface2);border-color:var(--border);
+  font-size:22px;font-weight:300;color:var(--brand);
+  transition:all .15s;
+}
+.ibtn.plus:hover{background:var(--brand-dim);border-color:var(--brand);}
+.ibtn.plus.open #plusIcon{transform:rotate(45deg);}
+#plusIcon{display:inline-block;transition:transform .2s;}
+
+.attach-menu{
+  display:none;
+  position:absolute;bottom:72px;left:14px;
+  background:var(--surface);border:1.5px solid var(--border);
+  border-radius:16px;padding:10px;
+  box-shadow:0 8px 32px rgba(0,0,0,.12);
+  z-index:200;
+  animation:up .18s ease both;
+  flex-direction:row;gap:6px;
+}
+.attach-menu.open{display:flex;}
+.attach-opt{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:10px 14px;border:1.5px solid var(--border);
+  border-radius:12px;background:var(--surface2);
+  cursor:pointer;transition:all .12s;font-family:var(--font);
+  min-width:62px;
+}
+.attach-opt:hover{border-color:var(--brand);background:var(--brand-dim);}
+.attach-ico{font-size:22px;}
+.attach-lbl{font-size:11px;font-weight:600;color:var(--mid);}
+
+/* ── VIDEO PANEL ────────────────────────────────────────── */
+.vid-panel{
+  background:var(--surface);border-top:1.5px solid var(--border);
+  padding:12px 14px;display:flex;flex-direction:column;gap:8px;
+}
+.vid-panel-top{display:flex;align-items:center;gap:8px;}
+.vid-file-info{
+  flex:1;font-size:13px;font-weight:600;color:var(--brand);
+  font-family:var(--mono);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.vid-remove{
+  width:28px;height:28px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:7px;
+  cursor:pointer;color:var(--mid);font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.vid-prompt{
+  width:100%;background:var(--surface2);
+  border:1.5px solid var(--border);border-radius:10px;
+  color:var(--text);padding:10px 13px;
+  font-size:14px;font-family:var(--font);outline:none;
+  transition:border-color .15s;
+}
+.vid-prompt:focus{border-color:var(--brand-glow);}
+.vid-prompt::placeholder{color:var(--dim);}
+.vid-submit{
+  background:linear-gradient(135deg,var(--brand),var(--brand-l));
+  color:#fff;border:none;border-radius:10px;
+  padding:11px 18px;font-weight:700;font-size:14px;
+  cursor:pointer;width:100%;font-family:var(--font);
+  transition:opacity .15s;
+}
+.vid-submit:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ── VIDEO PROGRESS ─────────────────────────────────────── */
+.vid-progress{
+  padding:14px 14px 10px;background:var(--surface);
+  border-top:1.5px solid var(--border);
+}
+.vid-progress-bar{
+  height:5px;background:var(--surface2);
+  border-radius:99px;overflow:hidden;margin-bottom:8px;
+}
+.vid-progress-fill{
+  height:100%;width:0;
+  background:linear-gradient(90deg,var(--brand),var(--brand-l),#6c5ce7);
+  border-radius:99px;animation:vidprog 4s ease-in-out infinite;
+}
+@keyframes vidprog{
+  0%{width:4%} 40%{width:65%} 80%{width:88%} 100%{width:92%}
+}
+.vid-progress-msg{
+  font-size:13px;color:var(--mid);font-family:var(--mono);
+  text-align:center;
+}
+
+/* ── VIDEO RESULT ───────────────────────────────────────── */
+.vid-result{
+  padding:12px 14px;background:var(--surface);
+  border-top:1.5px solid var(--brand-glow);
+}
+.vid-preview{
+  width:100%;max-height:260px;border-radius:12px;
+  background:#000;display:block;margin-bottom:10px;
+}
+.vid-result-row{display:flex;gap:8px;}
+.vid-dl{
+  flex:1;background:linear-gradient(135deg,var(--brand),var(--brand-l));
+  color:#fff;text-decoration:none;border-radius:10px;
+  padding:10px;text-align:center;font-weight:700;font-size:14px;
+  font-family:var(--font);
+}
+.vid-again{
+  background:var(--surface2);color:var(--mid);
+  border:1.5px solid var(--border);border-radius:10px;
+  padding:10px 14px;font-size:13px;cursor:pointer;
+  font-family:var(--font);
+}
+.vid-plan{
+  margin-top:8px;font-size:11px;color:var(--dim);
+  font-family:var(--mono);line-height:1.6;
+}
+.vid-plan b{color:var(--brand);}
+
 
 /* COLOR PICKERS */
 .tray{max-width:92%;margin:4px 0 8px;animation:up .2s ease both;}
@@ -533,23 +651,69 @@ body{
   <button class="chip" onclick="go('I need an exam paper')">Exam &#128221;</button>
 </div>
 
+<!-- hidden file inputs -->
+<input type="file" id="ufile"     accept="image/*" multiple style="display:none" onchange="onImg(this.files)">
+<input type="file" id="ufile-vid" accept="video/mp4,video/quicktime,video/webm,video/3gpp,video/*" style="display:none" onchange="onVid(this.files)">
+<input type="file" id="ufile-doc" accept=".pdf,.doc,.docx,.txt" multiple style="display:none" onchange="onDoc(this.files)">
+
+<!-- attach menu -->
+<div class="attach-menu" id="attachMenu">
+  <button class="attach-opt" onclick="closeAttach();document.getElementById('ufile').click()">
+    <span class="attach-ico">🖼️</span><span class="attach-lbl">Photo</span>
+  </button>
+  <button class="attach-opt" onclick="closeAttach();document.getElementById('ufile-vid').click()">
+    <span class="attach-ico">🎬</span><span class="attach-lbl">Video</span>
+  </button>
+  <button class="attach-opt" onclick="closeAttach();document.getElementById('ufile-doc').click()">
+    <span class="attach-ico">📄</span><span class="attach-lbl">File</span>
+  </button>
+  <button class="attach-opt" onclick="closeAttach();go('Edit my video — cinematic style')">
+    <span class="attach-ico">✨</span><span class="attach-lbl">AI Edit</span>
+  </button>
+</div>
+
+<!-- video upload panel -->
+<div class="vid-panel" id="vidPanel" style="display:none">
+  <div class="vid-panel-top">
+    <div class="vid-file-info" id="vidFileInfo">🎬 No video selected</div>
+    <button class="vid-remove" onclick="clearVideo()">✕</button>
+  </div>
+  <input type="text" class="vid-prompt" id="vidPrompt"
+    placeholder="How should Daisy edit it? e.g. cinematic restaurant promo, name is Lias Lounge..."
+    onkeydown="if(event.key==='Enter'){event.preventDefault();submitVideo();}">
+  <button class="vid-submit" id="vidSubmitBtn" onclick="submitVideo()">✨ Edit with Daisy</button>
+</div>
+
+<!-- video progress -->
+<div class="vid-progress" id="vidProgress" style="display:none">
+  <div class="vid-progress-bar"><div class="vid-progress-fill" id="vidFill"></div></div>
+  <div class="vid-progress-msg" id="vidMsg">🎬 Daisy is editing your video...</div>
+</div>
+
+<!-- video result -->
+<div class="vid-result" id="vidResult" style="display:none">
+  <video class="vid-preview" id="vidPreview" controls playsinline></video>
+  <div class="vid-result-row">
+    <a class="vid-dl" id="vidDl" href="#" download>⬇️ Download</a>
+    <button class="vid-again" onclick="resetVideo()">🔄 Edit Another</button>
+  </div>
+  <div class="vid-plan" id="vidPlan"></div>
+</div>
+
 <div class="ibar">
   <div class="ibar-in">
+    <button class="ibtn plus" id="plusBtn" onclick="toggleAttach()" title="Attach">
+      <span id="plusIcon">+</span>
+      <span class="ubadge" id="ubadge"></span>
+    </button>
     <textarea class="ifield" id="ifield" rows="1"
       placeholder="Tell Daisy what you need..."
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"
       oninput="rsz(this)"></textarea>
-    <div style="display:flex;gap:6px;align-items:flex-end;">
-      <button class="ibtn" id="ubtn" onclick="document.getElementById('ufile').click()" title="Attach image">
-        &#128206;<span class="ubadge" id="ubadge"></span>
-      </button>
-      <button class="ibtn send" id="sbtn" onclick="send()">&#8593;</button>
-    </div>
+    <button class="ibtn send" id="sbtn" onclick="send()">&#8593;</button>
   </div>
-  <div class="ihint">Enter to send &middot; &#128206; attach image</div>
+  <div class="ihint">+ to attach &middot; Enter to send</div>
 </div>
-<input type="file" id="ufile" accept="image/*" multiple style="display:none" onchange="onImg(this.files)">
-
 <!-- PREVIEW MODAL -->
 <div class="prev-modal" id="prevModal" style="display:none" onclick="if(event.target===this)closePreview()">
   <div class="prev-inner">
@@ -1199,6 +1363,194 @@ function onImg(files) {
 function ping() {
   fetch("/daisy/ping", {method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).catch(function(){});
 }
+
+
+// ══════════════════════════════════════════════════════════════════
+// ATTACH MENU — + button logic
+// ══════════════════════════════════════════════════════════════════
+var _attachOpen = false;
+
+function toggleAttach() {
+  _attachOpen = !_attachOpen;
+  var menu = document.getElementById('attachMenu');
+  var btn  = document.getElementById('plusBtn');
+  if (_attachOpen) {
+    menu.classList.add('open');
+    btn.classList.add('open');
+    // Close when clicking outside
+    setTimeout(function() {
+      document.addEventListener('click', _outsideAttach);
+    }, 10);
+  } else {
+    closeAttach();
+  }
+}
+
+function closeAttach() {
+  _attachOpen = false;
+  var menu = document.getElementById('attachMenu');
+  var btn  = document.getElementById('plusBtn');
+  if (menu) menu.classList.remove('open');
+  if (btn)  btn.classList.remove('open');
+  document.removeEventListener('click', _outsideAttach);
+}
+
+function _outsideAttach(e) {
+  var menu = document.getElementById('attachMenu');
+  var btn  = document.getElementById('plusBtn');
+  if (menu && !menu.contains(e.target) && btn && !btn.contains(e.target)) {
+    closeAttach();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VIDEO ENGINE — full client logic
+// ══════════════════════════════════════════════════════════════════
+var _vidFile    = null;
+var _vidJobId   = null;
+var _vidPollTmr = null;
+
+function onVid(files) {
+  if (!files || !files.length) return;
+  var file = files[0];
+  var maxMB = 150;
+  if (file.size > maxMB * 1024 * 1024) {
+    addD('That video is over 150MB. Please compress it or use a shorter clip.');
+    return;
+  }
+  _vidFile = file;
+  document.getElementById('vidFileInfo').textContent =
+    '🎬 ' + file.name + ' (' + (file.size/1024/1024).toFixed(1) + 'MB)';
+  _showVidSection('panel');
+  // Update badge
+  var b = document.getElementById('ubadge');
+  b.textContent = '▶'; b.classList.add('on');
+}
+
+function clearVideo() {
+  _vidFile = null;
+  document.getElementById('ufile-vid').value = '';
+  var b = document.getElementById('ubadge');
+  b.textContent = ''; b.classList.remove('on');
+  _showVidSection('none');
+}
+
+async function submitVideo() {
+  if (!_vidFile) return;
+  var prompt = (document.getElementById('vidPrompt').value || '').trim();
+  if (!prompt) {
+    document.getElementById('vidPrompt').placeholder = 'Please describe what you want first...';
+    document.getElementById('vidPrompt').focus();
+    return;
+  }
+
+  _showVidSection('progress');
+  clearVideo();
+
+  var msgs = [
+    '🎬 Daisy is color grading your video...',
+    '✨ Applying cinematic effects...',
+    '🎵 Mixing in the background music...',
+    '📝 Burning your title cards in...',
+    '🎞️ Final render — almost done...',
+    '⚡ Just a few more seconds...',
+  ];
+  var msgIdx = 0;
+
+  var formData = new FormData();
+  formData.append('video',  _vidFile);
+  formData.append('prompt', prompt);
+
+  try {
+    var resp = await fetch('/daisy/video/upload', { method: 'POST', body: formData });
+    var data = await resp.json();
+    if (data.error) { _vidError(data.error); return; }
+    _vidJobId = data.job_id;
+
+    // Poll for result
+    _vidPollTmr = setInterval(async function() {
+      var msgEl = document.getElementById('vidMsg');
+      if (msgEl && msgIdx < msgs.length) {
+        msgEl.textContent = msgs[msgIdx++];
+      }
+      try {
+        var sr = await fetch('/daisy/video/status/' + _vidJobId);
+        var sd = await sr.json();
+        if (sd.status === 'done') {
+          clearInterval(_vidPollTmr);
+          _vidDone(sd.url, sd.plan);
+        } else if (sd.status === 'error') {
+          clearInterval(_vidPollTmr);
+          _vidError(sd.error || 'Something went wrong. Try a shorter clip.');
+        }
+      } catch(e) {}
+    }, 5000);
+
+    // Auto-timeout after 6 minutes
+    setTimeout(function() {
+      if (_vidPollTmr) {
+        clearInterval(_vidPollTmr);
+        _vidError('This video is taking too long. Try a clip under 60 seconds.');
+      }
+    }, 360000);
+
+  } catch(e) {
+    _vidError('Upload failed. Check your connection and try again.');
+  }
+}
+
+function _vidDone(url, plan) {
+  _showVidSection('result');
+  var preview = document.getElementById('vidPreview');
+  var dl      = document.getElementById('vidDl');
+  if (preview) { preview.src = url; preview.load(); }
+  if (dl) { dl.href = url; }
+  if (plan) {
+    var planEl = document.getElementById('vidPlan');
+    if (planEl) {
+      planEl.innerHTML =
+        '<b>Style:</b> ' + (plan.grade||'—') + ' &nbsp; ' +
+        '<b>Music:</b> ' + (plan.music||'—') + ' &nbsp; ' +
+        '<b>Format:</b> ' + (plan.format||'—') + ' &nbsp; ' +
+        '<b>Mood:</b> ' + (plan.mood||'—');
+    }
+  }
+  // Also show in chat
+  addD('Your video is ready! ✨ Download it below or record another. 🎬');
+}
+
+function _vidError(msg) {
+  _showVidSection('none');
+  addD('⚠️ ' + msg);
+}
+
+function resetVideo() {
+  if (_vidPollTmr) clearInterval(_vidPollTmr);
+  _vidFile   = null;
+  _vidJobId  = null;
+  document.getElementById('vidPrompt').value = '';
+  document.getElementById('ufile-vid').value = '';
+  _showVidSection('none');
+}
+
+function _showVidSection(name) {
+  var sections = { panel:'vidPanel', progress:'vidProgress', result:'vidResult' };
+  Object.keys(sections).forEach(function(k) {
+    var el = document.getElementById(sections[k]);
+    if (el) el.style.display = (k === name) ? '' : 'none';
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DOCUMENT ATTACH — show in chat bubble
+// ══════════════════════════════════════════════════════════════════
+function onDoc(files) {
+  if (!files || !files.length) return;
+  var names = Array.from(files).map(function(f){ return f.name; }).join(', ');
+  addU('📄 Attached: ' + names);
+  addD('I can see you attached a file. For now I can read text files — paste the content into the chat and I\'ll help you work with it!');
+}
+
 ping();
 setInterval(ping, 4 * 60 * 1000);
 
