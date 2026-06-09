@@ -680,7 +680,7 @@ body{
   </div>
   <input type="text" class="vid-prompt" id="vidPrompt"
     placeholder="How should Daisy edit it? e.g. cinematic restaurant promo, name is Lias Lounge..."
-    onkeydown="if(event.key==='Enter'){event.preventDefault();submitVideo();}">
+    onkeydown="if(event.key==='Enter'){event.preventDefault();if(_vidFile)submitVideo();}">
   <button class="vid-submit" id="vidSubmitBtn" onclick="submitVideo()">✨ Edit with Daisy</button>
 </div>
 
@@ -1436,13 +1436,21 @@ function clearVideo() {
 }
 
 async function submitVideo() {
-  if (!_vidFile) return;
+  // Strong guard — never hit server without a real file
+  if (!_vidFile || !(_vidFile instanceof File)) {
+    _showVidSection('panel');
+    document.getElementById('vidFileInfo').textContent = '⚠️ Please select a video first';
+    return;
+  }
   var prompt = (document.getElementById('vidPrompt').value || '').trim();
   if (!prompt) {
     document.getElementById('vidPrompt').placeholder = 'Please describe what you want first...';
     document.getElementById('vidPrompt').focus();
     return;
   }
+
+  // Capture file reference BEFORE clearVideo() clears _vidFile
+  var fileToUpload = _vidFile;
 
   _showVidSection('progress');
   clearVideo();
@@ -1458,7 +1466,7 @@ async function submitVideo() {
   var msgIdx = 0;
 
   var formData = new FormData();
-  formData.append('video',  _vidFile);
+  formData.append('video',  fileToUpload);  // use captured ref, not _vidFile
   formData.append('prompt', prompt);
 
   try {
@@ -1520,8 +1528,18 @@ function _vidDone(url, plan) {
 }
 
 function _vidError(msg) {
+  // Show error inline under the + button area, not in chat
   _showVidSection('none');
-  addD('⚠️ ' + msg);
+  var errDiv = document.getElementById('vidInlineError');
+  if (!errDiv) {
+    errDiv = document.createElement('div');
+    errDiv.id = 'vidInlineError';
+    errDiv.style.cssText = 'font-size:12px;color:#e17055;padding:4px 14px 0;font-family:var(--mono);text-align:center;';
+    var ibar = document.querySelector('.ibar');
+    if (ibar) ibar.parentNode.insertBefore(errDiv, ibar);
+  }
+  errDiv.textContent = '⚠️ ' + msg;
+  setTimeout(function(){ errDiv.textContent = ''; }, 5000);
 }
 
 function resetVideo() {
