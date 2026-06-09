@@ -382,30 +382,7 @@ body{
   .dbubble,.ububble{font-size:14px;}
 }
 
-/* SOCIAL PROOF STRIP */
-.proof-strip{
-  display:flex;gap:10px;padding:8px 14px 2px;
-  overflow:hidden;flex-shrink:0;
-  position:relative;
-}
-.proof-track{
-  display:flex;gap:10px;
-  animation:proofScroll 28s linear infinite;
-  will-change:transform;
-}
-.proof-strip:hover .proof-track{animation-play-state:paused;}
-@keyframes proofScroll{
-  0%{transform:translateX(0);}
-  100%{transform:translateX(-50%);}
-}
-.proof-card{
-  flex-shrink:0;background:var(--surface);
-  border:1.5px solid var(--border);border-radius:13px;
-  padding:10px 13px;min-width:200px;max-width:230px;
-}
-.proof-biz{font-size:12px;font-weight:700;color:var(--brand);margin-bottom:2px;}
-.proof-quote{font-size:12px;color:var(--mid);line-height:1.5;}
-.proof-name{font-size:11px;color:var(--dim);margin-top:5px;font-family:var(--mono);}
+
 .proof-stars{color:#f59e0b;font-size:11px;letter-spacing:1px;}
 
 /* BUILD EXPERIENCE */
@@ -533,6 +510,41 @@ body{
 }
 .file-preview-strip:hover{background:var(--brand)12;}
 .file-preview-hint{font-size:12px;color:var(--brand);font-weight:600;}
+
+/* HERO HEADLINE */
+.daisy-hero{
+  padding:18px 16px 4px;
+  text-align:center;
+  flex-shrink:0;
+}
+.hero-title{
+  font-size:clamp(22px,6vw,32px);
+  font-weight:800;
+  color:var(--text);
+  letter-spacing:-0.5px;
+  margin-bottom:4px;
+  line-height:1.1;
+}
+.hero-title span{color:var(--brand);}
+.hero-sub{
+  font-size:12px;
+  color:var(--dim);
+  letter-spacing:0.5px;
+}
+/* Hide hero once chat starts */
+.hero-hidden{
+  display:none;
+}
+
+.chip-main{
+  background:var(--brand) !important;
+  color:#fff !important;
+  border-color:var(--brand) !important;
+  font-weight:700;
+}
+.chip-main:hover{
+  background:var(--brand-d) !important;
+}
 </style>
 </head>
 <body>
@@ -590,64 +602,47 @@ body{
   <div class="thread" id="thread"></div>
 </div>
 
-<div class="proof-strip" id="proofStrip">
-  <div class="proof-track" id="proofTrack">
-  <div class="proof-card">
-    <div class="proof-biz">Mama Rosa Kitchen &middot; Kampala</div>
-    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+<div class="daisy-hero" id="daisyHero">
+  <h1 class="hero-title">Let&#39;s Build Anything</h1>
+  <p class="hero-sub">Logos · Websites · Flyers · Videos · CVs · Exams · Catalogs</p>
+</div>
+<div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"I got my website in 5 minutes. Customers now find me on Google."</div>
     <div class="proof-name">&mdash; Rosa N., Restaurant owner</div>
-  </div>
-  <div class="proof-card">
-    <div class="proof-biz">FixIt Garage &middot; Jinja</div>
-    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+  </div><div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"Daisy made my logo and flyer. People think I paid a designer millions."</div>
     <div class="proof-name">&mdash; Dennis K., Mechanic</div>
-  </div>
-  <div class="proof-card">
-    <div class="proof-biz">GlowUp Salon &middot; Entebbe</div>
-    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+  </div><div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"My clients book through my TrustedBiz page now. So professional."</div>
     <div class="proof-name">&mdash; Grace A., Salon owner</div>
-  </div>
-  <div class="proof-card">
-    <div class="proof-biz">QuickMeds Pharmacy &middot; Mbarara</div>
-    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+  </div><div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"Set up in minutes. My business finally looks serious online."</div>
     <div class="proof-name">&mdash; Ivan M., Pharmacist</div>
-  </div>
-  <div class="proof-card">
-    <div class="proof-biz">Mama Rosa Kitchen &middot; Kampala</div>
-    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+  </div><div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"I got my website in 5 minutes. Customers now find me on Google."</div>
     <div class="proof-name">&mdash; Rosa N., Restaurant owner</div>
-  </div>
-  <div class="proof-card">
-    <div class="proof-biz">FixIt Garage &middot; Jinja</div>
-    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+  </div><div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"Daisy made my logo and flyer. People think I paid a designer millions."</div>
     <div class="proof-name">&mdash; Dennis K., Mechanic</div>
-  </div>
-  <div class="proof-card">
-    <div class="proof-biz">GlowUp Salon &middot; Entebbe</div>
-    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+  </div><div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"My clients book through my TrustedBiz page now. So professional."</div>
     <div class="proof-name">&mdash; Grace A., Salon owner</div>
-  </div>
-  <div class="proof-card">
-    <div class="proof-biz">QuickMeds Pharmacy &middot; Mbarara</div>
-    <div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+  </div><div class="proof-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
     <div class="proof-quote">"Set up in minutes. My business finally looks serious online."</div>
     <div class="proof-name">&mdash; Ivan M., Pharmacist</div>
   </div>
   </div>
 </div>
 <div class="chips" id="chips">
-  <button class="chip" onclick="go('I need a website')">Website &#127760;</button>
+  <button class="chip chip-main" onclick="go('I need help creating something')">&#10022; Create anything</button>
+  <button class="chip" onclick="document.getElementById('ufile-vid').click()">&#127916; Edit video</button>
+  <button class="chip" onclick="go('I need help writing or editing something')">&#9998; Write &amp; edit</button>
   <button class="chip" onclick="go('I need a logo')">Logo &#10024;</button>
+  <button class="chip" onclick="go('I need a website')">Website &#127760;</button>
   <button class="chip" onclick="go('I need a flyer')">Flyer &#128196;</button>
-  <button class="chip" onclick="go('I need business cards')">Cards</button>
+  <button class="chip" onclick="go('I need business cards')">Cards &#128179;</button>
   <button class="chip" onclick="go('I need a CV')">CV &#128203;</button>
+  <button class="chip" onclick="go('I need a WhatsApp catalog')">Catalog &#128717;</button>
   <button class="chip" onclick="go('I need an exam paper')">Exam &#128221;</button>
 </div>
 
@@ -712,7 +707,7 @@ body{
       oninput="rsz(this)"></textarea>
     <button class="ibtn send" id="sbtn" onclick="send()">&#8593;</button>
   </div>
-  <div class="ihint">+ to attach &middot; Enter to send</div>
+  <div class="ihint">Enter to send &middot; &#128206; attach &middot; <em>Daizy is young and can make mistakes</em></div>
 </div>
 <!-- PREVIEW MODAL -->
 <div class="prev-modal" id="prevModal" style="display:none" onclick="if(event.target===this)closePreview()">
@@ -1268,9 +1263,14 @@ async function send() {
   document.getElementById("ubadge").classList.remove("on");
 
   addU(text, sentImgs);
-  f.value = "";
-  rsz(f);
-  msgs++;
+  f.value = ""; rsz(f); msgs++;
+  // Fade out hero + chips + proof strip once chat starts
+  if (msgs === 1) {
+    var _hero = document.getElementById('daisyHero');
+    if (_hero) { _hero.style.transition='opacity .5s'; _hero.style.opacity='0'; setTimeout(function(){ _hero.style.display='none'; },500); }
+    var _chips = document.getElementById('chips');
+    if (_chips) { _chips.style.transition='opacity .5s'; _chips.style.opacity='0'; setTimeout(function(){ _chips.style.display='none'; },500); }
+  }
 
   try {
     showDots();
@@ -1575,23 +1575,7 @@ setInterval(ping, 4 * 60 * 1000);
 // Boot
 boot();
 
-// ── PROOF STRIP: hide after 60s, return after 5min ───────────────
-(function() {
-  var strip = document.getElementById('proofStrip');
-  if (!strip) return;
-  setTimeout(function() {
-    strip.style.transition = 'opacity .8s, max-height .8s';
-    strip.style.opacity = '0';
-    strip.style.maxHeight = '0';
-    strip.style.overflow = 'hidden';
-    strip.style.padding = '0';
-    setTimeout(function() {
-      strip.style.opacity = '1';
-      strip.style.maxHeight = '120px';
-      strip.style.padding = '';
-    }, 5 * 60 * 1000);
-  }, 60 * 1000);
-})();
+
 
 // ── TESTIMONIAL GATE: after 20 msgs ask for testimonial to continue ──
 var _testGiven = false;
