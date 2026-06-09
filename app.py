@@ -1831,7 +1831,9 @@ def daisy_chat():
             with _ur.urlopen(req, timeout=12) as r:
                 reply = _j.loads(r.read().decode())['choices'][0]['message']['content'].strip()
         except Exception as e:
-            print(f'[Daisy/Groq] {e}')
+            # 403 = key invalid/deleted — expected, fall through silently
+            if '403' not in str(e) and '401' not in str(e):
+                print(f'[Daisy/Groq] {e}')
 
     # Step 2: Fallback to Claude Haiku — full history passed so Daisy remembers
     if not reply:
