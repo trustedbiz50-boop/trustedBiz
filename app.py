@@ -1888,6 +1888,76 @@ def search_page():
         current_user=get_current_user())
 
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DAISY VIDEO ENGINE ROUTES
+# ══════════════════════════════════════════════════════════════════════════════
+VIDEO_UPLOAD_DIR = Path("static/video_uploads")
+VIDEO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+ALLOWED_VIDEO_EXT = {"mp4","mov","avi","mkv","webm","3gp","m4v"}
+
+def _allowed_video(fn):
+    return "." in fn and fn.rsplit(".",1)[1].lower() in ALLOWED_VIDEO_EXT
+
+@app.route("/daisy/video/upload", methods=["POST"])
+def daisy_video_upload():
+    from video_engine import submit_video_job
+    user_prompt = (request.form.get("prompt") or request.form.get("message") or "").strip()
+    video_file  = request.files.get("video")
+    if not video_file or not video_file.filename:
+        return jsonify({"error":"No video file uploaded"}), 400
+    if not _allowed_video(video_file.filename):
+        return jsonify({"error":"File type not supported. Use MP4, MOV, or 3GP"}), 400
+    if not user_prompt:
+        user_prompt = "Make a professional promo video"
+    ext      = video_file.filename.rsplit(".",1)[1].lower()
+    raw_path = VIDEO_UPLOAD_DIR / f"{secrets.token_hex(10)}.{ext}"
+    try:
+        video_file.save(str(raw_path))
+    except Exception as e:
+        return jsonify({"error":f"Upload failed: {e}"}), 500
+    size_mb = raw_path.stat().st_size / (1024*1024)
+    if size_mb > 150:
+        raw_path.unlink(missing_ok=True)
+        return jsonify({"error":"Video too large. Max 150MB"}), 400
+    job_id = submit_video_job(str(raw_path), user_prompt)
+    return jsonify({"job_id":job_id,"status":"processing",
+        "message":"Daisy is editing your video... check back in 30-60 seconds 🎬",
+        "prompt":user_prompt})
+
+@app.route("/daisy/video/status/<job_id>", methods=["GET"])
+def daisy_video_status(job_id):
+    from video_engine import get_job
+    job = get_job(job_id)
+    if not job:
+        return jsonify({"error":"Job not found"}), 404
+    resp = {"job_id":job_id,"status":job["status"],"prompt":job.get("prompt","")}
+    if job["status"] == "done":
+        resp["url"]     = job["url"]
+        resp["plan"]    = job.get("plan",{})
+        resp["message"] = "Your video is ready! 🎬✨"
+    elif job["status"] == "error":
+        resp["error"]   = job.get("error","Unknown error")
+        resp["message"] = "Something went wrong. Try again with a shorter video."
+    else:
+        resp["message"] = "Still editing... Daisy is working on it 🎬"
+    return jsonify(resp)
+
+@app.route("/daisy/video/check", methods=["GET"])
+def daisy_video_check():
+    import shutil as _sh
+    ff = _sh.which("ffmpeg")
+    fp = _sh.which("ffprobe")
+    return jsonify({
+        "ffmpeg":      bool(ff),
+        "ffprobe":     bool(fp),
+        "ffmpeg_path": ff,
+        "cloudinary":  bool(os.environ.get("CLOUDINARY_URL")),
+        "anthropic":   bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "ready":       bool(ff and fp),
+        "message":     "Daisy Video Engine is ready 🎬" if ff else "FFmpeg not found — check build command"
+    })
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 

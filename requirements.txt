@@ -5,3 +5,4 @@ cloudinary
 anthropic
 requests
 gunicorn
+ffmpeg-python
