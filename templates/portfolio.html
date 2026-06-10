@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Benjamin K | Backend Developer | Entebbe, Uganda</title>
+<meta name="description" content="Benjamin K | Backend Developer from Entebbe, Uganda. Founder of TrustedBiz. Building real products that solve real problems.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --ink:#0a0a0a;
+  --paper:#f2ede6;
+  --accent:#c8442a;
+  --accent2:#2b7a78;
+  --muted:#8a8178;
+  --border:#d9d2c8;
+}
+[data-theme="dark"]{
+  --ink:#e8e2d9;
+  --paper:#0a0a0a;
+  --accent:#e05a3a;
+  --accent2:#2b9e9b;
+  --muted:#5a5550;
+  --border:#1e1e1e;
+}
+[data-theme="dark"] .hero-bg-text{color:rgba(255,255,255,.03);}
+[data-theme="dark"] .term-card{background:#111;}
+[data-theme="dark"] .stack-item{border-color:#1e1e1e;}
+[data-theme="dark"] .stack-item:hover{background:#e8e2d9;border-color:#e8e2d9;}
+[data-theme="dark"] .stack-item:hover .stack-name{color:#0a0a0a;}
+[data-theme="dark"] .info-card{background:#111;border-color:#1e1e1e;}
+[data-theme="dark"] body{background:#0a0a0a;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Syne',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  overflow-x:hidden;
+  cursor:none;
+}
+
+/* Custom cursor */
+.cursor{position:fixed;width:10px;height:10px;background:var(--accent);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .2s,height .2s,background .2s;}
+.cursor-ring{position:fixed;width:36px;height:36px;border:1.5px solid var(--accent);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .12s ease;opacity:.6;}
+
+/* Noise overlay */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1000;opacity:.35;
+}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:500;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:20px 48px;
+  mix-blend-mode:multiply;
+}
+.nav-logo{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:22px;letter-spacing:3px;color:var(--ink);
+  text-decoration:none;
+}
+.nav-links{display:flex;gap:32px;}
+.nav-links a{
+  font-family:'DM Mono',monospace;font-size:11px;
+  color:var(--muted);text-decoration:none;letter-spacing:1.5px;
+  text-transform:uppercase;transition:color .2s;
+}
+.nav-links a:hover{color:var(--accent);}
+
+/* HERO */
+.hero{
+  min-height:100vh;display:flex;flex-direction:column;
+  justify-content:flex-end;padding:0 48px 64px;
+  position:relative;overflow:hidden;
+  border-bottom:1px solid var(--border);
+}
+.hero-bg-text{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(120px,22vw,320px);
+  color:rgba(0,0,0,.04);letter-spacing:-4px;white-space:nowrap;
+  pointer-events:none;user-select:none;line-height:1;
+}
+.hero-tag{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;
+  text-transform:uppercase;color:var(--accent);margin-bottom:24px;
+  display:flex;align-items:center;gap:10px;
+}
+.hero-tag::before{content:'';width:32px;height:1px;background:var(--accent);}
+.hero-name{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(72px,14vw,200px);
+  line-height:.9;letter-spacing:-3px;
+  color:var(--ink);margin-bottom:32px;
+}
+.hero-name .accent{color:var(--accent);}
+.hero-bottom{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  flex-wrap:wrap;gap:24px;
+}
+.hero-desc{
+  font-family:'DM Mono',monospace;font-size:13px;
+  color:var(--muted);line-height:2;max-width:360px;font-style:italic;
+}
+.hero-meta{
+  display:flex;flex-direction:column;gap:8px;text-align:right;
+}
+.hero-meta span{
+  font-family:'DM Mono',monospace;font-size:11px;
+  letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);
+}
+.hero-meta strong{color:var(--ink);}
+.scroll-hint{
+  position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
+  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.scroll-line{width:1px;height:40px;background:var(--border);animation:scrollDown 2s ease-in-out infinite;}
+@keyframes scrollDown{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+/* MARQUEE */
+.marquee-wrap{
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  padding:14px 0;overflow:hidden;
+  background:var(--ink);
+}
+.marquee-inner{
+  display:flex;white-space:nowrap;
+  animation:marquee 18s linear infinite;
+}
+.marquee-inner span{
+  font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;
+  color:var(--paper);padding:0 32px;opacity:.7;
+}
+.marquee-inner .dot{color:var(--accent);opacity:1;}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* SECTIONS */
+section{padding:96px 48px;border-bottom:1px solid var(--border);}
+.section-label{
+  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:48px;
+  display:flex;align-items:center;gap:16px;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ABOUT */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start;}
+.about-headline{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(48px,7vw,96px);line-height:.9;letter-spacing:-2px;
+}
+.about-headline .line2{color:var(--accent);}
+.about-body{display:flex;flex-direction:column;gap:24px;}
+.about-body p{
+  font-family:'Syne',sans-serif;font-size:16px;
+  color:#444;line-height:1.9;font-weight:400;
+}
+.about-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.badge{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;
+  border:1px solid var(--border);padding:6px 14px;border-radius:100px;
+  color:var(--muted);transition:all .2s;cursor:default;
+}
+.badge:hover{border-color:var(--accent);color:var(--accent);background:rgba(200,68,42,.05);}
+.badge.active{border-color:var(--accent2);color:var(--accent2);background:rgba(43,122,120,.08);}
+
+/* WORK */
+.work-grid{display:grid;gap:2px;}
+.project{
+  display:grid;grid-template-columns:80px 1fr auto;
+  align-items:center;gap:32px;padding:32px 0;
+  border-top:1px solid var(--border);
+  transition:background .2s;cursor:pointer;position:relative;
+}
+.project:hover{padding-left:16px;padding-right:16px;margin-left:-16px;margin-right:-16px;}
+.project:hover .proj-num{color:var(--accent);}
+.proj-num{
+  font-family:'Bebas Neue',sans-serif;font-size:48px;
+  color:var(--border);line-height:1;transition:color .3s;
+}
+.proj-info{}
+.proj-name{
+  font-family:'Syne',sans-serif;font-size:24px;font-weight:800;
+  color:var(--ink);margin-bottom:6px;letter-spacing:-.5px;
+}
+.proj-desc{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);line-height:1.7;}
+.proj-tags{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.proj-tag{
+  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;
+  background:var(--ink);color:var(--paper);padding:4px 10px;border-radius:4px;
+}
+.proj-tag.green{background:var(--accent2);}
+.proj-tag.red{background:var(--accent);}
+.proj-link{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--muted);text-decoration:none;
+  display:flex;align-items:center;gap:8px;white-space:nowrap;
+  transition:color .2s;
+}
+.proj-link:hover{color:var(--accent);}
+.proj-arrow{
+  width:36px;height:36px;border:1px solid var(--border);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;font-size:14px;
+}
+.project:hover .proj-arrow{background:var(--accent);border-color:var(--accent);color:white;}
+
+/* STACK */
+.stack-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:2px;
+}
+.stack-item{
+  border:1px solid var(--border);padding:28px 24px;
+  transition:all .2s;
+}
+.stack-item:hover{background:var(--ink);border-color:var(--ink);}
+.stack-item:hover .stack-name{color:var(--paper);}
+.stack-item:hover .stack-level{color:var(--accent);}
+.stack-icon{font-size:28px;margin-bottom:12px;}
+.stack-name{
+  font-family:'Syne',sans-serif;font-size:15px;font-weight:700;
+  color:var(--ink);margin-bottom:4px;transition:color .2s;
+}
+.stack-level{
+  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;
+  color:var(--muted);text-transform:uppercase;transition:color .2s;
+}
+
+/* TERMS */
+.terms-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;}
+.term-card{padding:36px;border:1px solid var(--border);position:relative;}
+.term-num{
+  font-family:'Bebas Neue',sans-serif;font-size:64px;
+  color:rgba(0,0,0,.06);position:absolute;top:16px;right:20px;line-height:1;
+}
+.term-title{
+  font-family:'Syne',sans-serif;font-size:18px;font-weight:800;
+  color:var(--ink);margin-bottom:12px;
+}
+.term-body{
+  font-family:'DM Mono',monospace;font-size:12px;
+  color:var(--muted);line-height:1.9;font-style:italic;
+}
+
+/* CONTACT */
+.contact-inner{max-width:800px;}
+.contact-headline{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(56px,10vw,140px);
+  line-height:.85;letter-spacing:-3px;margin-bottom:48px;
+}
+.contact-headline .alt{
+  -webkit-text-stroke:2px var(--ink);color:transparent;
+}
+.contact-links{display:flex;flex-direction:column;gap:2px;}
+.contact-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:20px 0;border-top:1px solid var(--border);
+  text-decoration:none;
+  transition:padding .2s;
+}
+.contact-row:hover{padding-left:16px;}
+.contact-row:hover .contact-arrow{transform:rotate(45deg);}
+.contact-label{
+  font-family:'DM Mono',monospace;font-size:11px;
+  letter-spacing:2px;text-transform:uppercase;color:var(--muted);
+}
+.contact-val{
+  font-family:'Syne',sans-serif;font-size:18px;font-weight:700;
+  color:var(--ink);
+}
+.contact-arrow{
+  font-size:20px;transition:transform .3s;color:var(--muted);
+}
+
+/* FOOTER */
+footer{
+  padding:32px 48px;
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:16px;
+}
+.footer-name{
+  font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;
+}
+.footer-copy{
+  font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;
+}
+
+/* REVEAL */
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .8s ease,transform .8s ease;}
+.reveal.in{opacity:1;transform:none;}
+.reveal-left{opacity:0;transform:translateX(-32px);transition:opacity .8s ease,transform .8s ease;}
+.reveal-left.in{opacity:1;transform:none;}
+
+/* MOBILE */
+@media(max-width:768px){
+  nav{padding:16px 20px;}
+  .nav-links{display:none;}
+  .hero{padding:0 20px 48px;}
+  section{padding:64px 20px;}
+  .about-grid{grid-template-columns:1fr;gap:40px;}
+  .project{grid-template-columns:48px 1fr;gap:16px;}
+  .proj-link{display:none;}
+  .terms-grid{grid-template-columns:1fr;}
+  footer{padding:24px 20px;}
+  .contact-val{font-size:14px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cur"></div>
+<div class="cursor-ring" id="curR"></div>
+
+<nav>
+  <a href="#" class="nav-logo">BK</a>
+  <div class="nav-links">
+    <a href="#work">Work</a>
+    <a href="#stack">Stack</a>
+    <a href="#terms">Terms</a>
+    <a href="#contact">Contact</a>
+    <button id="themeBtn" onclick="toggleTheme()" style="background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;padding:6px 14px;border-radius:100px;cursor:pointer;transition:all .2s;">◐ Theme</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-text">BACKEND</div>
+  <div class="hero-tag">Available for Remote Work</div>
+  <h1 class="hero-name">
+    Benjamin<br><span class="accent">K.</span>
+  </h1>
+  <div class="hero-bottom">
+    <p class="hero-desc">
+      Backend developer from Entebbe, Uganda.<br>
+      Building real products that solve real problems.<br>
+      Founder of TrustedBiz | Uganda's business platform.
+    </p>
+    <div class="hero-meta">
+      <span>Location | <strong>Entebbe, Uganda</strong></span>
+      <span>Work | <strong>Remote Only</strong></span>
+      <span>Nationality | <strong>Ugandan</strong></span>
+      <span>Status | <strong style="color:#2b7a78;">Open to Work</strong></span>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <span>Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-wrap" aria-hidden="true">
+  <div class="marquee-inner">
+    <span>Python</span><span class="dot">✦</span>
+    <span>JavaScript</span><span class="dot">✦</span>
+    <span>Flask</span><span class="dot">✦</span>
+    <span>PostgreSQL</span><span class="dot">✦</span>
+    <span>HTML & CSS</span><span class="dot">✦</span>
+    <span>REST APIs</span><span class="dot">✦</span>
+    <span>Anthropic AI</span><span class="dot">✦</span>
+    <span>Cloudinary</span><span class="dot">✦</span>
+    <span>Render</span><span class="dot">✦</span>
+    <span>Git & GitHub</span><span class="dot">✦</span>
+    <!-- duplicate for seamless loop -->
+    <span>Python</span><span class="dot">✦</span>
+    <span>JavaScript</span><span class="dot">✦</span>
+    <span>Flask</span><span class="dot">✦</span>
+    <span>PostgreSQL</span><span class="dot">✦</span>
+    <span>HTML & CSS</span><span class="dot">✦</span>
+    <span>REST APIs</span><span class="dot">✦</span>
+    <span>Anthropic AI</span><span class="dot">✦</span>
+    <span>Cloudinary</span><span class="dot">✦</span>
+    <span>Render</span><span class="dot">✦</span>
+    <span>Git & GitHub</span><span class="dot">✦</span>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="section-label">01 — About</div>
+  <div class="about-grid">
+    <h2 class="about-headline reveal-left">
+      I Build<br>
+      <span class="line2">Real</span><br>
+      Things.
+    </h2>
+    <div class="about-body">
+      <p class="reveal">
+        I am a self-taught backend developer based in Entebbe, Uganda. 
+        I specialize in Python and Flask, building full-stack web applications 
+        that are fast, reliable, and production-ready.
+      </p>
+      <p class="reveal">
+        I am the founder of <strong>TrustedBiz</strong> | a growing Ugandan company 
+        that builds professional websites for local businesses at an affordable monthly fee. 
+        TrustedBiz runs on a PostgreSQL database, integrates the Anthropic AI API for 
+        website generation, Cloudinary for media, and is live and serving real clients.
+      </p>
+      <p class="reveal">
+        I work by percentage | you pay after you see real progress. 
+        No video calls needed. I let the work speak.
+      </p>
+      <div class="about-badges reveal">
+        <span class="badge active">Python</span>
+        <span class="badge active">Flask</span>
+        <span class="badge active">PostgreSQL</span>
+        <span class="badge">JavaScript</span>
+        <span class="badge">HTML/CSS</span>
+        <span class="badge">REST APIs</span>
+        <span class="badge">AI Integration</span>
+        <span class="badge">Git</span>
+        <span class="badge">Render</span>
+        <span class="badge">Cloudinary</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WORK -->
+<section id="work">
+  <div class="section-label">02 — Selected Work</div>
+  <div class="work-grid">
+
+    <div class="project reveal" onclick="window.open('https://trustedbiz.co.ug','_blank')">
+      <div class="proj-num">01</div>
+      <div class="proj-info">
+        <div class="proj-name">TrustedBiz</div>
+        <div class="proj-desc">
+          Full SaaS platform for Ugandan small businesses. AI-generated websites, 
+          business directory, Price Guard widget, admin panel, subscription payments. 
+          Live and growing.
+        </div>
+        <div class="proj-tags">
+          <span class="proj-tag">Python</span>
+          <span class="proj-tag">Flask</span>
+          <span class="proj-tag">PostgreSQL</span>
+          <span class="proj-tag green">Anthropic AI</span>
+          <span class="proj-tag">Cloudinary</span>
+          <span class="proj-tag red">LIVE</span>
+        </div>
+      </div>
+      <a href="https://trustedbiz.co.ug" target="_blank" class="proj-link" onclick="e=>e.stopPropagation()">
+        Visit <div class="proj-arrow">↗</div>
+      </a>
+    </div>
+
+    <div class="project reveal">
+      <div class="proj-num">02</div>
+      <div class="proj-info">
+        <div class="proj-name">Daizy AI</div>
+        <div class="proj-desc">
+          Custom AI assistant engine with training data, memory system, 
+          AI prompt diagnosis, and a "reproduce" feature that generates 
+          custom AI assistants for businesses.
+        </div>
+        <div class="proj-tags">
+          <span class="proj-tag">Python</span>
+          <span class="proj-tag">Flask</span>
+          <span class="proj-tag green">AI Engine</span>
+          <span class="proj-tag">REST API</span>
+        </div>
+      </div>
+      <div class="proj-link">
+        Private <div class="proj-arrow">🔒</div>
+      </div>
+    </div>
+
+    <div class="project reveal">
+      <div class="proj-num">03</div>
+      <div class="proj-info">
+        <div class="proj-name">Client Websites</div>
+        <div class="proj-desc">
+          Professional websites built for Ugandan businesses including 
+          Comfy Bar & Grill, Eden Yard Bar & Restaurant, Derma Bloom Aesthetics & Spa, 
+          Lias Lounge, Faith Events, SMG Contractors and more.
+        </div>
+        <div class="proj-tags">
+          <span class="proj-tag">HTML/CSS</span>
+          <span class="proj-tag">JavaScript</span>
+          <span class="proj-tag green">AI Generated</span>
+          <span class="proj-tag red">8 Clients</span>
+        </div>
+      </div>
+      <div class="proj-link">
+        In Progress <div class="proj-arrow">⚡</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- STACK -->
+<section id="stack">
+  <div class="section-label">03 — Tech Stack</div>
+  <div class="stack-grid">
+    <div class="stack-item reveal">
+      <div class="stack-icon">🐍</div>
+      <div class="stack-name">Python</div>
+      <div class="stack-level">Primary Language</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-icon">⚗️</div>
+      <div class="stack-name">Flask</div>
+      <div class="stack-level">Backend Framework</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-icon">🐘</div>
+      <div class="stack-name">PostgreSQL</div>
+      <div class="stack-level">Database</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-icon">⚡</div>
+      <div class="stack-name">JavaScript</div>
+      <div class="stack-level">Frontend Logic</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-icon">🎨</div>
+      <div class="stack-name">HTML & CSS</div>
+      <div class="stack-level">Good at Frontend</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-icon">🤖</div>
+      <div class="stack-name">Anthropic AI</div>
+      <div class="stack-level">AI Integration</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-icon">☁️</div>
+      <div class="stack-name">Cloudinary</div>
+      <div class="stack-level">Media Storage</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-icon">🚀</div>
+      <div class="stack-name">Render</div>
+      <div class="stack-level">Deployment</div>
+    </div>
+    <div class="stack-item reveal">
+      <div class="stack-icon">🔧</div>
+      <div class="stack-name">Git & GitHub</div>
+      <div class="stack-level">Version Control</div>
+    </div>
+  </div>
+</section>
+
+<!-- TERMS -->
+<section id="terms">
+  <div class="section-label">04 — How I Work</div>
+  <div class="terms-grid">
+    <div class="term-card reveal">
+      <div class="term-num">01</div>
+      <div class="term-title">Pay After You See</div>
+      <div class="term-body">
+        I work by percentage. You see real progress at every milestone 
+        before paying. No upfront full payment. No trust issues. 
+        You only pay for what you've seen working.
+      </div>
+    </div>
+    <div class="term-card reveal">
+      <div class="term-num">02</div>
+      <div class="term-title">No Video Calls</div>
+      <div class="term-body">
+        Confirmation is through real deliverables | not meetings. 
+        I send working code, screenshots, and live previews. 
+        My work speaks louder than any call.
+      </div>
+    </div>
+    <div class="term-card reveal">
+      <div class="term-num">03</div>
+      <div class="term-title">Remote Only</div>
+      <div class="term-body">
+        Based in Entebbe, Uganda. Available to work with clients 
+        anywhere in the world. Time zones are not a problem | 
+        I deliver on agreed timelines.
+      </div>
+    </div>
+    <div class="term-card reveal">
+      <div class="term-num">04</div>
+      <div class="term-title">Real Work Only</div>
+      <div class="term-body">
+        I build things that work in production | not just demos. 
+        TrustedBiz is live proof. Every project I take on 
+        is treated like my own product.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="section-label">05 — Contact</div>
+  <div class="contact-inner">
+    <h2 class="contact-headline reveal-left">
+      Let's<br>
+      <span class="alt">Build</span><br>
+      Together.
+    </h2>
+    <div class="contact-links">
+      <a href="https://trustedbiz.co.ug" target="_blank" class="contact-row reveal">
+        <span class="contact-label">Platform</span>
+        <span class="contact-val">trustedbiz.co.ug</span>
+        <span class="contact-arrow">↗</span>
+      </a>
+      <a href="https://github.com" target="_blank" class="contact-row reveal">
+        <span class="contact-label">GitHub</span>
+        <span class="contact-val">github.com/trustedbiz50-boop</span>
+        <span class="contact-arrow">↗</span>
+      </a>
+      <div class="contact-row reveal">
+        <span class="contact-label">Location</span>
+        <span class="contact-val">Entebbe, Uganda 🇺🇬</span>
+        <span class="contact-arrow"> | </span>
+      </div>
+      <div class="contact-row reveal">
+        <span class="contact-label">Availability</span>
+        <span class="contact-val" style="color:#2b7a78;">Open to Remote Work</span>
+        <span class="contact-arrow"> | </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-name">Benjamin K.</div>
+  <div class="footer-copy">© 2026 | Entebbe, Uganda | Backend Developer</div>
+</footer>
+
+<script>
+// Custom cursor
+var cur=document.getElementById('cur'),curR=document.getElementById('curR');
+var mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',function(e){
+  mx=e.clientX;my=e.clientY;
+  cur.style.left=mx+'px';cur.style.top=my+'px';
+});
+function animCursor(){
+  rx+=(mx-rx)*.12;ry+=(my-ry)*.12;
+  curR.style.left=rx+'px';curR.style.top=ry+'px';
+  requestAnimationFrame(animCursor);
+}
+animCursor();
+document.querySelectorAll('a,button,.project,.stack-item,.term-card').forEach(function(el){
+  el.addEventListener('mouseenter',function(){
+    cur.style.width='20px';cur.style.height='20px';
+    cur.style.background='transparent';
+    curR.style.width='56px';curR.style.height='56px';
+    curR.style.borderColor='var(--accent)';
+  });
+  el.addEventListener('mouseleave',function(){
+    cur.style.width='10px';cur.style.height='10px';
+    cur.style.background='var(--accent)';
+    curR.style.width='36px';curR.style.height='36px';
+    curR.style.borderColor='var(--accent)';
+  });
+});
+
+// Theme toggle
+function toggleTheme(){
+  var html=document.documentElement;
+  var current=html.getAttribute('data-theme');
+  var next=current==='dark'?'light':'dark';
+  html.setAttribute('data-theme',next);
+  localStorage.setItem('bk-theme',next);
+  document.getElementById('themeBtn').textContent=next==='dark'?'☀ Light':'◐ Theme';
+}
+// Load saved theme
+(function(){
+  var saved=localStorage.getItem('bk-theme');
+  if(saved){document.documentElement.setAttribute('data-theme',saved);}
+})();
+
+// Scroll reveal
+var obs=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){if(e.isIntersecting)e.target.classList.add('in');});
+},{threshold:.12});
+document.querySelectorAll('.reveal,.reveal-left').forEach(function(el){obs.observe(el);});
+</script>
+</body>
+</html>
