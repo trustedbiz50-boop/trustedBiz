@@ -610,12 +610,18 @@ body{
 .asheet-ico{font-size:26px;}
 .asheet-lbl{font-size:12px;font-weight:600;color:var(--mid);}
 .attach-backdrop{
-  display:none;
+  display:block;
   position:fixed;inset:0;
   background:rgba(0,0,0,.4);
   z-index:399;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .3s;
 }
-.attach-backdrop.open{display:block;}
+.attach-backdrop.open{
+  opacity:1;
+  pointer-events:all;
+}
 
 /* OLD attach-menu hidden */
 .attach-menu{display:none !important;}
@@ -707,7 +713,7 @@ body{
     <a class="ditem" href="/privacy"><span class="dicon">&#128220;</span>Privacy Policy</a>
     <a class="ditem" href="/terms"><span class="dicon">&#128203;</span>Terms of Use</a>
   </div>
-  <div class="dfoot">Made by Kazibwe Benjamin &middot; Uganda &#127482;&#127468;</div>
+  <div class="dfoot">Made by <a href="/portfolio" style="color:var(--brand);text-decoration:none;font-weight:600">Kazibwe Benjamin</a> &middot; Uganda &#127482;&#127468;</div>
 </nav>
 
 <div class="chat" id="chat">
