@@ -610,17 +610,17 @@ body{
 .asheet-ico{font-size:26px;}
 .asheet-lbl{font-size:12px;font-weight:600;color:var(--mid);}
 .attach-backdrop{
-  display:block;
   position:fixed;inset:0;
   background:rgba(0,0,0,.4);
   z-index:399;
   opacity:0;
   pointer-events:none;
-  transition:opacity .3s;
+  transition:opacity .25s;
+  will-change:opacity;
 }
 .attach-backdrop.open{
   opacity:1;
-  pointer-events:all;
+  pointer-events:auto;
 }
 
 /* OLD attach-menu hidden */
@@ -1535,14 +1535,34 @@ function toggleAttach() {
   if (m.classList.contains('open')) closeAttach(); else openAttach();
 }
 function openAttach() {
-  document.getElementById('attachMenu').classList.add('open');
-  document.getElementById('attachBackdrop').classList.add('open');
-  document.getElementById('plusIcon').textContent = '×';
+  var menu = document.getElementById('attachMenu');
+  var bd   = document.getElementById('attachBackdrop');
+  var icon = document.getElementById('plusIcon');
+  if (menu) menu.classList.add('open');
+  if (icon) icon.textContent = '×';
+  if (bd) {
+    bd.style.pointerEvents = 'auto';
+    bd.style.opacity = '';
+    bd.classList.add('open');
+  }
 }
 function closeAttach() {
-  document.getElementById('attachMenu').classList.remove('open');
-  document.getElementById('attachBackdrop').classList.remove('open');
-  document.getElementById('plusIcon').textContent = '+';
+  var menu = document.getElementById('attachMenu');
+  var bd   = document.getElementById('attachBackdrop');
+  var icon = document.getElementById('plusIcon');
+  if (menu) menu.classList.remove('open');
+  if (icon) icon.textContent = '+';
+  if (bd) {
+    bd.classList.remove('open');
+    // Fully kill pointer events after transition completes
+    setTimeout(function() {
+      bd.style.pointerEvents = 'none';
+      bd.style.opacity = '0';
+    }, 300);
+  }
+  // Restore scroll on body
+  document.body.style.overflow = '';
+  document.body.style.touchAction = '';
 }
 
 function closeAttach() {
