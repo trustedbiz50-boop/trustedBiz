@@ -609,19 +609,8 @@ body{
 .asheet-item:hover{background:var(--border);transform:scale(.97);}
 .asheet-ico{font-size:26px;}
 .asheet-lbl{font-size:12px;font-weight:600;color:var(--mid);}
-.attach-backdrop{
-  position:fixed;inset:0;
-  background:rgba(0,0,0,.4);
-  z-index:399;
-  opacity:0;
-  pointer-events:none;
-  transition:opacity .25s;
-  will-change:opacity;
-}
-.attach-backdrop.open{
-  opacity:1;
-  pointer-events:auto;
-}
+
+
 
 /* OLD attach-menu hidden */
 .attach-menu{display:none !important;}
@@ -801,7 +790,7 @@ body{
     </button>
   </div>
 </div>
-<div class="attach-backdrop" id="attachBackdrop" onclick="closeAttach()"></div>
+
 
 <!-- video upload panel -->
 <div class="vid-panel" id="vidPanel" style="display:none">
@@ -1536,33 +1525,31 @@ function toggleAttach() {
 }
 function openAttach() {
   var menu = document.getElementById('attachMenu');
-  var bd   = document.getElementById('attachBackdrop');
   var icon = document.getElementById('plusIcon');
   if (menu) menu.classList.add('open');
   if (icon) icon.textContent = '×';
-  if (bd) {
-    bd.style.pointerEvents = 'auto';
-    bd.style.opacity = '';
-    bd.classList.add('open');
+  // Close when tapping anywhere outside the sheet
+  setTimeout(function() {
+    document.addEventListener('click', _closeOnOutside);
+    document.addEventListener('touchstart', _closeOnOutside);
+  }, 100);
+}
+
+function _closeOnOutside(e) {
+  var menu = document.getElementById('attachMenu');
+  if (menu && !menu.contains(e.target) && e.target.id !== 'plusBtn') {
+    closeAttach();
   }
 }
+
 function closeAttach() {
   var menu = document.getElementById('attachMenu');
-  var bd   = document.getElementById('attachBackdrop');
   var icon = document.getElementById('plusIcon');
   if (menu) menu.classList.remove('open');
   if (icon) icon.textContent = '+';
-  if (bd) {
-    bd.classList.remove('open');
-    // Fully kill pointer events after transition completes
-    setTimeout(function() {
-      bd.style.pointerEvents = 'none';
-      bd.style.opacity = '0';
-    }, 300);
-  }
-  // Restore scroll on body
-  document.body.style.overflow = '';
-  document.body.style.touchAction = '';
+  // Remove outside-click listeners completely
+  document.removeEventListener('click', _closeOnOutside);
+  document.removeEventListener('touchstart', _closeOnOutside);
 }
 
 function closeAttach() {
