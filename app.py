@@ -495,6 +495,11 @@ def home():
         notifications=notifications)
 
 # ── PRICE GUARD API ───────────────────────────────────────────────────────────
+@app.route('/portfolio')
+def portfolio():
+    return render_template('portfolio.html')
+
+
 @app.route('/price-guard')
 def price_guard_api():
     # Use price_guard_items table (richer data with images)
