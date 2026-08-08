@@ -268,10 +268,10 @@ button{font-family:var(--font);}
       </div>
 
       <div class="stats-row">
-        <div class="stat-card"><div class="stat-num">{{ live_count }}</div><div class="stat-lbl">live sites</div></div>
-        <div class="stat-card"><div class="stat-num">{{ total_views }}</div><div class="stat-lbl">total views</div></div>
-        <div class="stat-card"><div class="stat-num">{{ total_listings }}</div><div class="stat-lbl">total listings</div></div>
-        <div class="stat-card"><div class="stat-num">{{ chosen_plan|capitalize }}</div><div class="stat-lbl">current plan</div></div>
+        <div class="stat-card"><div class="stat-num">3</div><div class="stat-lbl">live sites</div></div>
+        <div class="stat-card"><div class="stat-num">1,204</div><div class="stat-lbl">views this month</div><div class="stat-trend">↑ 18%</div></div>
+        <div class="stat-card"><div class="stat-num">99.9%</div><div class="stat-lbl">uptime</div></div>
+        <div class="stat-card"><div class="stat-num">86</div><div class="stat-lbl">security score</div></div>
       </div>
 
       <div class="label">Quick actions</div>
@@ -294,19 +294,12 @@ button{font-family:var(--font);}
         </button>
       </div>
 
-      <div class="label">Your sites</div>
+      <div class="label">Recent activity</div>
       <div class="activity">
-        {% if businesses %}
-          {% for b in businesses[:4] %}
-          <div class="activity-row">
-            <span class="act-dot {{ 'ok' if b.status=='approved' else 'warn' }}"></span>
-            <span class="act-text"><b>{{ b.name }}</b> is {{ 'live' if b.status=='approved' else b.status }}</span>
-            <span class="act-time">{{ b.created_at[:10] if b.created_at else '' }}</span>
-          </div>
-          {% endfor %}
-        {% else %}
-          <div class="activity-row"><span class="act-text">No sites yet — talk to Daisy to build your first one.</span></div>
-        {% endif %}
+        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>mybootcamp</b> deployed successfully</span><span class="act-time">2h ago</span></div>
+        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>DermaBloom</b> security scan completed, score 92</span><span class="act-time">1d ago</span></div>
+        <div class="activity-row"><span class="act-dot warn"></span><span class="act-text"><b>Kampala Eats</b> SSL certificate expiring in 14 days</span><span class="act-time">2d ago</span></div>
+        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text">Daisy generated a new homepage for <b>mybootcamp</b></span><span class="act-time">4d ago</span></div>
       </div>
     </div>
 
@@ -314,60 +307,48 @@ button{font-family:var(--font);}
     <div class="panel" data-panel="sites" hidden>
       <div class="topbar" style="margin:-28px -30px 26px;">
         <div><h1>Sites</h1><p>// businesses running on TrustedBiz</p></div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn" id="showDeployForm">Deploy your own HTML</button>
-          <button class="btn btn-solid" data-target="daisy">+ Build with Daisy</button>
-        </div>
+        <button class="btn btn-solid" data-target="daisy">+ New site</button>
       </div>
 
-      <form id="deployForm" method="POST" action="/deploy" enctype="multipart/form-data"
-            style="display:none;border:1px solid var(--border);padding:18px;margin-bottom:18px;background:var(--surface);">
-        <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:10px;">
-          <input name="name" placeholder="Site name" required
-                 style="padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;">
-          <input name="category" placeholder="Category (e.g. Portfolio)"
-                 style="padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;">
-        </div>
-        <div style="margin-bottom:10px;">
-          <input type="file" name="html_file" accept=".html">
-          <span style="font-size:12px;color:var(--dim);">— or paste HTML below, or link a public GitHub repo</span>
-        </div>
-        <input name="github_url" placeholder="https://github.com/you/your-repo"
-               style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12.5px;margin-bottom:10px;">
-        <textarea name="custom_html" placeholder="<!DOCTYPE html>..." rows="4"
-                  style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12.5px;margin-bottom:10px;"></textarea>
-        <button type="submit" class="btn btn-solid">Deploy</button>
-      </form>
-      <script>
-        document.getElementById('showDeployForm')?.addEventListener('click', function(){
-          var f = document.getElementById('deployForm');
-          f.style.display = f.style.display === 'none' ? 'block' : 'none';
-        });
-      </script>
-
-      {% if businesses %}
-      {% for b in businesses %}
       <div class="site-row">
         <div class="site-main">
-          <div class="site-name">{{ b.name }}</div>
-          <div class="site-url">{{ b.slug }}.trustedbiz.co.ug</div>
+          <div class="site-name">mybootcamp</div>
+          <div class="site-url">mybootcamp.trustedbiz.co.ug</div>
         </div>
-        <span class="site-status {{ 'live' if b.status=='approved' else 'building' }}">{{ 'Live' if b.status=='approved' else b.status|capitalize }}</span>
-        <span class="site-plan">{{ (b.plan or 'free')|replace('_',' ')|capitalize }}</span>
+        <span class="site-status live">Live</span>
+        <span class="site-plan">Pro Max</span>
         <div class="site-actions">
-          {% if b.status=='approved' %}
-          <a class="btn" href="//{{ b.slug }}.trustedbiz.co.ug" target="_blank">View</a>
-          {% endif %}
-          <a class="btn" href="/edit-business/{{ b.id }}">Edit</a>
-          <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
-            <button type="submit" class="btn">Redeploy</button>
-          </form>
+          <a class="btn" href="#">View</a>
+          <a class="btn" href="#">Edit</a>
+          <a class="btn" href="#">Redeploy</a>
         </div>
       </div>
-      {% endfor %}
-      {% else %}
-      <div class="site-row"><div class="site-main"><div class="site-name">No sites yet</div><div class="site-url">Talk to Daisy to build your first one</div></div></div>
-      {% endif %}
+      <div class="site-row">
+        <div class="site-main">
+          <div class="site-name">DermaBloom</div>
+          <div class="site-url">dermabloom.trustedbiz.co.ug</div>
+        </div>
+        <span class="site-status live">Live</span>
+        <span class="site-plan">Free</span>
+        <div class="site-actions">
+          <a class="btn" href="#">View</a>
+          <a class="btn" href="#">Edit</a>
+          <a class="btn" href="#">Redeploy</a>
+        </div>
+      </div>
+      <div class="site-row">
+        <div class="site-main">
+          <div class="site-name">Kampala Eats</div>
+          <div class="site-url">kampalaeats.trustedbiz.co.ug</div>
+        </div>
+        <span class="site-status building">Building</span>
+        <span class="site-plan">Free</span>
+        <div class="site-actions">
+          <a class="btn" href="#">View</a>
+          <a class="btn" href="#">Edit</a>
+          <a class="btn btn-ok" href="#">Activate</a>
+        </div>
+      </div>
     </div>
 
     <!-- DAISY BUILDER -->
@@ -381,29 +362,16 @@ button{font-family:var(--font);}
           <span class="daisy-dot"></span>
           <span><b>Daisy</b> — site builder</span>
         </div>
-        <div class="daisy-body" id="daisyMessages" style="max-height:340px;overflow-y:auto;">
+        <div class="daisy-body">
           <p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p>
           <div class="prompt-chips">
-            <button type="button" class="prompt-chip">A hair salon in Kampala</button>
-            <button type="button" class="prompt-chip">A coding bootcamp</button>
-            <button type="button" class="prompt-chip">A restaurant with delivery</button>
+            <button class="prompt-chip">A hair salon in Kampala</button>
+            <button class="prompt-chip">A coding bootcamp</button>
+            <button class="prompt-chip">A restaurant with delivery</button>
           </div>
         </div>
-
-        <div id="goLiveBox" style="display:none;padding:16px 18px;border-top:1px solid var(--daisy-border);">
-          <p style="color:#c3c1d4;font-size:13px;margin-bottom:10px;">Ready to go live? Confirm the details:</p>
-          <input id="goLiveName" placeholder="Business name" required
-                 style="width:100%;margin-bottom:8px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
-          <input id="goLiveCategory" placeholder="Category (e.g. Salon)"
-                 style="width:100%;margin-bottom:8px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
-          <input id="goLiveWhatsapp" placeholder="WhatsApp number (256...)"
-                 style="width:100%;margin-bottom:10px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
-          <button id="goLiveBtn" class="daisy-send" style="width:100%;padding:11px;">Make it live</button>
-          <p id="goLiveStatus" style="font-size:12px;color:#c3c1d4;margin-top:8px;"></p>
-        </div>
-
-        <form class="daisy-form" id="daisyChatForm">
-          <input class="daisy-input" id="daisyChatInput" type="text" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" autocomplete="off" />
+        <form class="daisy-form" onsubmit="return false;">
+          <input class="daisy-input" type="text" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" />
           <button class="daisy-send" type="submit">Build</button>
         </form>
       </div>
@@ -509,7 +477,7 @@ button{font-family:var(--font);}
       <div class="label">Choose the plan that fits right now</div>
       <div class="plan-grid">
 
-        <div class="plan-tier {{ 'current' if chosen_plan=='free' }}">
+        <div class="plan-tier">
           <div class="tier-name">Free</div>
           <div class="tier-price">UGX 0</div>
           <div class="tier-sub">Get listed and online</div>
@@ -521,11 +489,10 @@ button{font-family:var(--font);}
             <li>✓ WhatsApp inquiries</li>
             <li>✓ 100 MB storage</li>
           </ul>
-          {% if chosen_plan=='free' %}<button class="tier-btn">Your current plan</button>
-          {% else %}<a class="tier-btn" href="https://wa.me/256753187966?text=I+want+to+move+to+the+Free+plan+on+TrustedBiz">Downgrade</a>{% endif %}
+          <button class="tier-btn">Downgrade</button>
         </div>
 
-        <div class="plan-tier {{ 'current' if chosen_plan=='basic' }}">
+        <div class="plan-tier">
           <div class="tier-name">Basic</div>
           <div class="tier-price">UGX 8,000<span>/month</span></div>
           <div class="tier-sub">For a growing business</div>
@@ -537,11 +504,10 @@ button{font-family:var(--font);}
             <li>✓ Priority placement in directory</li>
             <li>✓ 500 MB storage · 5 GB bandwidth</li>
           </ul>
-          {% if chosen_plan=='basic' %}<button class="tier-btn">Your current plan</button>
-          {% else %}<a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+to+upgrade+to+Basic+on+TrustedBiz">Switch to Basic</a>{% endif %}
+          <button class="tier-btn solid">Switch to Basic</button>
         </div>
 
-        <div class="plan-tier {{ 'current' if chosen_plan=='pro_max' }}">
+        <div class="plan-tier current">
           <div class="tier-name">Pro Max</div>
           <div class="tier-price">UGX 15,000<span>/month</span></div>
           <div class="tier-sub">For businesses ready to grow fast</div>
@@ -555,8 +521,7 @@ button{font-family:var(--font);}
             <li>✓ Priority support via WhatsApp</li>
             <li>✓ 2 GB storage · 25 GB bandwidth</li>
           </ul>
-          {% if chosen_plan=='pro_max' %}<button class="tier-btn">Your current plan</button>
-          {% else %}<a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+Pro+Max+on+TrustedBiz">Switch to Pro Max</a>{% endif %}
+          <button class="tier-btn">Your current plan</button>
         </div>
 
       </div>
@@ -609,93 +574,6 @@ button{font-family:var(--font);}
       fill.style.width = '0%';
       requestAnimationFrame(function(){ fill.style.width = '100%'; });
       setTimeout(function(){ overlay.hidden = true; }, 2000);
-    });
-  }
-
-  // ── DAISY BUILDER — real calls to /daisy/chat and /daisy/create-business.
-  // If DAISY_API_URL isn't set in Render yet, /daisy/chat still responds —
-  // just with an honest "Daisy isn't connected yet" message instead of a fake one.
-  const daisyMessages  = document.getElementById('daisyMessages');
-  const daisyForm      = document.getElementById('daisyChatForm');
-  const daisyInput     = document.getElementById('daisyChatInput');
-  const goLiveBox       = document.getElementById('goLiveBox');
-  const goLiveBtn       = document.getElementById('goLiveBtn');
-  const goLiveStatus    = document.getElementById('goLiveStatus');
-  let daisyHistory = [];
-  let readyMode = null;
-
-  function addDaisyMsg(text, who){
-    const p = document.createElement('p');
-    p.className = 'daisy-msg';
-    if(who === 'user'){ p.style.color = '#f0f0f6'; p.style.textAlign = 'right'; }
-    p.textContent = text;
-    daisyMessages.appendChild(p);
-    daisyMessages.scrollTop = daisyMessages.scrollHeight;
-  }
-
-  async function sendToDaisy(text){
-    addDaisyMsg(text, 'user');
-    daisyHistory.push({role: 'user', content: text});
-    try{
-      const res = await fetch('/daisy/chat', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: text, history: daisyHistory})
-      });
-      const data = await res.json();
-      addDaisyMsg(data.reply || "I'm having a small moment — try again.", 'daisy');
-      daisyHistory.push({role: 'assistant', content: data.reply || ''});
-      if(data.done && data.mode === 'website'){
-        readyMode = data.mode;
-        goLiveBox.style.display = 'block';
-      }
-    }catch(e){
-      addDaisyMsg("Couldn't reach Daisy just now — try again in a moment.", 'daisy');
-    }
-  }
-
-  if(daisyForm){
-    daisyForm.addEventListener('submit', function(e){
-      e.preventDefault();
-      const val = daisyInput.value.trim();
-      if(!val) return;
-      sendToDaisy(val);
-      daisyInput.value = '';
-    });
-  }
-  document.querySelectorAll('.prompt-chip').forEach(chip => {
-    chip.addEventListener('click', () => sendToDaisy(chip.textContent));
-  });
-
-  if(goLiveBtn){
-    goLiveBtn.addEventListener('click', async function(){
-      const name = document.getElementById('goLiveName').value.trim();
-      if(!name){ goLiveStatus.textContent = 'Business name is required.'; return; }
-      goLiveStatus.textContent = 'Creating your listing…';
-      goLiveBtn.disabled = true;
-      try{
-        const res = await fetch('/daisy/create-business', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            name: name,
-            category: document.getElementById('goLiveCategory').value.trim(),
-            whatsapp: document.getElementById('goLiveWhatsapp').value.trim(),
-            description: daisyHistory.filter(h => h.role === 'user').map(h => h.content).join(' ').slice(0, 500)
-          })
-        });
-        const data = await res.json();
-        if(data.success){
-          goLiveStatus.textContent = 'Live! Your site: ' + data.url + ' — refresh Sites in a moment.';
-          goLiveBtn.textContent = 'Live ✓';
-        }else{
-          goLiveStatus.textContent = data.error || 'Something went wrong — try again.';
-          goLiveBtn.disabled = false;
-        }
-      }catch(e){
-        goLiveStatus.textContent = 'Could not reach TrustedBiz — try again.';
-        goLiveBtn.disabled = false;
-      }
     });
   }
 </script>

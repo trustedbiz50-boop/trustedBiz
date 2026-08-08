@@ -1,35 +1,131 @@
-{% extends "base.html" %}
-{% block title %}Privacy Policy — TrustedBiz{% endblock %}
-{% block body %}
-<div style="max-width:700px; margin:30px auto; padding:0 20px 60px;">
-    <div style="background:white; border-radius:14px; padding:30px; box-shadow:0 2px 12px rgba(0,0,0,0.08); border:1.5px solid #f0f0f0;">
-        <h2 style="color:#1f2937; margin-top:0;">Privacy Policy</h2>
-        <p style="color:#6b7280; font-size:13px;">Last updated: January 2025</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Privacy Policy | TrustedBiz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#2b7a78;--brand-dark:#1f5c5a;--brand-light:#3a9e9b;
+  --bg:#f5f8f8;--surface:#fff;--border:#d8e4e4;
+  --text:#0d1c1c;--mid:#43605f;--dim:#8aa5a4;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1412;--surface:#141d1b;--border:#233230;
+    --text:#eef5f4;--mid:#a9c4c1;--dim:#5f7d7a;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.65;-webkit-font-smoothing:antialiased;}
+a{color:var(--brand);text-decoration:none;}
+a:hover{text-decoration:underline;}
 
-        <h3 style="color:#1f2937;">1. Information We Collect</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            We collect information you provide when registering an account or listing a business — such as your name, phone number, and business details. We also collect location data when you use the map features, only with your explicit permission.
-        </p>
+header{border-bottom:1px solid var(--border);}
+.h-inner{max-width:720px;margin:0 auto;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--mono);font-weight:500;font-size:15px;color:var(--text);}
+.logo span{color:var(--brand);}
+.back{font-size:13.5px;color:var(--mid);}
+.back:hover{color:var(--text);}
 
-        <h3 style="color:#1f2937;">2. How We Use Your Information</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            We use your information to display your business listing, help customers find you via maps and WhatsApp, and improve our services. We do not sell your personal data to third parties.
-        </p>
+main{max-width:720px;margin:0 auto;padding:56px 24px 90px;}
+.eyebrow{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--brand);margin-bottom:12px;}
+h1{font-size:32px;font-weight:800;letter-spacing:-.8px;margin-bottom:8px;}
+.updated{color:var(--dim);font-size:13px;font-family:var(--mono);margin-bottom:44px;}
+h2{font-size:18px;font-weight:700;letter-spacing:-.3px;margin:36px 0 10px;}
+p{font-size:14.5px;color:var(--mid);margin-bottom:12px;}
+ul{margin:0 0 12px;padding-left:20px;}
+li{font-size:14.5px;color:var(--mid);margin-bottom:6px;}
+strong{color:var(--text);}
+.contact-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--brand);padding:16px 20px;margin-top:6px;}
+.contact-card p{margin:0;font-size:14px;color:var(--text);}
+.contact-card p+p{margin-top:4px;}
 
-        <h3 style="color:#1f2937;">3. Location Data</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            Location access is used only to help you pin your business on the map or find businesses near you. Location is never shared without your knowledge.
-        </p>
+footer{border-top:1px solid var(--border);padding:26px 0;}
+.f-inner{max-width:720px;margin:0 auto;padding:0 24px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--dim);font-family:var(--mono);}
+footer a{color:var(--dim);margin-left:16px;}
+footer a:hover{color:var(--text);}
+</style>
+</head>
+<body>
 
-        <h3 style="color:#1f2937;">4. Data Security</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            We take reasonable steps to protect your data. Payments are processed through MTN MoMo or Airtel Money — we do not store payment credentials.
-        </p>
+<header>
+  <div class="h-inner">
+    <a class="logo" href="/">Trusted<span>Biz</span></a>
+    <a class="back" href="/">← Home</a>
+  </div>
+</header>
 
-        <h3 style="color:#1f2937;">5. Contact</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            For privacy concerns, contact us via WhatsApp or email listed on our home page.
-        </p>
+<main>
+  <div class="eyebrow">Legal</div>
+  <h1>Privacy Policy</h1>
+  <div class="updated">Effective date: August 2026</div>
+
+  <p>TrustedBiz is a Ugandan platform that lists, hosts, and helps build businesses online, including through our AI assistant, Daisy. This Privacy Policy explains what information we collect, how we use it, and the choices available to you. By using TrustedBiz, you agree to the practices described here.</p>
+
+  <h2>1. Information We Collect</h2>
+  <p><strong>Account information.</strong> When you create an account, we collect your name, email address, and, if you provide one, your phone number.</p>
+  <p><strong>Business listing information.</strong> If you list or host a business on TrustedBiz, we collect the details you submit about it, such as its name, category, description, contact information, and any content generated for it through Daisy.</p>
+  <p><strong>Payment information.</strong> When you pay for a plan, your payment is processed through MTN Mobile Money, Airtel Money, or another provider we use. We receive confirmation that a payment was made, but we do not store your full mobile money PIN or credentials.</p>
+  <p><strong>Reviews.</strong> If you leave a review for a business, we collect the content of that review and associate it with your account.</p>
+  <p><strong>Conversations with Daisy.</strong> When you use Daisy to build a website, logo, flyer, or other material, we collect what you tell her and the content she generates, so we can create your material and let you return to edit it later.</p>
+  <p><strong>Technical information.</strong> We automatically collect some technical information when you use TrustedBiz, such as device type, browser, general location derived from your network connection, and log data that helps us diagnose errors.</p>
+
+  <h2>2. How We Use Your Information</h2>
+  <ul>
+    <li>Create and host your business listing or website</li>
+    <li>Generate content for you through Daisy and save it to your account</li>
+    <li>Process payments for paid plans</li>
+    <li>Display your business and reviews to visitors on TrustedBiz</li>
+    <li>Send WhatsApp inquiries from customers to the contact details you've provided</li>
+    <li>Diagnose technical issues and improve the reliability of the platform</li>
+    <li>Respond to support requests</li>
+    <li>Detect misuse and enforce our Terms of Service</li>
+    <li>Meet legal obligations where applicable</li>
+  </ul>
+
+  <h2>3. How We Share Information</h2>
+  <p>We do not sell your personal information. We share information with service providers who help us operate TrustedBiz, such as cloud hosting providers and mobile money payment processors. We may disclose information if required by law, or to protect the rights, property, or safety of TrustedBiz, our users, or the public. If TrustedBiz is involved in a merger, acquisition, or sale of assets, information may be transferred as part of that transaction, subject to this Policy or one at least as protective.</p>
+  <p>Information you choose to make public, such as your business listing or a review you post, is visible to anyone who visits TrustedBiz.</p>
+
+  <h2>4. Data Retention</h2>
+  <p>We retain your account, business listing, and conversation data with Daisy for as long as your account remains active, so the platform can provide a consistent experience. You may request deletion of your data at any time as described in Section 5. Some information may be retained where required for legal or security purposes.</p>
+
+  <h2>5. Your Rights and Choices</h2>
+  <p>You have the right to request access to the information we hold about you, request correction of inaccurate information, and request deletion of your account and associated data. To exercise any of these rights, contact us using the details in Section 9. We may ask you to verify your identity before processing certain requests.</p>
+
+  <h2>6. Children's Privacy</h2>
+  <p>TrustedBiz is not directed at children under the age of 13, and we do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, please contact us so we can take appropriate action.</p>
+
+  <h2>7. Security</h2>
+  <p>We take reasonable technical and organizational measures to protect your information from unauthorized access, loss, or misuse. No method of transmission or storage is completely secure, and we cannot guarantee absolute security.</p>
+
+  <h2>8. International Users</h2>
+  <p>TrustedBiz is operated from Uganda. If you use TrustedBiz from outside Uganda, your information will be processed in Uganda and possibly in other countries where our service providers operate.</p>
+
+  <h2>9. Contact Us</h2>
+  <p>Questions about this Privacy Policy can be sent to:</p>
+  <div class="contact-card">
+    <p>hello@trustedbiz.co.ug</p>
+    <p>+256 753 187 966</p>
+  </div>
+
+  <h2>10. Changes to This Policy</h2>
+  <p>We may update this Privacy Policy from time to time to reflect changes in our practices or for legal reasons. We will post the updated policy with a new effective date. Continued use of TrustedBiz after an update means you accept the revised Policy.</p>
+</main>
+
+<footer>
+  <div class="f-inner">
+    <span>© 2026 TrustedBiz — made in Uganda</span>
+    <div>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/daisy">Daisy</a>
     </div>
-</div>
-{% endblock %}
+  </div>
+</footer>
+
+</body>
+</html>

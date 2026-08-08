@@ -1,384 +1,322 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Admin Panel | TrustedBiz</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-    *{box-sizing:border-box;margin:0;padding:0;}
-    body{font-family:'Segoe UI',sans-serif;background:#f4f6fb;color:#1f2937;}
+<title>Admin | TrustedBiz</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#2b7a78;--brand-dark:#1f5c5a;--brand-light:#3a9e9b;
+  --bg:#f5f8f8;--surface:#fff;--border:#dde8e8;
+  --text:#0d1c1c;--mid:#43605f;--dim:#8aa5a4;
+  --green:#16a34a;--yellow:#b45309;--red:#dc2626;--blue:#2563eb;
+  --green-bg:#e8f7ec;--yellow-bg:#fdf3e3;--red-bg:#fdecec;--blue-bg:#eaf1fd;
+  --side-bg:#eef4f3;--side-text:#294a48;--side-dim:#7a9694;--side-active:#dcece9;--side-border:#dbe6e5;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1412;--surface:#141d1b;--border:#233230;
+    --text:#eef5f4;--mid:#a9c4c1;--dim:#5f7d7a;
+    --green-bg:rgba(22,163,74,.14);--yellow-bg:rgba(180,83,9,.16);--red-bg:rgba(220,38,38,.14);--blue-bg:rgba(37,99,235,.16);
+    --side-bg:#090f0d;--side-text:#c7d6d5;--side-dim:#6d8583;--side-active:#182722;--side-border:rgba(255,255,255,.07);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+button{font-family:var(--font);}
+[hidden]{display:none !important;}
 
-    /* ── HEADER (your exact style) ── */
-    header{background:#1a1d2e;padding:14px 28px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
-    header h1{color:white;font-size:20px;font-weight:800;}
-    header h1 span{color:#4ecdc4;}
-    .header-right{display:flex;gap:10px;align-items:center;}
-    .header-right a{color:#8890b8;text-decoration:none;font-size:13px;font-weight:600;padding:7px 14px;border-radius:8px;border:1px solid #2e3148;transition:all .2s;}
-    .header-right a:hover{background:#2e3148;color:white;}
-    .header-right a.danger{border-color:#dc2626;color:#dc2626;}
-    .header-right a.danger:hover{background:#dc2626;color:white;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid var(--border);border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--mid);white-space:nowrap;}
+.btn:hover{color:var(--text);border-color:var(--dim);}
+.btn-solid{background:var(--text);color:var(--bg);border-color:var(--text);}.btn-solid:hover{background:var(--brand);border-color:var(--brand);}
+.btn-verify{color:var(--blue);border-color:rgba(37,99,235,.35);}.btn-verify:hover{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn-delete{color:var(--red);border-color:rgba(220,38,38,.35);}.btn-delete:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.btn-pool{color:var(--green);border-color:rgba(22,163,74,.35);}.btn-pool:hover{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-unpub{color:var(--yellow);border-color:rgba(180,83,9,.35);}.btn-unpub:hover{background:var(--yellow);color:#fff;border-color:var(--yellow);}
 
-    .page{max-width:1100px;margin:0 auto;padding:28px 20px 60px;}
+/* SHELL — same structure as the console */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:220px;flex-shrink:0;background:var(--side-bg);color:var(--side-text);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;}
+.side-logo{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--side-text);padding:6px 8px 4px;}
+.side-logo span{color:var(--brand);}
+.side-tag{font-family:var(--mono);font-size:10px;color:var(--side-dim);padding:0 8px 20px;text-transform:uppercase;letter-spacing:.4px;}
+.side-link{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:5px;font-size:13.5px;font-weight:500;color:var(--side-text);cursor:pointer;border:none;background:none;width:100%;text-align:left;}
+.side-link:hover{background:var(--side-active);}
+.side-link.active{background:var(--side-active);color:var(--brand);font-weight:600;}
+.side-link svg{width:15px;height:15px;flex-shrink:0;opacity:.85;}
+.side-badge{margin-left:auto;font-family:var(--mono);font-size:10.5px;background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:100px;}
+.side-foot{margin-top:auto;padding:12px 8px 0;border-top:1px solid var(--side-border);display:flex;flex-direction:column;gap:8px;}
+.side-foot a{font-size:12.5px;color:var(--side-dim);}
+.side-foot a:hover{color:var(--side-text);}
 
-    /* ── STATS (your exact style) ── */
-    .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px;}
-    .stat-card{background:white;border-radius:12px;padding:18px 16px;text-align:center;border:1.5px solid #f0f0f0;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-    .stat-num{font-size:28px;font-weight:800;color:#2b7a78;line-height:1;margin-bottom:5px;}
-    .stat-label{font-size:12px;color:#6b7280;font-weight:600;}
+.main{flex:1;min-width:0;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 30px;display:flex;align-items:center;justify-content:space-between;}
+.topbar h1{font-size:18px;font-weight:800;letter-spacing:-.3px;}
+.topbar p{font-size:12.5px;color:var(--dim);font-family:var(--mono);margin-top:2px;}
+.panel{padding:26px 30px 60px;max-width:980px;}
+.label{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;color:var(--brand);margin-bottom:10px;}
 
-    /* ── FLASH ── */
-    .flash{background:#dcfce7;border:1.5px solid #16a34a;color:#166534;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+.flash{background:var(--green-bg);border-left:3px solid var(--green);color:var(--text);padding:10px 14px;border-radius:3px;font-size:13px;margin-bottom:16px;}
 
-    /* ── SECTION ── */
-    .section-title{font-size:16px;font-weight:700;color:#1f2937;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #e5e7eb;display:flex;align-items:center;gap:8px;}
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:28px;}
+.stat-card{background:var(--surface);padding:16px;}
+.stat-num{font-size:23px;font-weight:800;line-height:1;margin-bottom:4px;}
+.stat-lbl{font-size:11px;color:var(--dim);font-family:var(--mono);}
 
-    /* ── PENDING BANNER ── */
-    .pending-banner{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #f59e0b;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px;}
-    .pending-banner .count{font-size:28px;font-weight:800;color:#d97706;}
-    .pending-banner .text h3{font-size:15px;color:#92400e;margin-bottom:2px;}
-    .pending-banner .text p{font-size:13px;color:#b45309;}
+.auto-note{border:1px solid var(--border);border-left:3px solid var(--brand);background:var(--surface);padding:12px 16px;font-size:12.5px;color:var(--mid);margin-bottom:22px;}
+.auto-note b{color:var(--text);}
 
-    /* ── LATE PAYMENT ALERT ── */
-    .late-banner{background:linear-gradient(135deg,#fee2e2,#fecaca);border:1.5px solid #dc2626;border-radius:12px;padding:16px 20px;margin-bottom:24px;}
-    .late-banner h3{font-size:15px;font-weight:700;color:#991b1b;margin-bottom:8px;}
-    .late-item{display:flex;align-items:center;justify-content:space-between;background:white;border-radius:8px;padding:10px 14px;margin-bottom:6px;gap:10px;flex-wrap:wrap;}
-    .late-item:last-child{margin-bottom:0;}
-    .late-name{font-weight:700;font-size:14px;color:#1f2937;}
-    .late-info{font-size:12px;color:#9ca3af;}
-    .late-actions{display:flex;gap:6px;}
+.activity{border:1px solid var(--border);margin-bottom:10px;}
+.activity-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;}
+.activity-row:last-child{border-bottom:none;}
+.act-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--green);}
+.act-text{flex:1;color:var(--text);}
+.act-text b{font-weight:600;}
+.act-time{font-family:var(--mono);font-size:11px;color:var(--dim);}
 
-    /* ── BIZ TABLE ── */
-    .biz-table{background:white;border-radius:14px;border:1.5px solid #f0f0f0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:28px;}
-    .biz-row{padding:16px 20px;border-bottom:1px solid #f3f4f6;display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;}
-    .biz-row:last-child{border-bottom:none;}
-    .biz-row.is-premium{background:linear-gradient(to right,#fffbeb,white);}
-    .biz-info{flex:1;min-width:200px;}
-    .biz-name{font-size:15px;font-weight:700;color:#1f2937;margin-bottom:4px;}
-    .biz-meta{font-size:12px;color:#6b7280;line-height:1.9;}
-    .biz-meta a{color:#2b7a78;text-decoration:none;}
-    .biz-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:flex-start;}
+/* LISTINGS */
+.filter-tabs{display:flex;gap:1px;margin-bottom:14px;background:var(--border);border:1px solid var(--border);width:fit-content;}
+.ftab{padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--mid);border:none;font-family:var(--font);}
+.ftab:hover{color:var(--text);}
+.ftab.active{background:var(--brand);color:#fff;}
 
-    /* ── BADGES ── */
-    .badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap;}
-    .badge-pending{background:#fef3c7;color:#d97706;}
-    .badge-approved{background:#dcfce7;color:#16a34a;}
-    .badge-rejected{background:#fee2e2;color:#dc2626;}
-    .badge-premium{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;}
-    .badge-verified{background:#e8f7f7;color:#2b7a78;}
-    .badge-reports{background:#fee2e2;color:#dc2626;}
-    .badge-late{background:#fee2e2;color:#dc2626;}
+.biz-table{border:1px solid var(--border);margin-bottom:10px;}
+.biz-row{background:var(--surface);padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+.biz-row:last-child{border-bottom:none;}
+.biz-info{flex:1;min-width:220px;}
+.biz-name{font-size:14.5px;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.biz-meta{font-size:11.5px;color:var(--dim);line-height:1.85;}
+.biz-meta strong{color:var(--mid);font-weight:600;}
+.biz-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;}
 
-    /* ── BUTTONS ── */
-    .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;white-space:nowrap;}
-    .btn-approve{background:#dcfce7;color:#16a34a;}.btn-approve:hover{background:#16a34a;color:white;}
-    .btn-reject{background:#fee2e2;color:#dc2626;}.btn-reject:hover{background:#dc2626;color:white;}
-    .btn-verify{background:#e8f7f7;color:#2b7a78;}.btn-verify:hover{background:#2b7a78;color:white;}
-    .btn-premium{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;}.btn-premium:hover{filter:brightness(1.1);}
-    .btn-remove{background:#f3f4f6;color:#6b7280;}.btn-remove:hover{background:#e5e7eb;}
-    .btn-delete{background:#fee2e2;color:#dc2626;}.btn-delete:hover{background:#dc2626;color:white;}
-    .btn-pool{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}.btn-pool:hover{background:#16a34a;color:white;}
-    .btn-view{background:#2b7a78;color:white;}.btn-view:hover{background:#205e5c;}
-    .btn-regen{background:#fff8e1;color:#d97706;}.btn-regen:hover{background:#fef3c7;}
-    .btn-mark-late{background:#fee2e2;color:#dc2626;font-size:11px;}.btn-mark-late:hover{background:#dc2626;color:white;}
-    .btn-block{background:#dc2626;color:white;font-size:11px;}.btn-block:hover{filter:brightness(1.1);}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;font-family:var(--mono);padding:2px 8px;border-radius:3px;white-space:nowrap;}
+.badge-live{background:var(--green-bg);color:var(--green);}
+.badge-unpub{background:var(--red-bg);color:var(--red);}
+.badge-plan-basic{background:var(--blue-bg);color:var(--blue);}
+.badge-plan-pro{background:var(--yellow-bg);color:var(--yellow);}
+.badge-verified{background:var(--blue-bg);color:var(--blue);}
+.badge-reports{background:var(--red-bg);color:var(--red);}
 
-    /* ── FILTER TABS ── */
-    .filter-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
-    .ftab{padding:7px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid #e5e7eb;background:white;color:#6b7280;transition:all .2s;}
-    .ftab:hover,.ftab.active{background:#2b7a78;color:white;border-color:#2b7a78;}
+/* REPORTS */
+.report-card{border:1px solid var(--border);border-left:3px solid var(--red);background:var(--surface);padding:14px 18px;margin-bottom:10px;}
+.report-card .rname{font-size:14px;font-weight:700;margin-bottom:3px;}
+.report-card .rmeta{font-size:12px;color:var(--dim);margin-bottom:10px;}
+.report-actions{display:flex;gap:8px;}
 
-    /* ── PAYMENT GUIDE ── */
-    .payment-guide{background:white;border-radius:14px;border:1.5px solid #f0f0f0;padding:22px;margin-bottom:28px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-    .payment-guide h3{font-size:16px;font-weight:700;margin-bottom:14px;color:#1f2937;}
-    .step-flow{display:flex;gap:0;flex-wrap:wrap;}
-    .step-item{flex:1;min-width:160px;padding:14px 16px;border-right:1px solid #f3f4f6;}
-    .step-item:last-child{border-right:none;}
-    .step-num-box{width:28px;height:28px;background:#2b7a78;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-bottom:8px;}
-    .step-item h4{font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px;}
-    .step-item p{font-size:12px;color:#6b7280;line-height:1.5;}
+/* AGENTS LOG */
+.agent-row{display:flex;align-items:center;gap:14px;padding:13px 16px;border:1px solid var(--border);border-top:none;font-size:13px;}
+.agent-row:first-of-type{border-top:1px solid var(--border);}
+.agent-name{font-weight:600;flex:1;}
+.agent-sub{font-size:11.5px;color:var(--dim);font-family:var(--mono);}
 
-    /* ── DEMO LINK ── */
-    .demo-banner{background:linear-gradient(135deg,#0d2020,#163535);border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
-    .demo-banner h3{color:white;font-size:15px;margin-bottom:2px;}
-    .demo-banner p{color:rgba(255,255,255,.6);font-size:13px;}
-    .demo-btn{display:inline-flex;align-items:center;gap:7px;background:#4ecdc4;color:#0d2020;text-decoration:none;font-weight:800;font-size:13px;padding:10px 20px;border-radius:8px;white-space:nowrap;transition:filter .2s;}
-    .demo-btn:hover{filter:brightness(1.1);}
-
-    @media(max-width:900px){.stats-row{grid-template-columns:repeat(3,1fr);}}
-    @media(max-width:600px){.stats-row{grid-template-columns:1fr 1fr};.biz-row{flex-direction:column};header{padding:12px 16px};.page{padding:16px 14px 40px};.step-flow{flex-direction:column};.step-item{border-right:none;border-bottom:1px solid #f3f4f6};}
-    </style>
+@media(max-width:820px){
+  .shell{flex-direction:column;}
+  .sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;padding:14px;}
+  .side-logo,.side-tag,.side-foot{display:none;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .panel{padding:20px 16px 50px;}
+}
+</style>
 </head>
 <body>
 
-<header>
-    <h1>Trusted<span>Biz</span> Admin</h1>
-    <div class="header-right">
-        <a href="/">View Site</a>
-        <a href="/admin/demo">🎨 Demo Tool</a>
-        <a href="/admin/logout" class="danger">Logout</a>
-    </div>
-</header>
+<div class="shell">
 
-<div class="page">
+  <aside class="sidebar">
+    <div class="side-logo">Trusted<span>Biz</span></div>
+    <div class="side-tag">Admin</div>
+
+    <button class="side-link active" data-target="overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Overview
+    </button>
+    <button class="side-link" data-target="listings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18a14 14 0 010-18"/></svg>
+      Listings
+    </button>
+    <button class="side-link" data-target="reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.5 17a2 2 0 001.7 3h15.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+      Reports
+      {% if reported_count and reported_count > 0 %}<span class="side-badge">{{ reported_count }}</span>{% endif %}
+    </button>
+    <button class="side-link" data-target="agents">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      Agents
+    </button>
+
+    <div class="side-foot">
+      <a href="/">View site</a>
+      <a href="/admin/logout">Logout</a>
+    </div>
+  </aside>
+
+  <main class="main">
 
     {% with messages = get_flashed_messages() %}{% if messages %}{% for msg in messages %}
-    <div class="flash">{{ msg }}</div>
+    <div class="flash" style="margin:16px 30px 0;">{{ msg }}</div>
     {% endfor %}{% endif %}{% endwith %}
 
-    <!-- STATS -->
-    <div class="stats-row">
-        <div class="stat-card"><div class="stat-num">{{ total_users }}</div><div class="stat-label">Total Users</div></div>
-        <div class="stat-card"><div class="stat-num">{{ total_businesses }}</div><div class="stat-label">All Listings</div></div>
-        <div class="stat-card"><div class="stat-num" style="color:#d97706;">{{ pending }}</div><div class="stat-label">Pending</div></div>
-        <div class="stat-card"><div class="stat-num">{{ total_reviews }}</div><div class="stat-label">Reviews</div></div>
-        <div class="stat-card"><div class="stat-num" style="color:#f59e0b;">{{ total_premium }}</div><div class="stat-label">Premium</div></div>
-        <div class="stat-card"><div class="stat-num" style="color:#16a34a;">{{ pool_saves }}</div><div class="stat-label">AI Tokens Saved (Pool)</div></div>
+    <!-- OVERVIEW -->
+    <div class="panel" data-panel="overview">
+      <div class="topbar" style="margin:0 -30px 26px;">
+        <div><h1>Overview</h1><p>// everything running across TrustedBiz</p></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num">{{ total_users }}</div><div class="stat-lbl">Users</div></div>
+        <div class="stat-card"><div class="stat-num">{{ total_businesses }}</div><div class="stat-lbl">Listings live</div></div>
+        <div class="stat-card"><div class="stat-num">{{ total_reviews }}</div><div class="stat-lbl">Reviews</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--yellow);">{{ total_paid }}</div><div class="stat-lbl">Paid plans</div></div>
+      </div>
+
+      <div class="auto-note">
+        <b>Listings and plan upgrades are automatic now.</b> Daisy generates and publishes new businesses the moment someone signs up or activates an agent invite, and billing upgrades apply the instant payment is confirmed. Nothing here needs manual approval, admin now handles moderation only, reports, verification, and removals.
+      </div>
+
+      <div class="label">Recent activity</div>
+      <div class="activity">
+        <div class="activity-row"><span class="act-dot"></span><span class="act-text">Daisy published a new site for <b>Kampala Eats</b></span><span class="act-time">12m ago</span></div>
+        <div class="activity-row"><span class="act-dot"></span><span class="act-text"><b>DermaBloom</b> upgraded to Pro Max automatically after payment</span><span class="act-time">1h ago</span></div>
+        <div class="activity-row"><span class="act-dot"></span><span class="act-text">Agent invite activated — <b>Nakato's Tailoring</b> is now live</span><span class="act-time">3h ago</span></div>
+      </div>
     </div>
 
-    <!-- TEMPLATE POOL STATUS -->
-    {% if pool_stats %}
-    <div style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
-        <strong style="color:#15803d;font-size:15px;">🧠 Template Pool — {{ pool_stats|length }} categor{{ 'ies' if pool_stats|length != 1 else 'y' }} cached · {{ pool_saves }} websites served for free</strong>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
-        {% for p in pool_stats %}
-            <span style="background:white;border:1px solid #bbf7d0;border-radius:20px;padding:4px 12px;font-size:12px;color:#166534;">
-                {{ p.category }} · used {{ p.times_used }}×
-            </span>
-        {% endfor %}
-        </div>
-    </div>
-    {% endif %}
+    <!-- LISTINGS -->
+    <div class="panel" data-panel="listings" hidden>
+      <div class="topbar" style="margin:0 -30px 26px;">
+        <div><h1>Listings</h1><p>// moderation — view, verify, or remove</p></div>
+      </div>
 
-    <!-- AGENT-SUBMITTED PENDING (needs approve-agent-biz) -->
-    {% if agent_pending %}
-    <div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
-        <strong style="color:#1d4ed8;font-size:15px;">🤝 {{ agent_pending|length }} Agent-Submitted Business{{ 'es' if agent_pending|length != 1 }} — Ready to Approve</strong>
-        <p style="font-size:13px;color:#1e40af;margin:4px 0 12px;">Approving will generate the website AND send the agent their invite code to close the deal.</p>
-        {% for b in agent_pending %}
-        <div style="background:white;border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-            <div>
-                <strong style="font-size:14px;">{{ b.name }}</strong>
-                <span style="font-size:12px;color:#6b7280;margin-left:8px;">{{ b.category }}</span>
-                {% if b.agent_name %}<span style="font-size:12px;color:#3b82f6;margin-left:8px;">Agent: {{ b.agent_name }}</span>{% endif %}
-            </div>
-            <form method="POST" action="/admin/approve-agent-biz/{{ b.id }}" style="margin:0;">
-                <button type="submit" style="background:#16a34a;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;">
-                    ✅ Approve + Generate + Invite
-                </button>
-            </form>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
+      {% if pool_stats %}
+      <div class="auto-note">
+        <b>Template pool:</b> {{ pool_stats|length }} categor{{ 'ies' if pool_stats|length != 1 else 'y' }} cached, {{ pool_saves }} sites served from reused templates instead of a fresh Daisy generation.
+      </div>
+      {% endif %}
 
-    <!-- PENDING ALERT -->
-    {% if pending > 0 %}
-    <div class="pending-banner">
-        <div class="count">{{ pending }}</div>
-        <div class="text">
-            <h3>Businesses waiting for your review</h3>
-            <p>They cannot be seen by users until you approve them.</p>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- LATE PAYMENT ALERT -->
-    {% if late_alert and late_alert|length > 0 %}
-    <div class="late-banner">
-        <h3>⚠️ {{ late_alert|length }} Premium Business{{ 'es' if late_alert|length != 1 }} with Overdue Payment</h3>
-        {% for b in late_alert %}
-        <div class="late-item">
-            <div>
-                <div class="late-name">{{ b.name }}</div>
-                <div class="late-info">Last paid: {{ b.last_payment_date or 'Never recorded' }} · {{ b.payment_months_late or 0 }} month(s) late</div>
-            </div>
-            <div class="late-actions">
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="mark_late">
-                    <button type="submit" class="btn btn-mark-late">+1 Month Late</button>
-                </form>
-                {% if (b.payment_months_late or 0) >= 2 %}
-                <form method="POST" style="display:inline;" onsubmit="return confirm('Block {{ b.name }}? This removes it from the directory.')">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="block">
-                    <button type="submit" class="btn btn-block">Block</button>
-                </form>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- DEMO TOOL BANNER -->
-    <div class="demo-banner">
-        <div>
-            <h3>🎨 Demo Generator</h3>
-            <p>Generate a demo website to show potential clients. Takes 20 seconds.</p>
-        </div>
-        <a href="/admin/demo" class="demo-btn">Open Demo Tool →</a>
-    </div>
-
-    <!-- PAYMENT GUIDE -->
-    <div class="payment-guide">
-        <h3>💰 Premium Upgrade Process</h3>
-        <div class="step-flow">
-            <div class="step-item">
-                <div class="step-num-box">1</div>
-                <h4>Client messages you</h4>
-                <p>The "Upgrade" button sends them to your WhatsApp with their business name and plan</p>
-            </div>
-            <div class="step-item">
-                <div class="step-num-box">2</div>
-                <h4>They pay MoMo</h4>
-                <p>They send UGX 7,500 or 15,000 to your MTN/Airtel number and send you a screenshot</p>
-            </div>
-            <div class="step-item">
-                <div class="step-num-box">3</div>
-                <h4>You click "Set Premium"</h4>
-                <p>Find their business below, click the gold "Set Premium" button</p>
-            </div>
-            <div class="step-item">
-                <div class="step-num-box">4</div>
-                <h4>Done — they get notified</h4>
-                <p>Their website generates automatically. They get a notification instantly</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- FILTER TABS -->
-    <div class="filter-tabs">
+      <div class="filter-tabs">
         <div class="ftab active" onclick="filterRows('all',this)">All ({{ total_businesses }})</div>
-        <div class="ftab" onclick="filterRows('pending',this)">⏳ Pending ({{ pending }})</div>
-        <div class="ftab" onclick="filterRows('approved',this)">✅ Approved</div>
-        <div class="ftab" onclick="filterRows('premium',this)">⭐ Premium</div>
-        <div class="ftab" onclick="filterRows('reported',this)">🚩 Reported</div>
-    </div>
+        <div class="ftab" onclick="filterRows('paid',this)">Paid plans</div>
+        <div class="ftab" onclick="filterRows('unverified',this)">Unverified</div>
+      </div>
 
-    <!-- BUSINESS LIST -->
-    <div class="section-title">All Listings</div>
-    <div class="biz-table" id="bizTable">
-
+      <div class="biz-table" id="bizTable">
         {% if businesses|length == 0 %}
-        <div style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No businesses yet.</div>
+        <div style="padding:40px;text-align:center;color:var(--dim);font-size:14px;">No businesses yet.</div>
         {% endif %}
 
         {% for b in businesses %}
-        <div class="biz-row {% if b.is_premium %}is-premium{% endif %}"
-             data-status="{{ b.status }}"
-             data-premium="{{ b.is_premium }}"
-             data-reports="{{ b.reports or 0 }}">
-
-            <div class="biz-info">
-                <div class="biz-name">
-                    {{ b.name }}
-                    {% if b.is_premium %}<span class="badge badge-premium">⭐ Premium</span>{% endif %}
-                    {% if b.verified %}<span class="badge badge-verified">✔ Verified</span>{% endif %}
-                    {% if b.reports and b.reports > 0 %}<span class="badge badge-reports">🚩 {{ b.reports }}</span>{% endif %}
-                    {% if (b.payment_months_late or 0) > 0 %}<span class="badge badge-late">⚠ {{ b.payment_months_late }}mo late</span>{% endif %}
-                </div>
-                <div class="biz-meta">
-                    <strong>Category:</strong> {{ b.category }} &nbsp;|&nbsp;
-                    <strong>WhatsApp:</strong> +{{ b.whatsapp }}<br>
-                    <strong>Owner:</strong> {{ b.owner_name or 'Unknown' }} &nbsp;|&nbsp;
-                    <strong>Views:</strong> {{ b.views or 0 }} &nbsp;|&nbsp;
-                    <strong>Status:</strong>
-                    {% if b.status == 'approved' %}<span class="badge badge-approved">✔ Approved</span>
-                    {% elif b.status == 'pending' %}<span class="badge badge-pending">⏳ Pending</span>
-                    {% else %}<span class="badge badge-rejected">✘ Rejected</span>{% endif %}
-                    <br>
-                    {% if b.description %}<strong>About:</strong> {{ b.description[:80] }}{% if b.description|length > 80 %}…{% endif %}<br>{% endif %}
-                    <strong>Added:</strong> {{ b.created_at[:10] if b.created_at else '—' }}
-                    {% if b.last_payment_date %} &nbsp;|&nbsp; <strong>Last paid:</strong> {{ b.last_payment_date[:10] if b.last_payment_date else '—' }}{% endif %}
-                </div>
+        <div class="biz-row" data-plan="{{ b.plan or 'free' }}" data-verified="{{ b.verified }}" data-status="{{ b.status }}">
+          <div class="biz-info">
+            <div class="biz-name">
+              {{ b.name }}
+              {% if b.status == 'approved' %}<span class="badge badge-live">Live</span>{% else %}<span class="badge badge-unpub">Unpublished</span>{% endif %}
+              {% if b.plan == 'pro_max' %}<span class="badge badge-plan-pro">Pro Max</span>
+              {% elif b.plan == 'basic' %}<span class="badge badge-plan-basic">Basic</span>{% endif %}
+              {% if b.verified %}<span class="badge badge-verified">Verified</span>{% endif %}
+              {% if b.reports and b.reports > 0 %}<span class="badge badge-reports">{{ b.reports }} reports</span>{% endif %}
             </div>
-
-            <div class="biz-actions">
-                <a href="/admin/preview/{{ b.id }}" target="_blank" class="btn btn-view">👁 View</a>
-
-                {% if b.status == 'pending' %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="approve">
-                    <button type="submit" class="btn btn-approve">✔ Approve</button>
-                </form>
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="reject">
-                    <button type="submit" class="btn btn-reject">✘ Reject</button>
-                </form>
-                {% elif b.status == 'approved' %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="reject">
-                    <button type="submit" class="btn btn-reject">Unpublish</button>
-                </form>
-                {% endif %}
-
-                {% if not b.verified %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="verify">
-                    <button type="submit" class="btn btn-verify">✔ Verify</button>
-                </form>
-                {% else %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="unverify">
-                    <button type="submit" class="btn btn-remove">Unverify</button>
-                </form>
-                {% endif %}
-
-                {% if not b.is_premium %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="set_premium">
-                    <button type="submit" class="btn btn-premium">⭐ Set Premium</button>
-                </form>
-                {% else %}
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="regen">
-                    <button type="submit" class="btn btn-regen">🔄 Regen Site</button>
-                </form>
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="remove_premium">
-                    <button type="submit" class="btn btn-remove">Remove Premium</button>
-                </form>
-                {% endif %}
-
-                <form method="POST" style="display:inline;" onsubmit="return confirm('Delete {{ b.name }}? Cannot be undone.')">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="delete">
-                    <button type="submit" class="btn btn-delete">🗑</button>
-                </form>
-                {% if b.generated_html and not b.owner_id %}
-                <form method="POST" style="display:inline;" onsubmit="return confirm('Move {{ b.name }} website to pool? Use this when the owner refused.')">
-                    <input type="hidden" name="id" value="{{ b.id }}">
-                    <input type="hidden" name="action" value="send_to_pool">
-                    <button type="submit" class="btn btn-pool" title="Owner refused — save website for next business in same category">♻️ Pool</button>
-                </form>
-                {% endif %}
+            <div class="biz-meta">
+              <strong>Category:</strong> {{ b.category }} &nbsp;·&nbsp;
+              <strong>Owner:</strong> {{ b.owner_name or 'Unknown' }} &nbsp;·&nbsp;
+              <strong>Views:</strong> {{ b.views or 0 }} &nbsp;·&nbsp;
+              <strong>Added:</strong> {{ b.created_at[:10] if b.created_at else '—' }}
             </div>
+          </div>
+          <div class="biz-actions">
+            <a href="/admin/preview/{{ b.id }}" target="_blank" class="btn btn-solid">View</a>
+
+            {% if not b.verified %}
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="verify"><button type="submit" class="btn btn-verify">Verify</button></form>
+            {% else %}
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="unverify"><button type="submit" class="btn">Unverify</button></form>
+            {% endif %}
+
+            {% if b.status == 'approved' %}
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="reject"><button type="submit" class="btn btn-unpub">Unpublish</button></form>
+            {% else %}
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="approve"><button type="submit" class="btn btn-verify">Republish</button></form>
+            {% endif %}
+
+            {% if b.generated_html and not b.owner_id %}
+            <form method="POST" style="display:inline;" onsubmit="return confirm('Move {{ b.name }} website to pool? Use this when the owner never activated it.')"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="send_to_pool"><button type="submit" class="btn btn-pool" title="Save this generated site for the next business in the same category">Pool</button></form>
+            {% endif %}
+
+            <form method="POST" style="display:inline;" onsubmit="return confirm('Delete {{ b.name }}? Cannot be undone.')"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="delete"><button type="submit" class="btn btn-delete">Delete</button></form>
+          </div>
         </div>
         {% endfor %}
+      </div>
     </div>
 
+    <!-- REPORTS -->
+    <div class="panel" data-panel="reports" hidden>
+      <div class="topbar" style="margin:0 -30px 26px;">
+        <div><h1>Reports</h1><p>// the one queue that still needs a human</p></div>
+      </div>
+
+      {% if reported_businesses %}
+        {% for b in reported_businesses %}
+        <div class="report-card">
+          <div class="rname">{{ b.name }} — {{ b.reports }} report{{ 's' if b.reports != 1 }}</div>
+          <div class="rmeta">{{ b.category }} · added {{ b.created_at[:10] if b.created_at else '—' }}</div>
+          <div class="report-actions">
+            <a href="/admin/preview/{{ b.id }}" target="_blank" class="btn btn-solid">View</a>
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="reject"><button type="submit" class="btn btn-unpub">Unpublish</button></form>
+            <form method="POST" style="display:inline;" onsubmit="return confirm('Delete {{ b.name }}? Cannot be undone.')"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="delete"><button type="submit" class="btn btn-delete">Delete</button></form>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div style="padding:40px;text-align:center;color:var(--dim);font-size:14px;border:1px solid var(--border);">No reports right now.</div>
+      {% endif %}
+    </div>
+
+    <!-- AGENTS -->
+    <div class="panel" data-panel="agents" hidden>
+      <div class="topbar" style="margin:0 -30px 26px;">
+        <div><h1>Agents</h1><p>// activity log — invites now activate automatically</p></div>
+      </div>
+
+      <div class="auto-note">
+        Agent-submitted businesses used to sit here waiting for manual approval. Now Daisy generates and publishes them the moment the agent submits, and the invite code goes out automatically. This is just the log.
+      </div>
+
+      {% if agent_activity %}
+        {% for a in agent_activity %}
+        <div class="agent-row">
+          <span class="agent-name">{{ a.business_name }}</span>
+          <span class="agent-sub">Agent: {{ a.agent_name }}</span>
+          <span class="agent-sub">{{ a.created_at[:10] if a.created_at else '—' }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div style="padding:40px;text-align:center;color:var(--dim);font-size:14px;border:1px solid var(--border);">No agent activity yet.</div>
+      {% endif %}
+    </div>
+
+  </main>
 </div>
 
 <script>
-function filterRows(filter, tab){
-    document.querySelectorAll('.ftab').forEach(function(t){t.classList.remove('active');});
+  const links = document.querySelectorAll('.side-link');
+  const panels = document.querySelectorAll('.panel');
+  links.forEach(el => el.addEventListener('click', () => {
+    panels.forEach(p => p.hidden = p.dataset.panel !== el.dataset.target);
+    links.forEach(l => l.classList.toggle('active', l === el));
+  }));
+
+  function filterRows(filter, tab){
+    document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    document.querySelectorAll('.biz-row').forEach(function(row){
-        if(filter==='all') row.style.display='';
-        else if(filter==='pending') row.style.display=row.dataset.status==='pending'?'':'none';
-        else if(filter==='approved') row.style.display=row.dataset.status==='approved'?'':'none';
-        else if(filter==='premium') row.style.display=row.dataset.premium==='1'?'':'none';
-        else if(filter==='reported') row.style.display=parseInt(row.dataset.reports)>0?'':'none';
+    document.querySelectorAll('.biz-row').forEach(row => {
+      if(filter==='all') row.style.display='';
+      else if(filter==='paid') row.style.display=(row.dataset.plan && row.dataset.plan!=='free')?'':'none';
+      else if(filter==='unverified') row.style.display=(row.dataset.verified==='False'||row.dataset.verified==='0'||row.dataset.verified==='')?'':'none';
     });
-}
+  }
 </script>
 </body>
 </html>

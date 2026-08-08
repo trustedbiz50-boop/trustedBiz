@@ -1,40 +1,119 @@
-{% extends "base.html" %}
-{% block title %}Terms of Service — TrustedBiz{% endblock %}
-{% block body %}
-<div style="max-width:700px; margin:30px auto; padding:0 20px 60px;">
-    <div style="background:white; border-radius:14px; padding:30px; box-shadow:0 2px 12px rgba(0,0,0,0.08); border:1.5px solid #f0f0f0;">
-        <h2 style="color:#1f2937; margin-top:0;">Terms of Service</h2>
-        <p style="color:#6b7280; font-size:13px;">Last updated: January 2025</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Terms of Service | TrustedBiz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#2b7a78;--brand-dark:#1f5c5a;--brand-light:#3a9e9b;
+  --bg:#f5f8f8;--surface:#fff;--border:#d8e4e4;
+  --text:#0d1c1c;--mid:#43605f;--dim:#8aa5a4;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1412;--surface:#141d1b;--border:#233230;
+    --text:#eef5f4;--mid:#a9c4c1;--dim:#5f7d7a;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.65;-webkit-font-smoothing:antialiased;}
+a{color:var(--brand);text-decoration:none;}
+a:hover{text-decoration:underline;}
 
-        <h3 style="color:#1f2937;">1. Acceptance</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            By using TrustedBiz, you agree to these terms. If you do not agree, please do not use the app.
-        </p>
+header{border-bottom:1px solid var(--border);}
+.h-inner{max-width:720px;margin:0 auto;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--mono);font-weight:500;font-size:15px;color:var(--text);}
+.logo span{color:var(--brand);}
+.back{font-size:13.5px;color:var(--mid);}
+.back:hover{color:var(--text);}
 
-        <h3 style="color:#1f2937;">2. Business Listings</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            You are responsible for the accuracy of your business information. False or misleading listings may be removed without notice.
-        </p>
+main{max-width:720px;margin:0 auto;padding:56px 24px 90px;}
+.eyebrow{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--brand);margin-bottom:12px;}
+h1{font-size:32px;font-weight:800;letter-spacing:-.8px;margin-bottom:8px;}
+.updated{color:var(--dim);font-size:13px;font-family:var(--mono);margin-bottom:44px;}
+h2{font-size:18px;font-weight:700;letter-spacing:-.3px;margin:36px 0 10px;}
+p{font-size:14.5px;color:var(--mid);margin-bottom:12px;}
+ul{margin:0 0 12px;padding-left:20px;}
+li{font-size:14.5px;color:var(--mid);margin-bottom:6px;}
+strong{color:var(--text);}
+.contact-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--brand);padding:16px 20px;margin-top:6px;}
+.contact-card p{margin:0;font-size:14px;color:var(--text);}
+.contact-card p+p{margin-top:4px;}
 
-        <h3 style="color:#1f2937;">3. Payments</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            Listing fees are paid in Uganda Shillings (UGX) via MTN Mobile Money or Airtel Money. All payments are non-refundable unless otherwise stated.
-        </p>
+footer{border-top:1px solid var(--border);padding:26px 0;}
+.f-inner{max-width:720px;margin:0 auto;padding:0 24px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--dim);font-family:var(--mono);}
+footer a{color:var(--dim);margin-left:16px;}
+footer a:hover{color:var(--text);}
+</style>
+</head>
+<body>
 
-        <h3 style="color:#1f2937;">4. Reviews</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            Reviews must be honest and based on real experience. Fake, abusive, or spam reviews will be removed and accounts may be suspended.
-        </p>
+<header>
+  <div class="h-inner">
+    <a class="logo" href="/">Trusted<span>Biz</span></a>
+    <a class="back" href="/">← Home</a>
+  </div>
+</header>
 
-        <h3 style="color:#1f2937;">5. Prohibited Use</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            You may not use TrustedBiz for illegal activities, scams, or to harass other users. Violations will result in immediate account removal.
-        </p>
+<main>
+  <div class="eyebrow">Legal</div>
+  <h1>Terms of Service</h1>
+  <div class="updated">Last updated: August 2026</div>
 
-        <h3 style="color:#1f2937;">6. Changes</h3>
-        <p style="font-size:14px; color:#374151; line-height:1.7;">
-            We may update these terms at any time. Continued use of the app means you accept the updated terms.
-        </p>
+  <h2>1. Acceptance of Terms</h2>
+  <p>By creating an account or using TrustedBiz, you agree to these Terms. If you do not agree, please do not use the platform.</p>
+
+  <h2>2. What TrustedBiz Is</h2>
+  <p>TrustedBiz is a Ugandan platform that helps businesses get online: listing your business in our directory, hosting a website for it, and, through our AI assistant Daisy, generating a website, logo, flyers, or business cards for you. Some features are free; others require a paid plan as described in Section 4.</p>
+
+  <h2>3. Business Listings</h2>
+  <p>You are responsible for the accuracy of the information you submit about your business, including its name, category, contact details, and description. False or misleading listings may be removed without notice, and repeated violations may lead to account suspension.</p>
+
+  <h2>4. Payments and Plans</h2>
+  <p>TrustedBiz offers a free plan and paid plans such as Pro Max. Listing and subscription fees are charged in Uganda Shillings (UGX) and paid via MTN Mobile Money, Airtel Money, or another method we make available. All payments are non-refundable unless otherwise stated at the time of purchase. Upgrading, downgrading, or cancelling a plan takes effect as described in your account settings or as communicated to you.</p>
+
+  <h2>5. Hosting and Domains</h2>
+  <p>When you use TrustedBiz to host a website, we provide you a subdomain (such as yourbusiness.trustedbiz.co.ug) by default, and a custom domain if your plan supports it and you choose to connect one. You are responsible for keeping any custom domain registration active and for the content published on your site.</p>
+
+  <h2>6. Daisy and AI-Generated Content</h2>
+  <p>Daisy, our AI assistant, can generate websites, logos, flyers, and other business materials based on what you tell her about your business. You are responsible for reviewing AI-generated content before publishing it, including for accuracy and appropriateness. TrustedBiz does not guarantee that AI-generated content will be error-free.</p>
+
+  <h2>7. Reviews</h2>
+  <p>Reviews submitted on TrustedBiz must be honest and based on a real experience with the business being reviewed. Fake, abusive, or spam reviews will be removed, and accounts responsible for them may be suspended.</p>
+
+  <h2>8. Prohibited Use</h2>
+  <p>You may not use TrustedBiz for illegal activity, scams, or to harass other users or businesses. You may not attempt to disrupt, overload, or gain unauthorized access to our systems. Violations may result in immediate removal of content or suspension of your account.</p>
+
+  <h2>9. Suspension and Termination</h2>
+  <p>We may suspend or terminate accounts that violate these Terms. You may close your account at any time; some information may be retained as described in our Privacy Policy.</p>
+
+  <h2>10. Limitation of Liability</h2>
+  <p>TrustedBiz is provided on an "as is" basis. We work to keep the platform reliable but do not guarantee uninterrupted access, and we are not liable for losses arising from downtime, third-party payment processors, or content generated through Daisy that you choose to publish without review.</p>
+
+  <h2>11. Changes to These Terms</h2>
+  <p>We may update these Terms from time to time. We will post the updated version with a new "last updated" date. Continued use of TrustedBiz after a change means you accept the revised Terms.</p>
+
+  <h2>12. Contact Us</h2>
+  <p>Questions about these Terms can be sent to:</p>
+  <div class="contact-card">
+    <p>hello@trustedbiz.co.ug</p>
+    <p>+256 753 187 966</p>
+  </div>
+</main>
+
+<footer>
+  <div class="f-inner">
+    <span>© 2026 TrustedBiz — made in Uganda</span>
+    <div>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/daisy">Daisy</a>
     </div>
-</div>
-{% endblock %}
+  </div>
+</footer>
+
+</body>
+</html>
