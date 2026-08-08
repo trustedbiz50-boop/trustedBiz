@@ -13,7 +13,7 @@ on ENV VARS (add on Render dashboard):
   DGATEWAY_MERCHANT_ID= (add when ready)
 """
 
-import os, math, json, re, secrets
+import os, math, json, re, secrets, requests
 from datetime import timedelta, datetime
 from difflib import SequenceMatcher
 from functools import wraps
@@ -78,7 +78,7 @@ def _email_welcome(name, email):
     <p style="font-size:16px;color:#333;">Hi <strong>{name}</strong>,</p>
     <p style="color:#555;line-height:1.7;">Your account is ready. You can now list your business and get a free AI-generated website that customers can find on Google.</p>
     <div style="text-align:center;margin:28px 0;">
-      <a href="https://trustedbiz.co.ug/add-business" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Add Your Business →</a>
+      <a href="https://trustedbiz.co.ug/dashboard" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Talk to Daisy →</a>
     </div>
     <p style="color:#888;font-size:13px;">If you didn't create this account, ignore this email.</p>
   </div>
@@ -326,7 +326,7 @@ def create_tables():
     if USE_POSTGRES:
         tables = [
         "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'pending', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id SERIAL PRIMARY KEY, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id SERIAL PRIMARY KEY, business_id INTEGER, user_identifier TEXT)",
@@ -344,7 +344,7 @@ def create_tables():
     else:
         tables = [
         "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'pending', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'basic', location TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', location TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_identifier TEXT)",
@@ -412,6 +412,45 @@ def get_anthropic_client():
         return anthropic.Anthropic(api_key=key)
     except ImportError:
         return None
+
+# ── DAISY API CLIENT ──────────────────────────────────────────────────────────
+# Daisy is a separate deployment (her own Render service). TrustedBiz talks to
+# her over HTTP instead of generating content locally. Set these two env vars
+# once her API is live:
+#   DAISY_API_URL = https://daisy-xxxx.onrender.com   (no trailing slash)
+#   DAISY_API_KEY = shared secret so only TrustedBiz can call her
+DAISY_API_URL = os.environ.get("DAISY_API_URL", "").rstrip("/")
+DAISY_API_KEY = os.environ.get("DAISY_API_KEY", "")
+
+def call_daisy(mode, context=None, history=None, message=None, timeout=55):
+    """
+    Calls Daisy's own API. Returns (result_dict, error_string).
+    On any failure, error_string is a plain message safe to show the user —
+    never raises, so callers don't need try/except.
+    """
+    if not DAISY_API_URL:
+        return None, "Daisy isn't connected yet — set DAISY_API_URL."
+    try:
+        payload = {
+            "mode": mode,
+            "context": context or {},
+            "history": history or [],
+        }
+        if message is not None:
+            payload["message"] = message
+        resp = requests.post(
+            f"{DAISY_API_URL}/build",
+            json=payload,
+            headers={"Authorization": f"Bearer {DAISY_API_KEY}"} if DAISY_API_KEY else {},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.json(), None
+    except requests.exceptions.Timeout:
+        return None, "Daisy is thinking hard on this one. Please try again in a moment."
+    except Exception as e:
+        print(f"[Daisy API] {e}")
+        return None, "Daisy couldn't be reached right now. Please try again shortly."
 
 # ── HOME ──────────────────────────────────────────────────────────────────────
 @app.route('/')
@@ -497,205 +536,10 @@ def home():
 # ── PRICE GUARD API ───────────────────────────────────────────────────────────
 @app.route('/portfolio')
 def portfolio():
-    return render_template('portfolio.html')
+    # Folded into /about — redirect so any existing links/bookmarks still work
+    return redirect('/about', code=301)
 
 
-@app.route('/price-guard')
-def price_guard_api():
-    # Use price_guard_items table (richer data with images)
-    rows = db_fetchall(q("""
-        SELECT p.category, p.label, p.price, p.image_ref, p.ai_name,
-               b.name as biz_name, b.slug, b.is_premium,
-               AVG(p.price) OVER (PARTITION BY p.category, p.label) as average,
-               COUNT(*) OVER (PARTITION BY p.category, p.label) as count
-        FROM price_guard_items p
-        JOIN business b ON b.id = p.business_id
-        WHERE b.status='approved'
-        ORDER BY count DESC, p.created_at DESC
-        LIMIT 60
-    """)) if USE_POSTGRES else db_fetchall("""
-        SELECT p.category, p.label, p.price, p.image_ref, p.ai_name,
-               b.name as biz_name, b.slug, b.is_premium
-        FROM price_guard_items p
-        JOIN business b ON b.id = p.business_id
-        WHERE b.status='approved' AND (p.ai_verified=1 OR p.image_ref IS NULL)
-        ORDER BY p.created_at DESC
-        LIMIT 60
-    """)
-
-    # Group by category+label
-    grouped = {}
-    for r in rows:
-        key = f"{r['category']}|{r['label']}"
-        if key not in grouped:
-            grouped[key] = {
-                "category": str(r['category'] or '').title(),
-                "label":    str(r['label'] or ''),
-                "ai_name":  str(r.get('ai_name') or r['label'] or ''),
-                "average":  0, "count": 0,
-                "images":   []
-            }
-        grouped[key]['count'] += 1
-        grouped[key]['average'] = (grouped[key]['average'] * (grouped[key]['count']-1) + float(r['price'] or 0)) / grouped[key]['count']
-        if r.get('ai_name') and r['ai_name'] != r['label']:
-            grouped[key]['ai_name'] = str(r['ai_name'])
-        if r.get('image_ref'):
-            grouped[key]['images'].append({
-                "src":      photo_url(r['image_ref']),
-                "biz_name": r['biz_name'],
-                "slug":     r['slug'],
-                "premium":  bool(r['is_premium'])
-            })
-
-    data = []
-    for item in sorted(grouped.values(), key=lambda x: x['count'], reverse=True)[:20]:
-        item['average'] = round(item['average'], 0)
-        data.append(item)
-
-    return jsonify(data)
-
-# ── AI DESCRIPTION HELPER ─────────────────────────────────────────────────────
-@app.route('/ai-describe', methods=['POST'])
-def ai_describe():
-    """Generate a business description using AI."""
-    data     = request.get_json() or {}
-    name     = str(data.get('name','')).strip()[:100]
-    category = str(data.get('category','')).strip()[:50]
-
-    if not name or not category:
-        return jsonify({"error": "Name and category required"}), 400
-
-    client = get_anthropic_client()
-    if not client:
-        # Fallback template when no API key
-        desc = (f"{name} is a professional {category} business in Uganda. "
-                f"We provide high-quality {category} services to our customers. "
-                f"Our team is experienced, reliable, and dedicated to giving you the best service. "
-                f"Contact us on WhatsApp anytime for inquiries and bookings.")
-        return jsonify({"description": desc})
-
-    try:
-        msg = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=300,
-            messages=[{"role":"user","content":
-                f"Write a 3-sentence business description for a {category} business called '{name}' in Uganda. "
-                f"Make it sound professional, warm, and specific to what a {category} business does. "
-                f"Do NOT use generic phrases like 'we strive' or 'we are committed'. "
-                f"Make it feel real and local. Return ONLY the description, no extra text."}]
-        )
-        desc = msg.content[0].text.strip()
-        return jsonify({"description": desc})
-    except Exception as e:
-        print(f"AI describe error: {e}")
-        return jsonify({"description": f"Professional {category} services in Uganda. We deliver quality work every time. Contact us on WhatsApp for a quote."}), 200
-
-# ── AI PRICE GUARD INSPECTOR ──────────────────────────────────────────────────
-@app.route('/ai-inspect-price', methods=['POST'])
-@login_required
-def ai_inspect_price():
-    """
-    AI inspects a product image and returns:
-    - ai_name: what AI thinks the product is
-    - local_name: what the user called it
-    - price_suggestion: fair price range
-    - verified: bool
-    """
-    label = request.form.get('label','').strip()
-    price = request.form.get('price','').strip()
-    image = request.files.get('image')
-
-    client = get_anthropic_client()
-
-    # Save image first
-    image_ref = None
-    if image and image.filename:
-        image_ref = save_single_photo(image)
-
-    if not client or not image_ref:
-        # No AI — just accept as-is
-        return jsonify({
-            "ai_name":   label,
-            "verified":  True,
-            "message":   "Added successfully.",
-            "image_ref": image_ref
-        })
-
-    try:
-        import base64
-        # Read image for Claude vision
-        if USE_CLOUDINARY and image_ref.startswith("http"):
-            # For Cloudinary we can't re-read easily — skip vision, just name check
-            msg = client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=200,
-                messages=[{"role":"user","content":
-                    f"A business called this product: '{label}' with price UGX {price}. "
-                    f"What is the common/international name for this product? "
-                    f"Is UGX {price} a fair price in Uganda? "
-                    f"Reply in JSON only: {{\"ai_name\":\"...\",\"fair_price\":true/false,\"message\":\"...\"}}"}]
-            )
-        else:
-            # Local file — use vision
-            img_path = LOCAL_UPLOAD / image_ref
-            with open(str(img_path),'rb') as f:
-                img_data = base64.standard_b64encode(f.read()).decode('utf-8')
-
-            # Detect media type
-            ext = image_ref.rsplit('.',1)[-1].lower()
-            media_type = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png","webp":"image/webp","gif":"image/gif"}.get(ext,"image/jpeg")
-
-            msg = client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=250,
-                messages=[{"role":"user","content":[
-                    {"type":"image","source":{"type":"base64","media_type":media_type,"data":img_data}},
-                    {"type":"text","text":
-                        f"Look at this product image. The seller calls it '{label}' and priced it at UGX {price} in Uganda. "
-                        f"1. What is this product's proper/international name? "
-                        f"2. Is UGX {price} a fair price for Uganda? "
-                        f"Reply in JSON only: {{\"ai_name\":\"proper product name\",\"local_name\":\"{label}\",\"fair_price\":true/false,\"message\":\"one sentence explanation\"}}"}
-                ]}]
-            )
-
-        raw = msg.content[0].text.strip()
-        raw = re.sub(r'^```json|^```|```$','',raw.strip()).strip()
-        result = json.loads(raw)
-        result['image_ref'] = image_ref
-        result['verified']  = True
-        return jsonify(result)
-
-    except Exception as e:
-        print(f"AI inspect error: {e}")
-        return jsonify({"ai_name": label, "verified": True, "image_ref": image_ref, "message": "Added."})
-
-# ── ADD PRICE GUARD ITEM ──────────────────────────────────────────────────────
-@app.route('/add-price-item', methods=['POST'])
-@login_required
-def add_price_item():
-    """Save a price guard item after AI inspection."""
-    biz_id   = request.form.get('business_id')
-    label    = request.form.get('label','').strip()
-    price    = request.form.get('price','').strip()
-    ai_name  = request.form.get('ai_name', label).strip()
-    image_ref= request.form.get('image_ref','').strip()
-
-    # Verify this business belongs to user
-    biz = db_fetchone(q("SELECT id,category FROM business WHERE id=? AND owner_id=?"),
-                      (biz_id, session['user_id']))
-    if not biz:
-        return jsonify({"error":"Not found"}), 404
-
-    try:
-        db_insert(q("""
-            INSERT INTO price_guard_items (business_id,category,label,price,image_ref,ai_name,ai_verified)
-            VALUES (?,?,?,?,?,?,1)
-        """), (biz_id, biz['category'], label, float(price), image_ref, ai_name))
-        return jsonify({"success": True, "message": "Price item added to Price Guard!"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ── AUTH ──────────────────────────────────────────────────────────────────────
 @app.route('/register', methods=['GET','POST'])
 def register():
     if request.method == 'POST':
@@ -713,8 +557,8 @@ def register():
             session['user_id'] = user_id
             session['user_name'] = name
             _email_welcome(name, email)
-            flash(f"Welcome {name}! Choose a plan to get started.")
-            return redirect('/choose-plan')
+            flash(f"Welcome {name}! Tell Daisy about your business to get your first site live.")
+            return redirect('/dashboard')
         except: flash("Email already registered.")
     return render_template('register.html', current_user=None)
 
@@ -775,42 +619,98 @@ def site(slug=None):
     if bd.get('generated_html'):
         return bd['generated_html']
 
-    # Generate AI site — bg function now blocks (up to 55s) so Render free tier
-    # completes the generation before the response is sent. Fallback is saved
-    # first so if AI times out the user still sees a proper page.
-    from ai_generator import generate_business_website_bg
-    from ai_generator import _fallback
+    # Generate the site via Daisy's API instead of generating locally.
+    # A simple, real-data fallback (using the business's actual name, category,
+    # description, photos, hours, branches) is saved and served immediately so
+    # the visitor never sees a blank page. Daisy's real build then runs and
+    # replaces it — currently synchronous (page waits up to ~55s on first
+    # visit); move this to a background thread once Daisy's API is live and
+    # you know her real response time.
     wa_link = f"https://wa.me/{bd.get('whatsapp','')}"
-    fallback_html = _fallback(
-        str(bd.get('name') or 'Business'),
-        str(bd.get('category') or ''),
-        str(bd.get('description') or ''),
-        str(bd.get('whatsapp') or ''),
-        str(bd.get('hours') or 'Mon-Sat 8am-7pm'),
-        str(bd.get('brand_color') or '#2b7a78'),
-        [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
-        bd.get('lat') or 0, bd.get('lng') or 0,
-        bd.get('hero_price'), str(bd.get('hero_price_label') or ''),
-        bd.get('branches') or [], bd.get('ads') or [],
-        wa_link, ''
-    )
-    # Save fallback immediately so the page always loads fast
-    try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (fallback_html, biz['id']))
-    except: pass
-    # Fire AI generation in background — never blocks the HTTP response
-    import threading as _threading
-    _biz_id = biz['id']
-    _db_fn  = lambda sql, params: db_execute(q(sql), params)
-    _t = _threading.Thread(
-        target=generate_business_website_bg,
-        args=(bd, _db_fn, _biz_id),
-        daemon=True
-    )
-    _t.start()
-    # Serve the fallback immediately; AI result will be there on next visit
+    fallback_html = _basic_fallback_site(bd, wa_link)
+
+    daisy_ctx = {
+        'name': bd.get('name'), 'category': bd.get('category'),
+        'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
+        'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
+        'brand_color': bd.get('brand_color') or '#2b7a78',
+        'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
+        'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
+    }
+    result, err = call_daisy('website', context=daisy_ctx)
+    html = (result or {}).get('html') if result else None
+
+    if html:
+        try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz['id']))
+        except: pass
+        return html
+
+    # Daisy unavailable or still not connected — serve the fallback, don't
+    # leave the visitor with nothing, but don't cache it as the final site.
+    print(f"[Daisy API] site() fallback used for biz {biz['id']}: {err}")
     return fallback_html
 
+
+def _basic_fallback_site(bd, wa_link):
+    """Plain, real-data page shown only if Daisy's API is unreachable."""
+    name  = str(bd.get('name') or 'Business')
+    cat   = str(bd.get('category') or '')
+    desc  = str(bd.get('description') or '')
+    hours = str(bd.get('hours') or 'Mon-Sat 8am-7pm')
+    color = str(bd.get('brand_color') or '#2b7a78')
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{name} | TrustedBiz</title>
+<style>body{{font-family:sans-serif;background:#f5f8f8;color:#0d1c1c;max-width:560px;margin:60px auto;padding:0 24px;text-align:center;}}
+h1{{color:{color};}} a{{display:inline-block;margin-top:20px;background:{color};color:#fff;padding:12px 26px;border-radius:6px;text-decoration:none;font-weight:600;}}</style>
+</head><body><h1>{name}</h1><p>{cat}</p><p>{desc}</p><p>{hours}</p>
+<a href="{wa_link}">Message on WhatsApp</a></body></html>"""
+
 # ── REGENERATE ────────────────────────────────────────────────────────────────
+@app.route('/daisy/create-business', methods=['POST'])
+@login_required
+def daisy_create_business():
+    """The real gap this closes: Daisy's chat can describe a business and
+    even preview its HTML, but nothing saved it. This turns that into an
+    actual live listing — called once the conversation has a name and
+    enough detail to go live."""
+    user = get_current_user()
+    data = request.get_json() or {}
+    name        = (data.get('name') or '').strip()[:100]
+    category    = (data.get('category') or '').strip().lower()
+    whatsapp    = (data.get('whatsapp') or '').strip()
+    description = (data.get('description') or '').strip()
+    color       = (data.get('brand_color') or '#2b7a78').strip()
+    html        = data.get('html')  # Daisy may have already generated this during chat
+
+    if not name:
+        return jsonify({'error': 'A business name is required.'}), 400
+
+    slug = make_slug(name)
+    biz_id = db_insert(
+        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?)"),
+        (name, category, whatsapp, description, color, slug, user['id'], 'approved', 'free', html)
+    )
+    ping_google(slug)
+
+    if not html:
+        daisy_ctx = {'name': name, 'category': category, 'description': description,
+                     'whatsapp': whatsapp, 'brand_color': color, 'hours': 'Mon-Sat 8am-7pm'}
+        def _bg(ctx, bid):
+            result, err = call_daisy('website', context=ctx)
+            h = (result or {}).get('html') if result else None
+            if h:
+                try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (h, bid))
+                except Exception as e: print(f"create-business save error: {e}")
+            else:
+                print(f"[Daisy API] create-business gen failed for biz {bid}: {err}")
+        import threading
+        threading.Thread(target=_bg, args=(daisy_ctx, biz_id), daemon=True).start()
+
+    return jsonify({'success': True, 'biz_id': biz_id, 'slug': slug,
+                     'url': f"https://{slug}.trustedbiz.co.ug"})
+
+
 @app.route('/generate-site/<int:biz_id>', methods=['POST'])
 @login_required
 def generate_site(biz_id):
@@ -821,240 +721,31 @@ def generate_site(biz_id):
     bd['branches'] = [dict(b) for b in branches]
     ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
     bd['ads'] = [dict(a) for a in ads]
-    plan = session.get('chosen_plan', 'basic')
-    from ai_generator import generate_business_website_bg
-    try:
-        import threading
-        t = threading.Thread(
-            target=generate_business_website_bg,
-            args=(bd, lambda sql, params: db_execute(q(sql), params), biz_id, plan),
-            daemon=True
-        )
-        t.start()
-    except Exception as e:
-        print(f"Regen error: {e}")
-    flash("✨ Your website is being built... refresh in 30 seconds to see it live.")
+    daisy_ctx = {
+        'name': bd.get('name'), 'category': bd.get('category'),
+        'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
+        'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
+        'brand_color': bd.get('brand_color') or '#2b7a78',
+        'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
+        'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
+        'plan': bd.get('plan') or 'free',
+    }
+
+    def _regen_bg(ctx, biz_id):
+        result, err = call_daisy('website', context=ctx)
+        html = (result or {}).get('html') if result else None
+        if html:
+            try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz_id))
+            except Exception as e: print(f"Regen save error: {e}")
+        else:
+            print(f"[Daisy API] regen failed for biz {biz_id}: {err}")
+
+    import threading
+    threading.Thread(target=_regen_bg, args=(daisy_ctx, biz_id), daemon=True).start()
+    flash("✨ Your website is being rebuilt by Daisy... refresh in about 30 seconds to see it live.")
     return redirect('/dashboard')
 
 # ── ADD BUSINESS ──────────────────────────────────────────────────────────────
-@app.route('/add-business', methods=['GET','POST'])
-@login_required
-def add_business():
-    user = get_current_user()
-    existing = db_fetchall(q("SELECT id FROM business WHERE owner_id=?"), (user['id'],))
-    if len(existing) >= 1 and not user['is_premium']:
-        return render_template('upgrade.html', business=None,
-                               basic_link=f"https://wa.me/{ADMIN_WHATSAPP}?text=I+want+to+upgrade+TrustedBiz",
-                               promax_link=f"https://wa.me/{ADMIN_WHATSAPP}?text=I+want+Pro+Max+TrustedBiz",
-                               use_dgateway=False, current_user=user)
-
-    if request.method == 'POST':
-        name        = request.form.get('name','').strip()[:100]
-        category    = request.form.get('category','').strip().lower()
-        whatsapp    = request.form.get('whatsapp','').strip()
-        lat         = request.form.get('lat','').strip() or None
-        lng         = request.form.get('lng','').strip() or None
-        description = request.form.get('description','').strip()
-        hours       = request.form.get('hours','').strip()
-        color       = request.form.get('brand_color','#2b7a78').strip()
-        hero_price  = request.form.get('hero_price','').strip() or None
-        hero_label  = request.form.get('hero_price_label','').strip()
-        slug        = make_slug(name)
-        # Photos are always sent as compressed base64 from the browser
-        photos_b64_raw = request.form.get('photos_b64','').strip()
-        photos = []
-        if photos_b64_raw:
-            try:
-                import json as _json
-                photos = save_photos_b64(_json.loads(photos_b64_raw))
-            except Exception as e:
-                print(f"B64 parse error: {e}")
-        # Only fall back to raw files if zero b64 photos came through
-        if not photos:
-            raw_files = request.files.getlist('photos')
-            if raw_files and raw_files[0].filename:
-                photos = save_photos(raw_files)
-        photos_str  = ",".join(photos)
-
-        try:
-            biz_id = db_insert(q("""
-                INSERT INTO business
-                  (name,category,whatsapp,lat,lng,photos,description,hours,
-                   brand_color,slug,hero_price,hero_price_label,
-                   status,owner_ip,owner_id)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)
-            """), (name,category,whatsapp,lat,lng,photos_str,description,hours,
-                   color,slug,hero_price,hero_label,request.remote_addr,user['id']))
-
-            # Auto-add to price guard with AI verification
-            if hero_price and hero_label and biz_id:
-                hero_img_b64 = request.form.get('hero_price_image_b64','').strip()
-                hero_price_img = request.files.get('hero_price_image')
-                hero_img_ref = None
-                ai_name = hero_label
-                ai_verified = 0
-                if hero_img_b64:
-                    refs = save_photos_b64([hero_img_b64])
-                    hero_img_ref = refs[0] if refs else None
-                elif hero_price_img and hero_price_img.filename:
-                    hero_img_ref = save_single_photo(hero_price_img)
-                    client = get_anthropic_client()
-                    if client and hero_img_ref:
-                        try:
-                            import base64 as b64mod
-                            prompt = (
-                                "Look at this product image from a Uganda business. "
-                                "The seller calls it '" + hero_label + "' priced at UGX " + str(hero_price) + ". "
-                                "1. What is the proper name of what you see? "
-                                "2. Is UGX " + str(hero_price) + " a fair price in Uganda? "
-                                "3. Does the image match '" + hero_label + "'? "
-                                'Reply ONLY in JSON: {"ai_name":"proper name","fair_price":true,"matches":true,"reason":"short sentence"}'
-                            )
-                            if USE_CLOUDINARY and hero_img_ref.startswith("http"):
-                                ai_msg = client.messages.create(
-                                    model="claude-sonnet-4-5", max_tokens=300,
-                                    messages=[{"role":"user","content":[
-                                        {"type":"image","source":{"type":"url","url":hero_img_ref}},
-                                        {"type":"text","text":prompt}
-                                    ]}])
-                            else:
-                                img_path = LOCAL_UPLOAD / hero_img_ref
-                                with open(str(img_path),'rb') as imgf:
-                                    img_data = b64mod.standard_b64encode(imgf.read()).decode('utf-8')
-                                ext = hero_img_ref.rsplit('.',1)[-1].lower()
-                                mtype = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png","webp":"image/webp"}.get(ext,"image/jpeg")
-                                ai_msg = client.messages.create(
-                                    model="claude-sonnet-4-5", max_tokens=300,
-                                    messages=[{"role":"user","content":[
-                                        {"type":"image","source":{"type":"base64","media_type":mtype,"data":img_data}},
-                                        {"type":"text","text":prompt}
-                                    ]}])
-                            raw = re.sub(r'```json|```','',ai_msg.content[0].text.strip()).strip()
-                            ai_result = json.loads(raw)
-                            ai_name = ai_result.get('ai_name', hero_label)
-                            ai_verified = 1 if (ai_result.get('fair_price',True) and ai_result.get('matches',True)) else 0
-                        except Exception as ai_err:
-                            print(f"AI price verify error: {ai_err}")
-                db_insert(q("""
-                    INSERT INTO price_guard_items (business_id,category,label,price,image_ref,ai_name,ai_verified)
-                    VALUES (?,?,?,?,?,?,?)
-                """), (biz_id, category, hero_label, float(hero_price), hero_img_ref, ai_name, ai_verified))
-
-            flash("Business submitted! Waiting for approval.")
-            _email_submitted(user['name'], user['email'], name)
-            return redirect('/dashboard')
-        except Exception as e:
-            print(e); flash("Error submitting. Please try again.")
-
-    return render_template('add-business.html', editing=None, current_user=user)
-
-# ── EDIT BUSINESS ─────────────────────────────────────────────────────────────
-@app.route('/edit-business/<int:biz_id>', methods=['GET','POST'])
-@login_required
-def edit_business(biz_id):
-    biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id,session['user_id']))
-    if not biz: flash("Not found."); return redirect('/dashboard')
-
-    if request.method == 'POST':
-        name        = request.form.get('name','').strip()
-        category    = request.form.get('category','').strip().lower()
-        whatsapp    = request.form.get('whatsapp','').strip()
-        description = request.form.get('description','').strip()
-        hours       = request.form.get('hours','').strip()
-        color       = request.form.get('brand_color', biz['brand_color'] or '#2b7a78').strip()
-        hero_price  = request.form.get('hero_price','').strip() or None
-        hero_label  = request.form.get('hero_price_label','').strip()
-        db_execute(q("""UPDATE business SET
-            name=?,category=?,whatsapp=?,description=?,hours=?,
-            brand_color=?,hero_price=?,hero_price_label=?,generated_html=NULL
-            WHERE id=?"""),
-            (name,category,whatsapp,description,hours,color,hero_price,hero_label,biz_id))
-        flash("Updated! Your website is being regenerated.")
-        return redirect('/dashboard')
-
-    return render_template('add-business.html', editing=biz_to_dict(biz), current_user=get_current_user())
-
-# ── ADD BRANCH ────────────────────────────────────────────────────────────────
-@app.route('/add-branch/<int:biz_id>', methods=['GET','POST'])
-@login_required
-def add_branch(biz_id):
-    biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id,session['user_id']))
-    if not biz: flash("Not found."); return redirect('/dashboard')
-    if request.method == 'POST':
-        db_insert(q("INSERT INTO branches (business_id,name,address,whatsapp,hours,lat,lng) VALUES (?,?,?,?,?,?,?)"),
-                  (biz_id,request.form.get('name','').strip(),request.form.get('address','').strip(),
-                   request.form.get('whatsapp','').strip(),request.form.get('hours','').strip(),
-                   request.form.get('lat','').strip() or None,request.form.get('lng','').strip() or None))
-        db_execute(q("UPDATE business SET generated_html=NULL WHERE id=?"), (biz_id,))
-        flash("Branch added! Website will update.")
-        return redirect('/dashboard')
-    return render_template('add-branch.html', business=biz_to_dict(biz), current_user=get_current_user())
-
-# ── ADS — CREATE / EDIT / DELETE ─────────────────────────────────────────────
-@app.route('/ads/<int:biz_id>', methods=['GET','POST'])
-@login_required
-def manage_ads(biz_id):
-    biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id,session['user_id']))
-    if not biz: flash("Not found."); return redirect('/dashboard')
-    if not biz['is_premium']:
-        flash("Ads are a Pro Max feature. Upgrade to use them.")
-        return redirect('/dashboard')
-
-    # Count active ads this month (limit 2 per month)
-    ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? ORDER BY created_at DESC"), (biz_id,))
-
-    if request.method == 'POST':
-        action = request.form.get('action','')
-
-        if action == 'create':
-            active_count = sum(1 for a in ads if a['active'])
-            if active_count >= 2:
-                flash("You already have 2 active ads. Delete one to add a new ad.")
-                return redirect(f'/ads/{biz_id}')
-            title  = request.form.get('title','').strip()[:100]
-            body   = request.form.get('body','').strip()[:300]
-            image  = request.files.get('image')
-            img_ref= save_single_photo(image) if image and image.filename else None
-
-            # AI generates ad copy if body is short
-            client = get_anthropic_client()
-            if client and len(body) < 20 and title:
-                try:
-                    msg = client.messages.create(
-                        model="claude-sonnet-4-5",
-                        max_tokens=120,
-                        messages=[{"role":"user","content":
-                            f"Write a short, exciting 2-sentence ad announcement for a {biz['category']} business "
-                            f"called '{biz['name']}'. The ad is about: '{title}'. "
-                            f"Make it feel urgent and local (Uganda). Return ONLY the 2 sentences."}]
-                    )
-                    body = msg.content[0].text.strip()
-                except: pass
-
-            db_insert(q("INSERT INTO ads (business_id,title,body,image_ref,active) VALUES (?,?,?,?,1)"),
-                      (biz_id,title,body,img_ref))
-            db_execute(q("UPDATE business SET generated_html=NULL WHERE id=?"), (biz_id,))
-            flash("✅ Ad created! Your website has been updated.")
-
-        elif action == 'toggle':
-            ad_id  = request.form.get('ad_id')
-            ad     = db_fetchone(q("SELECT * FROM ads WHERE id=? AND business_id=?"), (ad_id,biz_id))
-            if ad:
-                db_execute(q("UPDATE ads SET active=? WHERE id=?"), (0 if ad['active'] else 1, ad_id))
-                db_execute(q("UPDATE business SET generated_html=NULL WHERE id=?"), (biz_id,))
-                flash("Ad updated.")
-
-        elif action == 'delete':
-            ad_id = request.form.get('ad_id')
-            db_execute(q("DELETE FROM ads WHERE id=? AND business_id=?"), (ad_id,biz_id))
-            db_execute(q("UPDATE business SET generated_html=NULL WHERE id=?"), (biz_id,))
-            flash("Ad deleted.")
-
-        return redirect(f'/ads/{biz_id}')
-
-    return render_template('ads.html', business=biz_to_dict(biz), ads=[dict(a) for a in ads], current_user=get_current_user())
-
-# ── DASHBOARD ─────────────────────────────────────────────────────────────────
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -1067,12 +758,17 @@ def dashboard():
     businesses   = [biz_to_dict(b) for b in businesses]
     total_views  = sum(b.get('views',0) or 0 for b in businesses)
     live_count   = sum(1 for b in businesses if b.get('status')=='approved')
-    chosen_plan = session.get('chosen_plan', 'free')
+    # Plan is tracked per-business (see admin's Set Basic/Set Pro Max). For the
+    # account-level billing view, use the highest plan among the user's
+    # businesses as "chosen_plan" — reasonable for the common single-business
+    # case; worth revisiting once multi-business accounts are common.
+    plan_rank = {'free': 0, 'basic': 1, 'pro_max': 2}
+    chosen_plan = 'free'
+    for b in businesses:
+        if plan_rank.get(b.get('plan') or 'free', 0) > plan_rank.get(chosen_plan, 0):
+            chosen_plan = b.get('plan') or 'free'
     current_user = get_current_user()
-    # Sync chosen_plan from user record if available
-    if current_user and current_user.get('is_premium') and chosen_plan == 'free':
-        chosen_plan = 'basic'  # at minimum basic if premium
-    return render_template('dashboard.html', businesses=businesses, stats=stats,
+    return render_template('console.html', businesses=businesses, stats=stats,
                            current_user=current_user, total_listings=len(businesses),
                            live_count=live_count, total_views=total_views,
                            chosen_plan=chosen_plan)
@@ -1114,18 +810,12 @@ def report(biz_id):
     flash("Business reported. Thank you."); return redirect('/')
 
 # ── UPGRADE ───────────────────────────────────────────────────────────────────
+# The dedicated upgrade page was cut — the console's Billing tab already has
+# the same WhatsApp upgrade links built in. Redirect so old links still work.
 @app.route('/upgrade/<int:biz_id>')
 @login_required
 def upgrade_page(biz_id):
-    user = get_current_user()
-    biz  = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id,user['id']))
-    if not biz: flash("Not found."); return redirect('/dashboard')
-    name = biz['name']
-    basic_link  = f"https://wa.me/{ADMIN_WHATSAPP}?text=Hi+TrustedBiz!+I+want+to+upgrade+'{name}'+to+Basic+Plan+(UGX+7500/month).+My+name+is+{user['name']}."
-    promax_link = f"https://wa.me/{ADMIN_WHATSAPP}?text=Hi+TrustedBiz!+I+want+to+upgrade+'{name}'+to+Pro+Max+Plan+(UGX+15000/month).+My+name+is+{user['name']}."
-    return render_template('upgrade.html', business=biz_to_dict(biz),
-                           basic_link=basic_link, promax_link=promax_link,
-                           use_dgateway=False, current_user=user)
+    return redirect('/dashboard')
 
 # ── ADMIN LOGIN ───────────────────────────────────────────────────────────────
 @app.route('/admin/login', methods=['GET','POST'])
@@ -1176,14 +866,16 @@ def admin():
             db_execute(q("UPDATE business SET verified=1 WHERE id=?"), (biz_id,))
         elif action == 'unverify':
             db_execute(q("UPDATE business SET verified=0 WHERE id=?"), (biz_id,))
-        elif action == 'set_premium':
-            db_execute(q("UPDATE business SET is_premium=1,last_payment_date=CURRENT_DATE,payment_months_late=0 WHERE id=?"), (biz_id,))
+        elif action in ('set_basic', 'set_pro_max', 'set_free'):
+            new_plan = {'set_basic': 'basic', 'set_pro_max': 'pro_max', 'set_free': 'free'}[action]
+            is_paid  = 1 if new_plan != 'free' else 0
+            db_execute(q("UPDATE business SET plan=?, is_premium=?, last_payment_date=CURRENT_DATE, payment_months_late=0 WHERE id=?"),
+                       (new_plan, is_paid, biz_id))
             owner = db_fetchone(q("SELECT owner_id FROM business WHERE id=?"), (biz_id,))
             if owner and owner.get('owner_id'):
+                label = {'basic': 'Basic', 'pro_max': 'Pro Max', 'free': 'Free'}[new_plan]
                 db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
-                          (owner['owner_id'], "⭐ You're now Premium! Your AI website is being generated."))
-        elif action == 'remove_premium':
-            db_execute(q("UPDATE business SET is_premium=0 WHERE id=?"), (biz_id,))
+                          (owner['owner_id'], f"Your plan is now {label}."))
         elif action == 'mark_late':
             db_execute(q("UPDATE business SET payment_months_late=payment_months_late+1 WHERE id=?"), (biz_id,))
         elif action == 'block':
@@ -1196,16 +888,25 @@ def admin():
                 bd['branches'] = [dict(b) for b in branches]
                 ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
                 bd['ads'] = [dict(a) for a in ads]
-                from ai_generator import generate_business_website_bg
+                daisy_ctx = {
+                    'name': bd.get('name'), 'category': bd.get('category'),
+                    'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
+                    'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
+                    'brand_color': bd.get('brand_color') or '#2b7a78',
+                    'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
+                    'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
+                }
+                def _admin_regen_bg(ctx, bid):
+                    result, err = call_daisy('website', context=ctx)
+                    html = (result or {}).get('html') if result else None
+                    if html:
+                        try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
+                        except Exception as e: print(f"Admin regen save error: {e}")
+                    else:
+                        print(f"[Daisy API] admin regen failed for biz {bid}: {err}")
                 import threading as _threading
-                _db_fn = lambda sql, params: db_execute(q(sql), params)
-                _t = _threading.Thread(
-                    target=generate_business_website_bg,
-                    args=(bd, _db_fn, int(biz_id)),
-                    daemon=True
-                )
-                _t.start()
-                flash("✅ Regenerating in background — refresh the site in 60 seconds!")
+                _threading.Thread(target=_admin_regen_bg, args=(daisy_ctx, int(biz_id)), daemon=True).start()
+                flash("✅ Daisy is regenerating this site — refresh in about 60 seconds!")
         elif action == 'delete':
             db_execute(q("DELETE FROM business WHERE id=?"), (biz_id,))
         elif action == 'send_to_pool':
@@ -1252,12 +953,11 @@ def admin():
     stats = {
         'total_users':      (db_fetchone(q("SELECT COUNT(*) as c FROM users")) or {}).get('c',0),
         'total_businesses': (db_fetchone(q("SELECT COUNT(*) as c FROM business")) or {}).get('c',0),
-        'pending':          (db_fetchone(q("SELECT COUNT(*) as c FROM business WHERE status='pending'")) or {}).get('c',0),
         'total_reviews':    (db_fetchone(q("SELECT COUNT(*) as c FROM reviews")) or {}).get('c',0),
-        'total_premium':    (db_fetchone(q("SELECT COUNT(*) as c FROM business WHERE is_premium=1")) or {}).get('c',0),
+        'total_paid':       (db_fetchone(q("SELECT COUNT(*) as c FROM business WHERE plan IS NOT NULL AND plan!='free'")) or {}).get('c',0),
     }
 
-    # Template pool stats — show how many AI calls were saved
+    # Template pool stats — show how many Daisy calls were saved by reuse
     try:
         pool_stats = db_fetchall(q("SELECT category, times_used, quality_score, created_at FROM template_pool ORDER BY times_used DESC"))
         pool_stats = [dict(p) for p in pool_stats]
@@ -1266,47 +966,37 @@ def admin():
         pool_stats = []
         pool_saves = 0
 
-    # Pending agent-submitted businesses (need approve-agent-biz action)
+    # Reports queue — the one thing that still needs a human
     try:
-        agent_pending = db_fetchall(q("""
-            SELECT b.*, a.name as agent_name, a.whatsapp as agent_whatsapp
+        reported_businesses = db_fetchall(q("SELECT * FROM business WHERE reports > 0 ORDER BY reports DESC"))
+        reported_businesses = [biz_to_dict(b) for b in reported_businesses]
+    except:
+        reported_businesses = []
+    reported_count = len(reported_businesses)
+
+    # Agent activity log — submissions now publish automatically, this is
+    # just a record of what agents have brought in recently.
+    try:
+        agent_activity = db_fetchall(q("""
+            SELECT b.name as business_name, a.name as agent_name, b.created_at
             FROM business b
             LEFT JOIN agents a ON a.code=b.agent_code
-            WHERE b.agent_code IS NOT NULL AND b.status='pending'
-            ORDER BY b.created_at DESC
+            WHERE b.agent_code IS NOT NULL
+            ORDER BY b.created_at DESC LIMIT 20
         """))
-        agent_pending = [biz_to_dict(b) for b in agent_pending]
+        agent_activity = [dict(a) for a in agent_activity]
     except:
-        agent_pending = []
+        agent_activity = []
 
     return render_template('admin.html',
         businesses=[biz_to_dict(b) for b in businesses],
         late_alert=[biz_to_dict(b) for b in (late_alert or [])],
         pool_stats=pool_stats,
         pool_saves=pool_saves,
-        agent_pending=agent_pending,
+        reported_businesses=reported_businesses,
+        reported_count=reported_count,
+        agent_activity=agent_activity,
         **stats)
-
-# ── ADMIN DEMO ────────────────────────────────────────────────────────────────
-@app.route('/admin/demo', methods=['GET','POST'])
-@admin_required
-def admin_demo():
-    demo_html = None; form_data = {}
-    if request.method == 'POST':
-        form_data = {
-            'name': request.form.get('name','').strip(),
-            'category': request.form.get('category','').strip().lower(),
-            'description': request.form.get('description','').strip(),
-            'whatsapp': request.form.get('whatsapp','256700000000').strip(),
-            'hours': request.form.get('hours','Mon–Sat 8am–7pm').strip(),
-            'brand_color': request.form.get('brand_color','#2b7a78').strip(),
-            'hero_price': request.form.get('hero_price','').strip() or None,
-            'hero_price_label': request.form.get('hero_price_label','').strip(),
-            'is_premium': True, 'slug':'demo', 'lat':0, 'lng':0, 'photos':'', 'branches':[], 'ads':[]
-        }
-        from ai_generator import generate_business_website
-        demo_html = generate_business_website(form_data)
-    return render_template('admin_demo.html', demo_html=demo_html, form_data=form_data, current_user=None)
 
 # ── STATIC PAGES ──────────────────────────────────────────────────────────────
 @app.route('/privacy')
@@ -1359,29 +1049,23 @@ def admin_preview(biz_id):
     bd['ads'] = [dict(a) for a in ads]
     if bd.get('generated_html'):
         return bd['generated_html']
-    from ai_generator import generate_business_website_bg, _fallback
-    fallback_html = _fallback(
-        str(bd.get('name') or 'Business'),
-        str(bd.get('category') or ''),
-        str(bd.get('description') or ''),
-        str(bd.get('whatsapp') or ''),
-        str(bd.get('hours') or 'Mon-Sat 8am-7pm'),
-        str(bd.get('brand_color') or '#2b7a78'),
-        [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
-        bd.get('lat') or 0, bd.get('lng') or 0,
-        bd.get('hero_price'), str(bd.get('hero_price_label') or ''),
-        bd.get('branches') or [], bd.get('ads') or [],
-        f"https://wa.me/{bd.get('whatsapp','')}",
-        ''
-    )
-    try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (fallback_html, biz_id))
-    except: pass
-    generate_business_website_bg(bd, lambda sql, params: db_execute(q(sql), params), biz_id)
-    try:
-        fresh = db_fetchone(q("SELECT generated_html FROM business WHERE id=?"), (biz_id,))
-        if fresh and fresh['generated_html']:
-            return fresh['generated_html']
-    except: pass
+    wa_link = f"https://wa.me/{bd.get('whatsapp','')}"
+    fallback_html = _basic_fallback_site(bd, wa_link)
+    daisy_ctx = {
+        'name': bd.get('name'), 'category': bd.get('category'),
+        'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
+        'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
+        'brand_color': bd.get('brand_color') or '#2b7a78',
+        'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
+        'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
+    }
+    result, err = call_daisy('website', context=daisy_ctx)
+    html = (result or {}).get('html') if result else None
+    if html:
+        try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz_id))
+        except: pass
+        return html
+    print(f"[Daisy API] admin_preview fallback used for biz {biz_id}: {err}")
     return fallback_html
 
 
@@ -1418,20 +1102,6 @@ def check_payments():
     return f"Done. {reminded} reminded. {suspended} suspended."
 
 
-@app.route('/choose-plan', methods=['GET','POST'])
-@login_required
-def choose_plan():
-    if request.method == 'POST':
-        plan = request.form.get('plan','free')
-        session['chosen_plan'] = plan
-        user_id = session.get('user_id')
-        if plan in ['basic','promax'] and user_id:
-            # Mark user as premium immediately — business approval is separate
-            db_execute(q("UPDATE users SET is_premium=1 WHERE id=?"), (user_id,))
-            flash("Welcome! Add your business and we will review and approve it.")
-        return redirect('/dashboard')
-    return render_template('choose-plan.html', current_user=get_current_user())
-    
 @app.route('/about')
 def about():
     return render_template('landing.html')
@@ -1492,7 +1162,7 @@ def indexnow_key():
 def sitemap():
     urls = [
         'https://trustedbiz.co.ug/',
-        'https://trustedbiz.co.ug/price-guard',
+        'https://trustedbiz.co.ug/about',
         'https://trustedbiz.co.ug/privacy',
         'https://trustedbiz.co.ug/terms'
     ]
@@ -1530,67 +1200,74 @@ Sitemap: https://trustedbiz.co.ug/sitemap.xml
 # ── RUN ───────────────────────────────────────────────────────────────────────
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TRUSTHOST — Website Hosting Dashboard
+# HOSTING — custom domains for Daisy-built business sites
 # ══════════════════════════════════════════════════════════════════════════════
 
-@app.route('/trusthost')
-@login_required
-def trusthost_dashboard():
-    user  = get_current_user()
-    sites = db_fetchall(
-        q("SELECT * FROM business WHERE owner_id=? ORDER BY created_at DESC"),
-        (user['id'],)
-    )
-    plan  = 'premium' if any(s['is_premium'] for s in sites) else 'free'
-    # Simple log entries — in future connect to real request logs
-    from datetime import datetime
-    now = datetime.now().strftime('%H:%M:%S')
-    logs = [
-        {'time': now, 'cls': 'l-ok',  'msg': '✓ TrustHost running · all sites healthy'},
-        {'time': now, 'cls': 'l-info','msg': f'GET / 200 — {len(sites)} site(s) hosted'},
-    ]
-    return render_template('trusthost_dashboard.html',
-        current_user=user,
-        sites=[dict(s) for s in sites],
-        plan=plan,
-        logs=logs
-    )
+# ══════════════════════════════════════════════════════════════════════════════
+# HOSTING — deploy your own site, or connect a custom domain to a Daisy-built one
+# ══════════════════════════════════════════════════════════════════════════════
 
-
-@app.route('/trusthost/deploy', methods=['POST'])
+@app.route('/deploy', methods=['POST'])
 @login_required
-def trusthost_deploy():
+def deploy_site():
+    """Bring-your-own-HTML hosting, the actual 'hosting platform' side of
+    TrustedBiz — same idea as Render or Netlify, deploy what you already have.
+    Separate from Daisy's business-builder flow, which creates the business
+    record itself; this just needs a name and HTML."""
     user        = get_current_user()
     name        = request.form.get('name','').strip()
-    category    = request.form.get('category','Business Website').strip()
+    category    = request.form.get('category','Website').strip()
     whatsapp    = request.form.get('whatsapp','').strip()
     brand_color = request.form.get('brand_color','#2b7a78').strip()
     description = request.form.get('description','').strip()
     custom_html = request.form.get('custom_html','').strip()
     html_file   = request.files.get('html_file')
+    github_url  = request.form.get('github_url','').strip()
+
     if html_file and html_file.filename.endswith('.html'):
         custom_html = html_file.read().decode('utf-8')
+
+    # Simple GitHub import — pulls index.html from a public repo's default
+    # branch. Real push-to-deploy (via a GitHub App + webhook) needs GitHub
+    # App credentials that don't exist yet; this covers "connect a repo" for now.
+    if github_url and not custom_html:
+        try:
+            m = re.search(r'github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$', github_url)
+            if m:
+                owner, repo = m.group(1), m.group(2)
+                for branch in ('main', 'master'):
+                    r = requests.get(
+                        f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/index.html",
+                        timeout=10
+                    )
+                    if r.status_code == 200 and r.text.strip():
+                        custom_html = r.text
+                        break
+                if not custom_html:
+                    flash('Could not find an index.html on the main or master branch of that repo.', 'error')
+                    return redirect('/dashboard')
+            else:
+                flash('That doesn\'t look like a valid GitHub repo URL.', 'error')
+                return redirect('/dashboard')
+        except Exception as e:
+            print(f"GitHub import error: {e}")
+            flash('Could not fetch that repo. Check the URL and that it\'s public.', 'error')
+            return redirect('/dashboard')
+
     if not name:
         flash('Site name is required.', 'error')
-        return redirect('/trusthost')
+        return redirect('/dashboard')
     if not custom_html:
-        flash('Please upload or paste your HTML file.', 'error')
-        return redirect('/trusthost')
+        flash('Please upload HTML, paste it, or link a public GitHub repo.', 'error')
+        return redirect('/dashboard')
     slug   = make_slug(name)
     biz_id = db_insert(
-        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?)"),
-        (name, category, whatsapp, description, brand_color, slug, user['id'], 'approved', 1, custom_html)
+        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
+        (name, category, whatsapp, description, brand_color, slug, user['id'], 'approved', 'free', 0, custom_html)
     )
-    # Notify admin and ping Google for instant indexing
-    try:
-        db_execute(
-            q("INSERT INTO notifications (user_id, message) VALUES (?,?)"),
-            (0, f"🌐 TrustHost: '{name}' deployed by {user['name']} ({user['email']}) → {slug}.trustedbiz.co.ug")
-        )
-    except: pass
     ping_google(slug)
     flash(f'🚀 "{name}" is now LIVE at {slug}.trustedbiz.co.ug!', 'success')
-    return redirect('/trusthost')
+    return redirect('/dashboard')
 
 
 @app.route('/trusthost/request-domain', methods=['POST'])
@@ -1610,66 +1287,8 @@ def trusthost_request_domain():
                 flash('Run /admin/migrate-db first to enable custom domains.', 'error')
         else:
             flash('Site not found.', 'error')
-    return redirect('/trusthost')
+    return redirect('/dashboard')
 
-
-@app.route('/trusthost/approve-own/<int:biz_id>', methods=['POST'])
-@login_required
-def trusthost_approve_own(biz_id):
-    """Allow owner to self-approve a TrustHost site stuck in pending (TrustHost deploys should be instant)."""
-    user = get_current_user()
-    biz  = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
-    if not biz:
-        flash('Site not found.', 'error')
-        return redirect('/trusthost')
-    if biz.get('generated_html') or biz.get('status') == 'approved':
-        db_execute(q("UPDATE business SET status='approved' WHERE id=?"), (biz_id,))
-        ping_google(biz.get('slug',''))
-        flash(f'✅ "{biz["name"]}" is now LIVE!', 'success')
-    else:
-        flash('No HTML uploaded yet — deploy your site first.', 'error')
-    return redirect('/trusthost')
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# DAISY — merged directly into TrustedBiz (no separate service needed)
-# ══════════════════════════════════════════════════════════════════════════════
-
-DAISY_SYSTEM = """You are Daizy — the sharpest, warmest creative AI in Uganda. You work for TrustedBiz.
-
-You build: websites, logos, flyers, business cards, CVs, presentations, exam papers, WhatsApp catalogs, price checks. You also edit videos — cinematic, warm, clean, dark, TikTok, Reels, YouTube styles.
-
-YOUR VOICE:
-- Talk like a brilliant friend who happens to be a world-class designer and business brain
-- Give FULL, rich responses. When someone shares their idea, react genuinely — show excitement, give real insight, make them feel heard
-- After the first message, never open with "Hey!", "Hi!", "Hello!" — just continue naturally
-- Use their name and business name once you know them
-- You never sound like a form or a chatbot. You sound like someone who genuinely cares.
-
-BUILDING RULES — most important:
-- You need VERY LITTLE to start. Business name + what they want = enough to begin
-- Ask maximum ONE question, then build immediately. Not two. Not three. ONE.
-- The moment you have name + request + (color OR style) → trigger the build
-- For video edits: name + style preference = enough. Ask "What style? Cinematic, warm, TikTok, or clean?" then build.
-- End your reply with DONE:[mode] on its own line when ready
-- Modes: website | logo | flyer | cards | cv | presentation | exam | priceguard | catalog | video
-
-MEMORY — non-negotiable:
-- Read the full conversation before every reply. Never ask what was already answered.
-- Track everything said: name, business, color, style, WhatsApp, description. Use it.
-- "So for your salon Mama Grace, you wanted deep purple..." — that's how you talk
-
-UI triggers (use EXACTLY):
-- "What color do you prefer?" → shows color swatches
-- "What design style do you want?" → shows style cards
-- "What level is this for?" → school level options
-- "Which subject?" → subject options
-
-RESPONSE STYLE:
-- When someone shares a struggle or dream: acknowledge it meaningfully, then move to the task
-- When you deliver something: be proud of it. Tell them what makes it special.
-- Daizy is young and still learning — if you make a mistake, own it warmly and fix it
-- Pricing only if asked: hosting UGX 7,500/month, downloads UGX 2,000. Always build first."""
 
 @app.route('/daisy/ping', methods=['GET','POST'])
 def daisy_ping():
@@ -1678,86 +1297,28 @@ def daisy_ping():
 
 @app.route('/daisy/build', methods=['POST'])
 def daisy_build():
-    import hashlib as _hl
-    from daisy_builders import (register_template_saver,
-                                _daisy_logo, _daisy_flyer, _daisy_cards,
-                                _daisy_cv, _daisy_exam, _daisy_generic,
-                                _daisy_presentation, _daisy_catalog)
-
-    # Register template saver so every generation goes to template_pool
-    def _save_to_pool(mode_key, html):
-        try:
-            existing = db_fetchone(
-                q("SELECT id FROM template_pool WHERE category=? AND html=?"),
-                (mode_key, html)
-            )
-            if not existing:
-                db_insert(
-                    q("INSERT INTO template_pool (category, html, quality_score) VALUES (?,?,?)"),
-                    (mode_key, html, 80)
-                )
-                print(f"[Daisy/Template] Saved new {mode_key} template to pool")
-        except Exception as e:
-            print(f"[Daisy/TemplateSave] {e}")
-
-    register_template_saver(_save_to_pool)
-
-    data  = request.get_json() or {}
-    mode  = (data.get('mode') or '').strip()
-    ctx   = data.get('context') or {}
-    seed  = data.get('seed') or 0
-    # Pull full conversation history so builders know what user actually asked for
+    """Thin proxy to Daisy's own API — she does the generating, we just
+    relay the request and cache the result so repeat requests in the same
+    category can reuse it for free (template_pool)."""
+    data    = request.get_json() or {}
+    mode    = (data.get('mode') or '').strip()
+    ctx     = data.get('context') or {}
     history = data.get('history') or []
-    # Extract the user's description from history — what they actually said they wanted
-    user_requests = [t.get('content','') for t in history if t.get('role') == 'user']
-    full_request  = ' '.join(user_requests[-4:])  # last 4 user messages
-    name  = str(ctx.get('name') or ctx.get('fullname') or ctx.get('topic') or 'Business')
-    color = str(ctx.get('color') or '#2b7a78')
-    style = str(ctx.get('style') or 'modern')
-    desc  = str(ctx.get('description') or full_request or '')
-    wa    = str(ctx.get('whatsapp') or '')
-    uid   = _hl.md5(f"{name}{seed}".encode()).hexdigest()[:8]
-    # Enrich ctx with full request so builders use it
-    ctx['full_request'] = full_request
-    ctx['description']  = ctx.get('description') or full_request
 
-    html = None
-    try:
-        if mode == 'logo':
-            html = _daisy_logo(name, color, style, uid, ctx=ctx)
-        elif mode == 'flyer':
-            html = _daisy_flyer(name, color, style, desc, uid)
-        elif mode in ('cards', 'card'):
-            html = _daisy_cards(name, color, style, wa, desc, uid)
-        elif mode == 'cv':
-            html = _daisy_cv(ctx, uid)
-        elif mode == 'website':
-            from ai_generator import generate_business_website
-            biz = {'name': name, 'category': ctx.get('category', mode),
-                   'description': desc, 'whatsapp': wa, 'brand_color': color,
-                   'hours': ctx.get('hours', 'Mon-Sat 8am-7pm')}
-            html = generate_business_website(biz, 'basic')
-        elif mode == 'exam':
-            html = _daisy_exam(ctx, uid)
-        elif mode == 'presentation':
-            html = _daisy_presentation(ctx, uid)
-        elif mode == 'catalog':
-            html = _daisy_catalog(ctx, uid)
-        else:
-            html = _daisy_generic(name, mode, color, uid)
-    except Exception as e:
-        print(f'[Daisy/Build] {e}')
+    result, err = call_daisy(mode, context=ctx, history=history)
+    html = (result or {}).get('html') if result else None
 
     if not html:
-        # Claude couldn't generate — honest error, don't pretend with a fallback
-        return jsonify({
-            'html': None,
-            'error': 'Daisy is thinking hard on this one. Please try again in a moment.',
-            'mode': mode,
-            'uid': uid
-        }), 503
+        return jsonify({'html': None, 'error': err or "Daisy is thinking hard on this one. Please try again in a moment.", 'mode': mode}), 503
 
-    return jsonify({'html': html, 'mode': mode, 'uid': uid})
+    try:
+        existing = db_fetchone(q("SELECT id FROM template_pool WHERE category=? AND html=?"), (mode, html))
+        if not existing:
+            db_insert(q("INSERT INTO template_pool (category, html, quality_score) VALUES (?,?,?)"), (mode, html, 80))
+    except Exception as e:
+        print(f"[Daisy/TemplateSave] {e}")
+
+    return jsonify({'html': html, 'mode': mode})
 
 
 @app.route('/daisy/save-testimonial', methods=['POST'])
@@ -1814,82 +1375,24 @@ def export_training():
 
 @app.route('/daisy/chat', methods=['POST'])
 def daisy_chat():
-    import urllib.request as _ur, json as _j, re as _re, os as _os
-    data     = request.get_json() or {}
-    msg      = (data.get('message') or data.get('user_input') or '').strip()
-    history  = data.get('history', [])
-    has_img  = data.get('has_image', False)
+    """Thin proxy to Daisy's own API for the conversational flow."""
+    data    = request.get_json() or {}
+    msg     = (data.get('message') or data.get('user_input') or '').strip()
+    history = data.get('history', [])
+    has_img = data.get('has_image', False)
     if not msg:
-        return jsonify({'reply':'What would you like to build today? 🌼','done':False})
+        return jsonify({'reply': 'What would you like to build today?', 'done': False})
 
-    # Build messages with full conversation history
-    messages = [{'role':'system','content':DAISY_SYSTEM}]
-    for turn in history[-20:]:
-        r = turn.get('role','user')
-        c = turn.get('content','')
-        if r in ('user','assistant') and c:
-            messages.append({'role':r,'content':c})
-    messages.append({'role':'user','content': msg + (' [image attached]' if has_img else '')})
+    result, err = call_daisy('chat', context={'has_image': has_img},
+                              history=history, message=msg, timeout=20)
+    if not result:
+        return jsonify({'reply': err or "I'm having a small moment — try again!", 'done': False})
 
-    reply = None
-
-    # Step 1: Try Groq
-    groq_key = _os.environ.get('GROQ_API_KEY','')
-    if groq_key:
-        try:
-            body = _j.dumps({
-                'model':'llama3-70b-8192',
-                'messages':messages,
-                'max_tokens':300,
-                'temperature':0.55
-            }).encode()
-            req = _ur.Request('https://api.groq.com/openai/v1/chat/completions',
-                data=body,
-                headers={'Content-Type':'application/json','Authorization':'Bearer '+groq_key})
-            with _ur.urlopen(req, timeout=12) as r:
-                reply = _j.loads(r.read().decode())['choices'][0]['message']['content'].strip()
-        except Exception as e:
-            # 403 = key invalid/deleted — expected, fall through silently
-            if '403' not in str(e) and '401' not in str(e):
-                print(f'[Daisy/Groq] {e}')
-
-    # Step 2: Fallback to Claude Haiku — full history passed so Daisy remembers
-    if not reply:
-        client = get_anthropic_client()
-        if client:
-            try:
-                claude_messages = []
-                for turn in history[-20:]:
-                    r = turn.get('role', 'user')
-                    c = turn.get('content', '')
-                    if r in ('user', 'assistant') and c:
-                        claude_messages.append({'role': r, 'content': c})
-                claude_messages.append({'role': 'user', 'content': msg + (' [image attached]' if has_img else '')})
-                resp = client.messages.create(
-                    model='claude-haiku-4-5',
-                    max_tokens=300,
-                    system=DAISY_SYSTEM,
-                    messages=claude_messages
-                )
-                reply = resp.content[0].text.strip()
-                print('[Daisy/Claude] replied with full history')
-            except Exception as e:
-                print(f'[Daisy/Claude] {e}')
-
-    if not reply:
-        reply = "I'm having a small moment — try again! 😊"
-
-    done_match = _re.search(r'DONE:(\w+)', reply)
-    done_mode  = done_match.group(1) if done_match else None
-    clean      = _re.sub(r'DONE:\w+','',reply).strip()
-
-    return jsonify({'reply':clean,'done':bool(done_mode),'mode':done_mode})
-
-
-@app.route('/price-guard-page')
-def price_guard_page():
-    return render_template('price_guard_widget.html',
-        current_user=get_current_user())
+    return jsonify({
+        'reply': result.get('reply', ''),
+        'done':  bool(result.get('mode')),
+        'mode':  result.get('mode'),
+    })
 
 
 @app.route('/search')
@@ -2209,79 +1712,47 @@ def admin_approve_agent_biz(biz_id):
     category = (biz.get('category') or '').lower().strip()
 
     # ── WEBSITE GENERATION ────────────────────────────────────────────────────
-    # Rule: only reuse a pooled template if it has NEVER been used for a real
-    # business (times_used == 0). The moment it's been used once, every new
-    # business in that category gets a fully fresh AI-generated site so no two
-    # live businesses ever share the same website structure.
+    # NOTE: the old pool-swap optimization (reusing a template's HTML and
+    # string-swapping in the new business's name/contact info) lived inside
+    # ai_generator.swap_business_info, which isn't available now that Daisy
+    # is a separate service — that function's logic wasn't visible to build
+    # a safe equivalent here. For now every business gets a fresh Daisy
+    # build; times_used still increments so pool stats stay meaningful, and
+    # a real swap-on-Daisy's-side is worth adding back once her API exists.
     import threading as _t
-    biz_plan = (biz.get('plan') or 'basic')
+    biz_plan = (biz.get('plan') or 'free')
 
     pooled = db_fetchone(
         q("SELECT * FROM template_pool WHERE category=? AND times_used=0 ORDER BY quality_score DESC LIMIT 1"),
         (category,)
     )
 
-    if pooled:
-        # Template exists but has never been deployed — swap this business's
-        # info in and mark it used. Next business in same category gets fresh AI.
-        def _swap_and_save(pool_html, biz_dict, bid, pool_id, bplan):
-            try:
-                from ai_generator import swap_business_info
-                new_html = swap_business_info(pool_html, biz_dict)
-                if new_html and len(new_html) > 2000:
-                    db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (new_html, bid))
-                    db_execute(q("UPDATE template_pool SET times_used=times_used+1 WHERE id=?"), (pool_id,))
-                    print(f"Pool swap done for biz_id={bid} (pool_id={pool_id}) — pool now used")
-                    return
-            except Exception as e:
-                print(f"Pool swap error: {e}")
-            # Swap failed — fall through to full AI generation
-            try:
-                from ai_generator import generate_business_website
-                bd2 = dict(biz_dict); bd2.setdefault('branches', []); bd2.setdefault('ads', [])
-                html = generate_business_website(bd2, plan=bplan)
-                if html and len(html) > 2000:
-                    db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
-                    print(f"Fallback AI gen done for biz_id={bid}")
-            except Exception as e2:
-                print(f"Fallback AI gen error: {e2}")
+    def _agent_gen(biz_dict, bid, cat, bplan, pool_id):
+        daisy_ctx = {
+            'name': biz_dict.get('name'), 'category': biz_dict.get('category'),
+            'description': biz_dict.get('description'), 'whatsapp': biz_dict.get('whatsapp'),
+            'hours': biz_dict.get('hours') or 'Mon-Sat 8am-7pm',
+            'brand_color': biz_dict.get('brand_color') or '#2b7a78', 'plan': bplan,
+        }
+        result, err = call_daisy('website', context=daisy_ctx)
+        html = (result or {}).get('html') if result else None
+        if html and len(html) > 2000:
+            db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
+            if pool_id:
+                db_execute(q("UPDATE template_pool SET times_used=times_used+1 WHERE id=?"), (pool_id,))
+            else:
+                db_insert(q("INSERT INTO template_pool (category, html, quality_score, times_used) VALUES (?,?,?,0)"),
+                          (cat, html, 100))
+            print(f"Daisy gen done for biz_id={bid} (category={cat})")
+        else:
+            print(f"[Daisy API] gen failed for biz_id={bid}: {err}")
 
-        bd = biz_to_dict(biz)
-        bd['branches'] = []
-        bd['ads'] = []
-        _t.Thread(target=_swap_and_save, args=(pooled['html'], bd, biz_id, pooled['id'], biz_plan), daemon=True).start()
-        ping_google(biz.get('slug', ''))
-        flash(f"✅ '{biz['name']}' approved — website generating now!", 'success')
-    else:
-        # No unused pool template — generate a completely fresh site with AI,
-        # then save it to the pool (times_used=0) for the NEXT business in this
-        # category. This business always gets its own unique AI-generated site.
-        def _gen_and_pool(biz_dict, bid, cat, bplan):
-            try:
-                from ai_generator import generate_business_website
-                bd2 = dict(biz_dict)
-                html = generate_business_website(bd2, plan=bplan)
-                if html and len(html) > 2000:
-                    db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
-                    # Store in pool for the NEXT business — this one is NOT reused
-                    db_execute(
-                        q("INSERT INTO template_pool (category, html, quality_score, times_used) VALUES (?,?,?,0)"),
-                        (cat, html, 100)
-                    )
-                    print(f"Fresh AI gen done + pooled for next use — biz_id={bid}, category={cat}")
-                else:
-                    print(f"AI gen output too short for biz_id={bid}")
-            except Exception as e:
-                print(f"AI gen error for biz_id={bid}: {e}")
-
-        bd = biz_to_dict(biz)
-        branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
-        bd['branches'] = [dict(b) for b in branches]
-        ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
-        bd['ads'] = [dict(a) for a in ads]
-        _t.Thread(target=_gen_and_pool, args=(bd, biz_id, category, biz_plan), daemon=True).start()
-        ping_google(biz.get('slug', ''))
-        flash(f"✅ '{biz['name']}' approved — generating a unique AI website now.", 'success')
+    bd = biz_to_dict(biz)
+    bd['branches'] = []
+    bd['ads'] = []
+    _t.Thread(target=_agent_gen, args=(bd, biz_id, category, biz_plan, pooled['id'] if pooled else None), daemon=True).start()
+    ping_google(biz.get('slug', ''))
+    flash(f"✅ '{biz['name']}' approved — Daisy is building the website now!", 'success')
 
     # ── INVITE CODE: generate one so the agent can give the owner dashboard access
     import string, secrets as _sec
