@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Console | TrustedBiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#2b7a78;--brand-dark:#1f5c5a;--brand-light:#3a9e9b;
+  --bg:#f5f8f8;--surface:#fff;--border:#dde8e8;
+  --text:#0d1c1c;--mid:#43605f;--dim:#8aa5a4;
+  --green:#16a34a;--yellow:#b45309;--red:#dc2626;
+  --daisy-bg:#14141e;--daisy-card:#1b1b28;--daisy-violet:#a78bfa;--daisy-text:#f0f0f6;--daisy-border:rgba(255,255,255,.1);--daisy-dim:#8b899c;
+  --side-bg:#eef4f3;--side-text:#294a48;--side-dim:#7a9694;--side-active:#dcece9;--side-border:#dbe6e5;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1412;--surface:#141d1b;--border:#233230;
+    --text:#eef5f4;--mid:#a9c4c1;--dim:#5f7d7a;
+    --side-bg:#090f0d;--side-text:#c7d6d5;--side-dim:#6d8583;--side-active:#182722;--side-border:rgba(255,255,255,.07);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased;}
+a{color:inherit;text-decoration:none;}
+button{font-family:var(--font);}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+[hidden]{display:none !important;}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:4px;font-weight:600;font-size:13px;cursor:pointer;border:1.5px solid var(--border);color:var(--mid);background:none;transition:all .12s;}
+.btn:hover{color:var(--text);border-color:var(--dim);}
+.btn-solid{background:var(--text);color:#fff;border-color:var(--text);}
+.btn-solid:hover{background:var(--brand);border-color:var(--brand);}
+.btn-ok{color:var(--green);border-color:rgba(22,163,74,.35);}
+.btn-ok:hover{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-warn{color:var(--yellow);border-color:rgba(180,83,9,.35);}
+.btn-warn:hover{background:var(--yellow);color:#fff;border-color:var(--yellow);}
+.btn-violet{background:var(--daisy-violet);color:#14141e;border-color:var(--daisy-violet);}
+.btn-violet:hover{background:#b79cfc;}
+
+/* SHELL */
+.shell{display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{width:230px;flex-shrink:0;background:var(--side-bg);color:var(--side-text);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;}
+.side-logo{font-family:var(--mono);font-size:15px;font-weight:500;color:var(--side-text);padding:6px 8px 22px;}
+.side-logo span{color:var(--brand-light);}
+.side-new{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--brand);color:#fff;padding:10px;border-radius:4px;font-size:13px;font-weight:600;margin-bottom:22px;cursor:pointer;border:none;}
+.side-new:hover{background:var(--brand-light);}
+.side-group{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--side-dim);padding:14px 8px 8px;}
+.side-link{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:5px;font-size:13.5px;font-weight:500;color:var(--side-text);cursor:pointer;border:none;background:none;width:100%;text-align:left;}
+.side-link:hover{background:var(--side-active);}
+.side-link.active{background:var(--side-active);color:var(--brand);font-weight:600;}
+.side-link svg{width:15px;height:15px;flex-shrink:0;opacity:.85;}
+.side-foot{margin-top:auto;padding:12px 8px 0;border-top:1px solid var(--side-border);}
+.side-user{font-size:12.5px;color:var(--side-dim);padding:10px 0 4px;}
+.side-signout{font-size:12.5px;color:var(--side-dim);}
+.side-signout:hover{color:var(--side-text);}
+
+/* MAIN */
+.main{flex:1; min-width:0;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 30px;display:flex;align-items:center;justify-content:space-between;}
+.topbar h1{font-size:18px;font-weight:800;letter-spacing:-.3px;}
+.topbar p{font-size:12.5px;color:var(--dim);font-family:var(--mono);margin-top:2px;}
+.panel{padding:28px 30px 60px;max-width:1000px;}
+
+.label{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;color:var(--brand);margin-bottom:10px;}
+.sec-title{font-size:16px;font-weight:700;margin-bottom:2px;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin-bottom:30px;border:1px solid var(--border);}
+.stat-card{background:var(--surface);padding:18px;}
+.stat-num{font-size:24px;font-weight:800;line-height:1;margin-bottom:5px;}
+.stat-lbl{font-size:11.5px;color:var(--dim);font-family:var(--mono);}
+.stat-trend{font-size:11px;color:var(--green);font-family:var(--mono);margin-top:4px;}
+
+/* QUICK TILES */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:32px;}
+.tile{background:var(--surface);padding:18px 14px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:9px;cursor:pointer;transition:background .12s;border:none;}
+.tile:hover{background:var(--bg);}
+.tile-icon{width:30px;height:30px;border:1.5px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--brand);}
+.tile-icon svg{width:16px;height:16px;}
+.tile-label{font-size:12px;font-weight:600;color:var(--mid);}
+
+/* ACTIVITY */
+.activity{border:1px solid var(--border);margin-bottom:10px;}
+.activity-row{display:flex;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--border);font-size:13px;}
+.activity-row:last-child{border-bottom:none;}
+.act-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.act-dot.ok{background:var(--green);} .act-dot.warn{background:var(--yellow);} .act-dot.bad{background:var(--red);}
+.act-text{flex:1;color:var(--text);}
+.act-text b{font-weight:600;}
+.act-time{font-family:var(--mono);font-size:11.5px;color:var(--dim);}
+
+/* SITES TABLE */
+.site-row{border:1px solid var(--border);border-top:none;padding:16px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.site-row:first-of-type{border-top:1px solid var(--border);}
+.site-main{flex:1;min-width:180px;}
+.site-name{font-size:14.5px;font-weight:700;margin-bottom:3px;}
+.site-url{font-size:12px;color:var(--dim);font-family:var(--mono);}
+.site-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);font-weight:600;}
+.site-status::before{content:'';width:6px;height:6px;border-radius:50%;}
+.site-status.live{color:var(--green);} .site-status.live::before{background:var(--green);}
+.site-status.building{color:var(--yellow);} .site-status.building::before{background:var(--yellow);}
+.site-actions{display:flex;gap:8px;}
+.site-plan{font-size:11px;color:var(--dim);font-family:var(--mono);border:1px solid var(--border);padding:3px 8px;border-radius:3px;}
+
+/* DAISY BUILDER PANEL */
+.daisy-panel{background:var(--daisy-bg);border-radius:6px;overflow:hidden;border:1px solid var(--daisy-border);}
+.daisy-panel-head{padding:16px 20px;border-bottom:1px solid var(--daisy-border);display:flex;align-items:center;gap:10px;}
+.daisy-dot{width:8px;height:8px;border-radius:50%;background:var(--daisy-violet);}
+.daisy-panel-head span{font-family:var(--mono);font-size:12.5px;color:var(--daisy-dim);}
+.daisy-panel-head b{color:var(--daisy-text);font-weight:600;}
+.daisy-body{padding:22px 20px;}
+.daisy-msg{color:#d8d6e2;font-size:14.5px;line-height:1.65;margin-bottom:16px;}
+.daisy-msg b{color:var(--daisy-violet);}
+.prompt-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.prompt-chip{font-family:var(--mono);font-size:12px;color:#c3c1d4;border:1px solid var(--daisy-border);padding:7px 12px;border-radius:4px;cursor:pointer;background:none;}
+.prompt-chip:hover{border-color:var(--daisy-violet);color:#fff;}
+.daisy-form{display:flex;border-top:1px solid var(--daisy-border);}
+.daisy-input{flex:1;background:transparent;border:none;padding:15px 18px;color:#f0f0f6;font-family:var(--font);font-size:14px;}
+.daisy-input::placeholder{color:#5f5d6e;}
+.daisy-input:focus{outline:none;}
+.daisy-send{background:var(--daisy-violet);color:#14141e;border:none;padding:0 24px;font-weight:700;font-size:12.5px;cursor:pointer;text-transform:uppercase;letter-spacing:.3px;font-family:var(--mono);}
+.daisy-send:hover{background:#b79cfc;}
+
+/* SECURITY */
+.score-box{display:flex;align-items:center;gap:26px;border:1px solid var(--border);padding:24px 26px;margin-bottom:26px;flex-wrap:wrap;}
+.score-ring{position:relative;width:96px;height:96px;flex-shrink:0;}
+.score-ring svg{width:96px;height:96px;transform:rotate(-90deg);}
+.score-ring .bg-ring{fill:none;stroke:var(--border);stroke-width:8;}
+.score-ring .fg-ring{fill:none;stroke:var(--green);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1s ease;}
+.score-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;}
+.score-text h3{font-size:16px;font-weight:700;margin-bottom:4px;}
+.score-text p{font-size:13px;color:var(--mid);max-width:420px;line-height:1.55;}
+.score-actions{margin-left:auto;}
+
+.check-list{border:1px solid var(--border);}
+.check-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.check-row:last-child{border-bottom:none;}
+.check-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.check-icon.pass{background:#e8f7ec;color:var(--green);}
+.check-icon.warn{background:#fdf3e3;color:var(--yellow);}
+@media (prefers-color-scheme: dark){
+  .check-icon.pass{background:rgba(22,163,74,.16);}
+  .check-icon.warn{background:rgba(180,83,9,.18);}
+}
+.check-icon svg{width:12px;height:12px;}
+.check-main{flex:1;}
+.check-main h4{font-size:13.5px;font-weight:600;margin-bottom:2px;}
+.check-main p{font-size:12.5px;color:var(--dim);}
+.check-status{font-family:var(--mono);font-size:11.5px;font-weight:600;white-space:nowrap;}
+.check-status.pass{color:var(--green);} .check-status.warn{color:var(--yellow);}
+
+.scan-overlay{display:flex;align-items:center;gap:14px;border:1px solid var(--border);padding:20px 22px;margin-bottom:26px;}
+.scan-bar-track{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.scan-bar-fill{height:100%;width:0%;background:var(--brand);transition:width 1.8s linear;}
+.scan-label{font-family:var(--mono);font-size:12px;color:var(--mid);white-space:nowrap;}
+
+/* DOMAINS */
+.domain-row{display:flex;align-items:center;gap:14px;padding:15px 18px;border:1px solid var(--border);border-top:none;flex-wrap:wrap;}
+.domain-row:first-of-type{border-top:1px solid var(--border);}
+.domain-name{font-family:var(--mono);font-size:13.5px;font-weight:600;flex:1;min-width:180px;}
+.dns-form{display:flex;gap:8px;margin-top:16px;}
+.dns-input{flex:1;border:1.5px solid var(--border);border-radius:4px;padding:11px 14px;font-family:var(--mono);font-size:13px;background:var(--surface);color:var(--text);}
+.dns-input:focus{outline:none;border-color:var(--brand);}
+
+/* BILLING — friendly, not alarming */
+.plan-card{border:1px solid var(--border);padding:26px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:var(--surface);}
+.plan-badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--brand);background:rgba(43,122,120,.1);padding:3px 10px;border-radius:100px;margin-bottom:8px;}
+.plan-card h3{font-size:19px;font-weight:800;margin-bottom:4px;}
+.plan-card p{font-size:13px;color:var(--mid);line-height:1.5;}
+.plan-reassure{font-size:12px;color:var(--dim);margin-top:32px;text-align:center;}
+.usage-block{border:1px solid var(--border);padding:18px 20px;margin-bottom:1px;background:var(--surface);}
+.usage-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;}
+.usage-top span:first-child{font-size:13.5px;font-weight:600;}
+.usage-top span:last-child{font-family:var(--mono);font-size:12px;color:var(--dim);}
+.usage-track{height:7px;background:var(--border);border-radius:4px;overflow:hidden;}
+.usage-fill{height:100%;background:var(--brand-light);border-radius:4px;}
+.usage-note{font-size:11.5px;color:var(--dim);margin-top:7px;}
+.next-bill{border:1px solid var(--border);border-top:none;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;font-size:13px;background:var(--surface);}
+.next-bill span:first-child{color:var(--mid);}
+.next-bill span:last-child{font-family:var(--mono);font-weight:600;}
+
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin:18px 0 30px;}
+.plan-tier{background:var(--surface);padding:22px 20px;display:flex;flex-direction:column;}
+.plan-tier.current{background:var(--bg);position:relative;}
+.plan-tier.current::before{content:'Current plan';position:absolute;top:0;left:0;right:0;background:var(--brand);color:#fff;font-family:var(--mono);font-size:10px;font-weight:600;text-align:center;padding:4px;letter-spacing:.3px;}
+.plan-tier.current{padding-top:38px;}
+.tier-name{font-size:15px;font-weight:800;margin-bottom:4px;}
+.tier-price{font-family:var(--mono);font-size:20px;font-weight:700;margin-bottom:2px;}
+.tier-price span{font-size:11.5px;font-weight:500;color:var(--dim);}
+.tier-sub{font-size:11.5px;color:var(--dim);margin-bottom:16px;}
+.tier-features{list-style:none;flex:1;margin-bottom:18px;}
+.tier-features li{font-size:12.5px;color:var(--mid);padding:5px 0;display:flex;gap:7px;align-items:flex-start;line-height:1.4;}
+.tier-features li svg{width:13px;height:13px;flex-shrink:0;margin-top:2px;color:var(--brand);}
+.tier-btn{width:100%;padding:9px;border-radius:4px;font-size:12.5px;font-weight:600;text-align:center;border:1.5px solid var(--border);color:var(--mid);cursor:pointer;background:none;}
+.tier-btn:hover{border-color:var(--dim);color:var(--text);}
+.tier-btn.solid{background:var(--text);color:var(--bg);border-color:var(--text);}
+.tier-btn.solid:hover{background:var(--brand);border-color:var(--brand);}
+@media(max-width:820px){.plan-grid{grid-template-columns:1fr;}}
+
+@media(max-width:820px){
+  .shell{flex-direction:column;}
+  .sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;padding:14px;}
+  .side-logo{padding:6px 8px;width:100%;}
+  .side-new{display:none;}
+  .side-group{display:none;}
+  .side-foot{display:none;}
+  .stats-row,.tiles{grid-template-columns:repeat(2,1fr);}
+  .panel{padding:22px 16px 50px;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="side-logo">Trusted<span>Biz</span></div>
+    <button class="side-new" data-target="daisy">+ New site</button>
+
+    <div class="side-group">Workspace</div>
+    <button class="side-link active" data-target="overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Overview
+    </button>
+    <button class="side-link" data-target="sites">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18a14 14 0 010-18"/></svg>
+      Sites
+    </button>
+    <button class="side-link" data-target="daisy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>
+      Daisy builder
+    </button>
+    <button class="side-link" data-target="domains">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20l-1-4h-4l5-9 5 9h-4l-1 4z"/><path d="M4 20h16"/></svg>
+      Domains
+    </button>
+    <button class="side-link" data-target="security">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"/></svg>
+      Security
+    </button>
+    <button class="side-link" data-target="billing">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+      Billing
+    </button>
+
+    <div class="side-foot">
+      <div class="side-user">Signed in as Jordan</div>
+      <a class="side-signout" href="/logout">Sign out</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- OVERVIEW -->
+    <div class="panel" data-panel="overview">
+      <div class="topbar" style="margin:-28px -30px 26px;">
+        <div><h1>Overview</h1><p>// everything running on your workspace</p></div>
+        <button class="btn btn-solid" data-target="daisy">+ New site</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num">{{ live_count }}</div><div class="stat-lbl">live sites</div></div>
+        <div class="stat-card"><div class="stat-num">{{ total_views }}</div><div class="stat-lbl">total views</div></div>
+        <div class="stat-card"><div class="stat-num">{{ total_listings }}</div><div class="stat-lbl">total listings</div></div>
+        <div class="stat-card"><div class="stat-num">{{ chosen_plan|capitalize }}</div><div class="stat-lbl">current plan</div></div>
+      </div>
+
+      <div class="label">Quick actions</div>
+      <div class="tiles">
+        <button class="tile" data-target="daisy">
+          <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></span>
+          <span class="tile-label">New website</span>
+        </button>
+        <button class="tile" data-target="daisy">
+          <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg></span>
+          <span class="tile-label">New logo</span>
+        </button>
+        <button class="tile" data-target="domains">
+          <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20l-1-4h-4l5-9 5 9h-4l-1 4z"/><path d="M4 20h16"/></svg></span>
+          <span class="tile-label">Connect domain</span>
+        </button>
+        <button class="tile" data-target="security">
+          <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"/></svg></span>
+          <span class="tile-label">Run security scan</span>
+        </button>
+      </div>
+
+      <div class="label">Your sites</div>
+      <div class="activity">
+        {% if businesses %}
+          {% for b in businesses[:4] %}
+          <div class="activity-row">
+            <span class="act-dot {{ 'ok' if b.status=='approved' else 'warn' }}"></span>
+            <span class="act-text"><b>{{ b.name }}</b> is {{ 'live' if b.status=='approved' else b.status }}</span>
+            <span class="act-time">{{ b.created_at[:10] if b.created_at else '' }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="activity-row"><span class="act-text">No sites yet — talk to Daisy to build your first one.</span></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- SITES -->
+    <div class="panel" data-panel="sites" hidden>
+      <div class="topbar" style="margin:-28px -30px 26px;">
+        <div><h1>Sites</h1><p>// businesses running on TrustedBiz</p></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" id="showDeployForm">Deploy your own HTML</button>
+          <button class="btn btn-solid" data-target="daisy">+ Build with Daisy</button>
+        </div>
+      </div>
+
+      <form id="deployForm" method="POST" action="/deploy" enctype="multipart/form-data"
+            style="display:none;border:1px solid var(--border);padding:18px;margin-bottom:18px;background:var(--surface);">
+        <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:10px;">
+          <input name="name" placeholder="Site name" required
+                 style="padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;">
+          <input name="category" placeholder="Category (e.g. Portfolio)"
+                 style="padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;">
+        </div>
+        <div style="margin-bottom:10px;">
+          <input type="file" name="html_file" accept=".html">
+          <span style="font-size:12px;color:var(--dim);">— or paste HTML below, or link a public GitHub repo</span>
+        </div>
+        <input name="github_url" placeholder="https://github.com/you/your-repo"
+               style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12.5px;margin-bottom:10px;">
+        <textarea name="custom_html" placeholder="<!DOCTYPE html>..." rows="4"
+                  style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12.5px;margin-bottom:10px;"></textarea>
+        <button type="submit" class="btn btn-solid">Deploy</button>
+      </form>
+      <script>
+        document.getElementById('showDeployForm')?.addEventListener('click', function(){
+          var f = document.getElementById('deployForm');
+          f.style.display = f.style.display === 'none' ? 'block' : 'none';
+        });
+      </script>
+
+      {% if businesses %}
+      {% for b in businesses %}
+      <div class="site-row">
+        <div class="site-main">
+          <div class="site-name">{{ b.name }}</div>
+          <div class="site-url">{{ b.slug }}.trustedbiz.co.ug</div>
+        </div>
+        <span class="site-status {{ 'live' if b.status=='approved' else 'building' }}">{{ 'Live' if b.status=='approved' else b.status|capitalize }}</span>
+        <span class="site-plan">{{ (b.plan or 'free')|replace('_',' ')|capitalize }}</span>
+        <div class="site-actions">
+          {% if b.status=='approved' %}
+          <a class="btn" href="//{{ b.slug }}.trustedbiz.co.ug" target="_blank">View</a>
+          {% endif %}
+          <a class="btn" href="/edit-business/{{ b.id }}">Edit</a>
+          <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
+            <button type="submit" class="btn">Redeploy</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="site-row"><div class="site-main"><div class="site-name">No sites yet</div><div class="site-url">Talk to Daisy to build your first one</div></div></div>
+      {% endif %}
+    </div>
+
+    <!-- DAISY BUILDER -->
+    <div class="panel" data-panel="daisy" hidden>
+      <div class="topbar" style="margin:-28px -30px 26px;">
+        <div><h1>Daisy builder</h1><p>// describe a business, get a live site</p></div>
+      </div>
+
+      <div class="daisy-panel">
+        <div class="daisy-panel-head">
+          <span class="daisy-dot"></span>
+          <span><b>Daisy</b> — site builder</span>
+        </div>
+        <div class="daisy-body" id="daisyMessages" style="max-height:340px;overflow-y:auto;">
+          <p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p>
+          <div class="prompt-chips">
+            <button type="button" class="prompt-chip">A hair salon in Kampala</button>
+            <button type="button" class="prompt-chip">A coding bootcamp</button>
+            <button type="button" class="prompt-chip">A restaurant with delivery</button>
+          </div>
+        </div>
+
+        <div id="goLiveBox" style="display:none;padding:16px 18px;border-top:1px solid var(--daisy-border);">
+          <p style="color:#c3c1d4;font-size:13px;margin-bottom:10px;">Ready to go live? Confirm the details:</p>
+          <input id="goLiveName" placeholder="Business name" required
+                 style="width:100%;margin-bottom:8px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
+          <input id="goLiveCategory" placeholder="Category (e.g. Salon)"
+                 style="width:100%;margin-bottom:8px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
+          <input id="goLiveWhatsapp" placeholder="WhatsApp number (256...)"
+                 style="width:100%;margin-bottom:10px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
+          <button id="goLiveBtn" class="daisy-send" style="width:100%;padding:11px;">Make it live</button>
+          <p id="goLiveStatus" style="font-size:12px;color:#c3c1d4;margin-top:8px;"></p>
+        </div>
+
+        <form class="daisy-form" id="daisyChatForm">
+          <input class="daisy-input" id="daisyChatInput" type="text" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" autocomplete="off" />
+          <button class="daisy-send" type="submit">Build</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- DOMAINS -->
+    <div class="panel" data-panel="domains" hidden>
+      <div class="topbar" style="margin:-28px -30px 26px;">
+        <div><h1>Domains</h1><p>// where your sites live</p></div>
+      </div>
+
+      <div class="domain-row">
+        <span class="domain-name">mybootcamp.trustedbiz.co.ug</span>
+        <span class="site-status live">Connected</span>
+        <span class="site-plan">Default</span>
+      </div>
+      <div class="domain-row">
+        <span class="domain-name">mybootcamp.co.ug</span>
+        <span class="site-status live">Connected</span>
+        <span class="site-plan">Custom</span>
+        <a class="btn" href="#">Manage DNS</a>
+      </div>
+      <div class="domain-row">
+        <span class="domain-name">dermabloom.trustedbiz.co.ug</span>
+        <span class="site-status live">Connected</span>
+        <span class="site-plan">Default</span>
+      </div>
+
+      <div class="label" style="margin-top:26px;">Connect a custom domain</div>
+      <form class="dns-form" onsubmit="return false;">
+        <input class="dns-input" type="text" placeholder="yourbusiness.co.ug" />
+        <button class="btn btn-solid" type="submit">Connect</button>
+      </form>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="panel" data-panel="security" hidden>
+      <div class="topbar" style="margin:-28px -30px 26px;">
+        <div><h1>Security</h1><p>// protection level across your sites</p></div>
+      </div>
+
+      <div class="scan-overlay" id="scanOverlay" hidden>
+        <span class="scan-label" id="scanLabel">Scanning mybootcamp.trustedbiz.co.ug…</span>
+        <div class="scan-bar-track"><div class="scan-bar-fill" id="scanFill"></div></div>
+      </div>
+
+      <div class="score-box">
+        <div class="score-ring">
+          <svg viewBox="0 0 96 96">
+            <circle class="bg-ring" cx="48" cy="48" r="40"></circle>
+            <circle class="fg-ring" id="scoreRing" cx="48" cy="48" r="40" stroke-dasharray="251" stroke-dashoffset="35"></circle>
+          </svg>
+          <span class="score-num" id="scoreNum">86</span>
+        </div>
+        <div class="score-text">
+          <h3>Good protection level</h3>
+          <p>Your sites pass most checks. Two items need attention, mainly the SSL renewal on Kampala Eats.</p>
+        </div>
+        <div class="score-actions"><button class="btn btn-solid" id="rescanBtn">Run new scan</button></div>
+      </div>
+
+      <div class="label">Checks</div>
+      <div class="check-list">
+        <div class="check-row">
+          <span class="check-icon pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg></span>
+          <div class="check-main"><h4>SSL certificate</h4><p>mybootcamp, DermaBloom — valid and active</p></div>
+          <span class="check-status pass">Passed</span>
+        </div>
+        <div class="check-row">
+          <span class="check-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v5M12 16h.01"/></svg></span>
+          <div class="check-main"><h4>SSL certificate</h4><p>Kampala Eats — expires in 14 days</p></div>
+          <span class="check-status warn">Needs renewal</span>
+        </div>
+        <div class="check-row">
+          <span class="check-icon pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg></span>
+          <div class="check-main"><h4>Malware scan</h4><p>No malicious code found across any site</p></div>
+          <span class="check-status pass">Clean</span>
+        </div>
+        <div class="check-row">
+          <span class="check-icon pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg></span>
+          <div class="check-main"><h4>Automatic backups</h4><p>Daily backups enabled on all sites</p></div>
+          <span class="check-status pass">Enabled</span>
+        </div>
+        <div class="check-row">
+          <span class="check-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v5M12 16h.01"/></svg></span>
+          <div class="check-main"><h4>Two-factor login</h4><p>Not yet enabled on your account</p></div>
+          <span class="check-status warn">Recommended</span>
+        </div>
+        <div class="check-row">
+          <span class="check-icon pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg></span>
+          <div class="check-main"><h4>Firewall</h4><p>Active on all live sites</p></div>
+          <span class="check-status pass">Active</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BILLING -->
+    <div class="panel" data-panel="billing" hidden>
+      <div class="topbar" style="margin:-28px -30px 26px;">
+        <div><h1>Billing</h1><p>// your plan, no surprises</p></div>
+      </div>
+
+      <div class="label">Choose the plan that fits right now</div>
+      <div class="plan-grid">
+
+        <div class="plan-tier {{ 'current' if chosen_plan=='free' }}">
+          <div class="tier-name">Free</div>
+          <div class="tier-price">UGX 0</div>
+          <div class="tier-sub">Get listed and online</div>
+          <ul class="tier-features">
+            <li>✓ 1 business listing</li>
+            <li>✓ Hosted at yourbiz.trustedbiz.co.ug</li>
+            <li>✓ 1 site built with Daisy</li>
+            <li>✓ Reviews &amp; ratings</li>
+            <li>✓ WhatsApp inquiries</li>
+            <li>✓ 100 MB storage</li>
+          </ul>
+          {% if chosen_plan=='free' %}<button class="tier-btn">Your current plan</button>
+          {% else %}<a class="tier-btn" href="https://wa.me/256753187966?text=I+want+to+move+to+the+Free+plan+on+TrustedBiz">Downgrade</a>{% endif %}
+        </div>
+
+        <div class="plan-tier {{ 'current' if chosen_plan=='basic' }}">
+          <div class="tier-name">Basic</div>
+          <div class="tier-price">UGX 8,000<span>/month</span></div>
+          <div class="tier-sub">For a growing business</div>
+          <ul class="tier-features">
+            <li>✓ Everything in Free</li>
+            <li>✓ Up to 3 business listings</li>
+            <li>✓ Edit &amp; regenerate with Daisy anytime</li>
+            <li>✓ Logo &amp; flyer generation</li>
+            <li>✓ Priority placement in directory</li>
+            <li>✓ 500 MB storage · 5 GB bandwidth</li>
+          </ul>
+          {% if chosen_plan=='basic' %}<button class="tier-btn">Your current plan</button>
+          {% else %}<a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+to+upgrade+to+Basic+on+TrustedBiz">Switch to Basic</a>{% endif %}
+        </div>
+
+        <div class="plan-tier {{ 'current' if chosen_plan=='pro_max' }}">
+          <div class="tier-name">Pro Max</div>
+          <div class="tier-price">UGX 15,000<span>/month</span></div>
+          <div class="tier-sub">For businesses ready to grow fast</div>
+          <ul class="tier-features">
+            <li>✓ Everything in Basic</li>
+            <li>✓ Up to 5 business listings</li>
+            <li>✓ Your own custom domain</li>
+            <li>✓ Google visibility &amp; search indexing</li>
+            <li>✓ Full Daisy suite — sites, logos, flyers, business cards</li>
+            <li>✓ Security scans &amp; protection dashboard</li>
+            <li>✓ Priority support via WhatsApp</li>
+            <li>✓ 2 GB storage · 25 GB bandwidth</li>
+          </ul>
+          {% if chosen_plan=='pro_max' %}<button class="tier-btn">Your current plan</button>
+          {% else %}<a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+Pro+Max+on+TrustedBiz">Switch to Pro Max</a>{% endif %}
+        </div>
+
+      </div>
+
+      <p class="plan-reassure" style="margin-top:0;margin-bottom:26px;">Switch plans anytime. Downgrades apply at your next billing date, no partial charges.</p>
+
+      <div class="label">You're doing fine — here's your room to grow</div>
+
+      <div class="usage-block">
+        <div class="usage-top"><span>Sites hosted</span><span>3 of 5</span></div>
+        <div class="usage-track"><div class="usage-fill" style="width:60%;"></div></div>
+        <div class="usage-note">Plenty of room, add 2 more sites before you'd need to upgrade.</div>
+      </div>
+      <div class="usage-block">
+        <div class="usage-top"><span>Storage</span><span>420 MB of 2 GB</span></div>
+        <div class="usage-track"><div class="usage-fill" style="width:21%;"></div></div>
+        <div class="usage-note">Well within your limit.</div>
+      </div>
+      <div class="usage-block">
+        <div class="usage-top"><span>Bandwidth</span><span>6.1 GB of 25 GB</span></div>
+        <div class="usage-track"><div class="usage-fill" style="width:24%;"></div></div>
+        <div class="usage-note">Nothing to worry about this month.</div>
+      </div>
+      <div class="next-bill"><span>Next billing date</span><span>Sept 4, 2026</span></div>
+
+      <p class="plan-reassure">We'll always email you before any charge. No surprise fees, ever.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Client-side panel switching — no backend required.
+  const links = document.querySelectorAll('[data-target]');
+  const panels = document.querySelectorAll('.panel');
+
+  function showPanel(name){
+    panels.forEach(p => p.hidden = p.dataset.panel !== name);
+    document.querySelectorAll('.side-link').forEach(l => l.classList.toggle('active', l.dataset.target === name));
+  }
+  links.forEach(el => el.addEventListener('click', () => showPanel(el.dataset.target)));
+
+  // Security scan demo animation
+  const rescanBtn = document.getElementById('rescanBtn');
+  const overlay = document.getElementById('scanOverlay');
+  const fill = document.getElementById('scanFill');
+  if(rescanBtn){
+    rescanBtn.addEventListener('click', function(){
+      overlay.hidden = false;
+      fill.style.width = '0%';
+      requestAnimationFrame(function(){ fill.style.width = '100%'; });
+      setTimeout(function(){ overlay.hidden = true; }, 2000);
+    });
+  }
+
+  // ── DAISY BUILDER — real calls to /daisy/chat and /daisy/create-business.
+  // If DAISY_API_URL isn't set in Render yet, /daisy/chat still responds —
+  // just with an honest "Daisy isn't connected yet" message instead of a fake one.
+  const daisyMessages  = document.getElementById('daisyMessages');
+  const daisyForm      = document.getElementById('daisyChatForm');
+  const daisyInput     = document.getElementById('daisyChatInput');
+  const goLiveBox       = document.getElementById('goLiveBox');
+  const goLiveBtn       = document.getElementById('goLiveBtn');
+  const goLiveStatus    = document.getElementById('goLiveStatus');
+  let daisyHistory = [];
+  let readyMode = null;
+
+  function addDaisyMsg(text, who){
+    const p = document.createElement('p');
+    p.className = 'daisy-msg';
+    if(who === 'user'){ p.style.color = '#f0f0f6'; p.style.textAlign = 'right'; }
+    p.textContent = text;
+    daisyMessages.appendChild(p);
+    daisyMessages.scrollTop = daisyMessages.scrollHeight;
+  }
+
+  async function sendToDaisy(text){
+    addDaisyMsg(text, 'user');
+    daisyHistory.push({role: 'user', content: text});
+    try{
+      const res = await fetch('/daisy/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: text, history: daisyHistory})
+      });
+      const data = await res.json();
+      addDaisyMsg(data.reply || "I'm having a small moment — try again.", 'daisy');
+      daisyHistory.push({role: 'assistant', content: data.reply || ''});
+      if(data.done && data.mode === 'website'){
+        readyMode = data.mode;
+        goLiveBox.style.display = 'block';
+      }
+    }catch(e){
+      addDaisyMsg("Couldn't reach Daisy just now — try again in a moment.", 'daisy');
+    }
+  }
+
+  if(daisyForm){
+    daisyForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      const val = daisyInput.value.trim();
+      if(!val) return;
+      sendToDaisy(val);
+      daisyInput.value = '';
+    });
+  }
+  document.querySelectorAll('.prompt-chip').forEach(chip => {
+    chip.addEventListener('click', () => sendToDaisy(chip.textContent));
+  });
+
+  if(goLiveBtn){
+    goLiveBtn.addEventListener('click', async function(){
+      const name = document.getElementById('goLiveName').value.trim();
+      if(!name){ goLiveStatus.textContent = 'Business name is required.'; return; }
+      goLiveStatus.textContent = 'Creating your listing…';
+      goLiveBtn.disabled = true;
+      try{
+        const res = await fetch('/daisy/create-business', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            name: name,
+            category: document.getElementById('goLiveCategory').value.trim(),
+            whatsapp: document.getElementById('goLiveWhatsapp').value.trim(),
+            description: daisyHistory.filter(h => h.role === 'user').map(h => h.content).join(' ').slice(0, 500)
+          })
+        });
+        const data = await res.json();
+        if(data.success){
+          goLiveStatus.textContent = 'Live! Your site: ' + data.url + ' — refresh Sites in a moment.';
+          goLiveBtn.textContent = 'Live ✓';
+        }else{
+          goLiveStatus.textContent = data.error || 'Something went wrong — try again.';
+          goLiveBtn.disabled = false;
+        }
+      }catch(e){
+        goLiveStatus.textContent = 'Could not reach TrustedBiz — try again.';
+        goLiveBtn.disabled = false;
+      }
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -1,1787 +1,282 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title>TrustedBiz | Your Business Online in Minutes</title>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Get a professional website, logo, flyers and business cards for your Uganda business in minutes. Powered by Daisy AI.">
-<link rel="canonical" href="https://trustedbiz.co.ug/">
-<meta property="og:title" content="TrustedBiz | Your Business Online in Minutes">
-<meta property="og:description" content="Talk to Daisy. She builds your website, logo, flyers and more — live in minutes.">
-<meta property="og:url" content="https://trustedbiz.co.ug/">
-<meta property="og:image" content="https://trustedbiz.co.ug/static/og-default.png">
-<meta name="geo.region" content="UG">
-<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TrustedBiz — Your Business, Hosted Right</title>
+<meta name="description" content="TrustedBiz gets your business online in minutes. Daisy and mybootcamp are built by TrustedBiz — proof of what the platform can run." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-:root{
-  --brand:#2b7a78;--brand-d:#1f5c5a;--brand-l:#3a9e9b;
-  --brand-dim:rgba(43,122,120,.09);--brand-glow:rgba(43,122,120,.18);
-  --bg:#f5f8f8;--surface:#fff;--surface2:#edf3f3;
-  --border:#e0eaea;--text:#0d1c1c;--mid:#456060;--dim:#87a3a3;
-  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
-}
-html{height:100%;-webkit-text-size-adjust:100%;}
-body{
-  font-family:var(--font);background:var(--bg);color:var(--text);
-  height:100%;display:flex;flex-direction:column;
-  position:fixed;inset:0;overflow:hidden;
-}
+  :root{
+    --brand:#2b7a78; --brand-dark:#1f5c5a; --brand-light:#3a9e9b;
+    --bg:#f5f8f8; --surface:#fff; --border:#d8e4e4;
+    --text:#0d1c1c; --mid:#43605f; --dim:#8aa5a4;
+    --daisy-bg:#14141e; --daisy-violet:#a78bfa; --daisy-text:#f0f0f6; --daisy-border:rgba(255,255,255,.12);
+    --font:'DM Sans',sans-serif; --mono:'DM Mono',monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d1412; --surface:#141d1b; --border:#233230;
+      --text:#eef5f4; --mid:#a9c4c1; --dim:#5f7d7a;
+    }
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important; transition-duration:.001ms !important;} }
+  body{font-family:var(--font); background:var(--bg); color:var(--text); line-height:1.5; -webkit-font-smoothing:antialiased;}
+  a{color:inherit; text-decoration:none;}
+  :focus-visible{outline:2px solid var(--brand); outline-offset:2px;}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px;}
 
-/* TOPBAR */
-.bar{
-  height:54px;padding:0 16px;flex-shrink:0;
-  display:flex;align-items:center;justify-content:space-between;
-  background:var(--surface);border-bottom:1px solid var(--border);
-}
-.logo{display:flex;align-items:center;gap:8px;text-decoration:none;}
-.logo-mark{
-  width:32px;height:32px;border-radius:9px;flex-shrink:0;
-  background:linear-gradient(135deg,var(--brand),var(--brand-l));
-  display:flex;align-items:center;justify-content:center;
-}
-.logo-mark svg{width:17px;height:17px;fill:#fff;}
-.logo-name{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.3px;}
-.logo-name b{color:var(--brand);}
-.mbtn{
-  width:38px;height:38px;background:none;
-  border:1.5px solid var(--border);border-radius:10px;
-  cursor:pointer;color:var(--mid);font-size:18px;
-  display:flex;align-items:center;justify-content:center;
-}
+  /* BUTTONS — flat, rectangular, engineered, not soft pills */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:13px 26px; border-radius:4px; font-family:var(--font); font-weight:600;
+    font-size:14.5px; cursor:pointer;
+    border:1.5px solid transparent; transition:background .12s, color .12s, border-color .12s;
+    line-height:1;
+  }
+  .btn-primary{background:var(--text); color:var(--bg); border-color:var(--text);}
+  .btn-primary:hover{background:var(--brand); border-color:var(--brand);}
+  .btn-ghost{color:var(--text); border-color:var(--border); background:none;}
+  .btn-ghost:hover{border-color:var(--text);}
+  .btn-sm{padding:9px 18px; font-size:13.5px;}
+  .nav-login{font-size:14px; font-weight:500; color:var(--mid);}
+  .nav-login:hover{color:var(--text);}
 
-/* DRAWER */
-.veil{position:fixed;inset:0;background:rgba(0,0,0,.22);z-index:300;opacity:0;pointer-events:none;transition:opacity .2s;}
-.veil.on{opacity:1;pointer-events:all;}
-.drawer{
-  position:fixed;top:0;right:0;bottom:0;
-  width:min(280px,86vw);
-  background:var(--surface);border-left:1px solid var(--border);
-  z-index:301;padding:18px 14px;
-  display:flex;flex-direction:column;
-  overflow-y:auto;
-  transform:translateX(110%);
-  transition:transform .26s cubic-bezier(.4,0,.2,1);
-  box-shadow:-4px 0 24px rgba(0,0,0,.09);
-}
-.drawer.on{transform:none;}
-.dclose{
-  width:30px;height:30px;background:var(--surface2);
-  border:none;border-radius:7px;cursor:pointer;
-  color:var(--mid);font-size:15px;margin-bottom:18px;
-  display:flex;align-items:center;justify-content:center;
-}
-.dgrp{margin-bottom:16px;}
-.dlbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);font-family:var(--mono);padding:0 6px;margin-bottom:5px;}
-.ditem{
-  display:flex;align-items:center;gap:10px;
-  padding:10px;border-radius:9px;
-  font-size:14px;font-weight:500;color:var(--mid);
-  cursor:pointer;transition:all .12s;
-  text-decoration:none;border:none;background:none;
-  font-family:var(--font);width:100%;text-align:left;
-}
-.ditem:hover{background:var(--surface2);color:var(--text);}
-.ditem.hi{background:var(--brand-dim);color:var(--brand);font-weight:600;}
-.dicon{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
-.ddiv{height:1px;background:var(--border);margin:8px 0;}
-.dfoot{margin-top:auto;padding-top:16px;font-size:11px;color:var(--dim);font-family:var(--mono);}
+  /* NAV */
+  header{position:sticky; top:0; z-index:50; background:var(--bg); border-bottom:1px solid var(--border);}
+  nav{display:flex; align-items:center; justify-content:space-between; padding:26px 0;}
+  .logo{font-family:var(--mono); font-weight:500; font-size:16px; letter-spacing:-.2px;}
+  .logo span{color:var(--brand);}
+  .nav-cta{display:flex; align-items:center; gap:22px;}
 
-/* CHAT */
-.chat{
-  flex:1;overflow-y:auto;
-  padding:20px 14px 8px;
-  -webkit-overflow-scrolling:touch;
-}
-.chat::-webkit-scrollbar{width:3px;}
-.chat::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-.thread{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:14px;}
+  /* HERO */
+  .hero{padding:60px 0 46px; border-bottom:1px solid var(--border);}
+  .tag{display:inline-block; font-family:var(--mono); font-size:12px; color:var(--mid); border:1px solid var(--border); padding:4px 10px; margin-bottom:26px;}
+  .tag b{color:var(--brand); font-weight:500;}
+  h1{font-size:46px; font-weight:800; letter-spacing:-1.4px; line-height:1.05; max-width:660px;}
+  h1 em{font-style:normal; color:var(--brand);}
+  .hero-sub{margin-top:20px; font-size:17px; color:var(--mid); max-width:500px; line-height:1.6;}
+  .hero-ctas{display:flex; gap:12px; margin-top:32px; flex-wrap:wrap;}
 
-/* DAISY MESSAGES */
-.dg{display:flex;flex-direction:column;gap:3px;animation:up .2s ease both;}
-.dlabel{font-size:11px;font-weight:600;color:var(--brand);font-family:var(--mono);margin-bottom:3px;padding-left:2px;display:flex;align-items:center;gap:5px;}
-.dlabel::before{content:'';width:6px;height:6px;background:var(--brand);border-radius:50%;display:inline-block;}
-.dbubble{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:0 14px 14px 14px;
-  padding:12px 15px;font-size:15px;line-height:1.65;color:var(--text);
-  max-width:92%;box-shadow:0 1px 8px rgba(43,122,120,.06);
-}
-.dbubble strong{font-weight:700;}
+  /* ASK DAISY */
+  .ask-daisy{margin-top:52px; max-width:600px; background:var(--daisy-bg); border-radius:6px; padding:0; border:1px solid var(--daisy-border);}
+  .ask-bar{display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--daisy-border);}
+  .ask-dot{width:8px; height:8px; border-radius:50%; background:var(--daisy-violet);}
+  .ask-title{font-family:var(--mono); font-size:12px; color:#b8b5c8; letter-spacing:.3px;}
+  .ask-title b{color:var(--daisy-text); font-weight:500;}
+  .ask-sub{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:#6b6980;}
+  .ask-body{padding:20px 16px; min-height:56px;}
+  .ask-msg{font-size:14.5px; color:#d8d6e2; line-height:1.6; opacity:0; transform:translateY(4px); transition:all .35s ease;}
+  .ask-msg.show{opacity:1; transform:translateY(0);}
+  .ask-cursor{display:inline-block; width:7px; height:15px; background:var(--daisy-violet); margin-left:2px; vertical-align:middle; animation:blink .8s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .ask-form{display:flex; gap:0; border-top:1px solid var(--daisy-border);}
+  .ask-input{flex:1; background:transparent; border:none; padding:14px 16px; color:#f0f0f6; font-family:var(--font); font-size:14px;}
+  .ask-input::placeholder{color:#5f5d6e;}
+  .ask-input:focus{outline:none;}
+  .ask-send{background:var(--daisy-violet); color:#14141e; border:none; padding:0 22px; font-weight:600; font-size:12px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.4px; cursor:pointer;}
+  .ask-send:hover{background:#b79cfc;}
 
-/* USER MESSAGES */
-.ug{display:flex;flex-direction:column;align-items:flex-end;animation:up .2s ease both;}
-.ububble{
-  background:var(--brand);color:#fff;
-  border-radius:14px 0 14px 14px;
-  padding:11px 14px;font-size:15px;line-height:1.6;
-  max-width:82%;box-shadow:0 2px 8px var(--brand-glow);
-}
+  /* PROOF — flat blocks with left accent bar, not floating cards */
+  .proof{padding:64px 0; border-bottom:1px solid var(--border);}
+  .label{font-family:var(--mono); font-size:12px; font-weight:500; letter-spacing:.5px; text-transform:uppercase; color:var(--brand); margin-bottom:12px;}
+  .section-title{font-size:26px; font-weight:800; letter-spacing:-.6px; max-width:540px;}
+  .proof-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; margin-top:32px; background:var(--border);}
+  .proof-item{background:var(--surface); padding:30px 28px; border-left:3px solid var(--brand);}
+  .proof-item.dark{background:var(--daisy-bg); border-left-color:var(--daisy-violet); color:var(--daisy-text);}
+  .proof-kicker{font-family:var(--mono); font-size:11px; letter-spacing:.4px; text-transform:uppercase; color:var(--brand); margin-bottom:12px;}
+  .proof-item.dark .proof-kicker{color:var(--daisy-violet);}
+  .proof-item h3{font-size:19px; font-weight:700; letter-spacing:-.3px; margin-bottom:8px;}
+  .proof-item p{font-size:14px; line-height:1.6;}
+  .proof-item:not(.dark) p{color:var(--mid);}
+  .proof-item.dark p{color:#a9a7ba;}
+  .proof-link{display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:12.5px; font-weight:500; margin-top:20px; letter-spacing:.3px;}
+  .proof-item:not(.dark) .proof-link{color:var(--brand);}
+  .proof-item.dark .proof-link{color:var(--daisy-violet);}
 
-/* TYPING DOTS */
-.tdots{display:flex;gap:4px;align-items:center;padding:3px 0;}
-.tdots span{
-  width:7px;height:7px;background:var(--brand);border-radius:50%;opacity:.3;
-  animation:dot .9s infinite;
-}
-.tdots span:nth-child(2){animation-delay:.18s;}
-.tdots span:nth-child(3){animation-delay:.36s;}
+  /* HOW */
+  .how{padding:64px 0; border-bottom:1px solid var(--border);}
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin-top:32px; background:var(--border);}
+  .step{background:var(--bg); padding:26px 24px 30px;}
+  .step-num{font-family:var(--mono); font-size:13px; color:var(--brand); margin-bottom:14px;}
+  .step h4{font-size:16px; font-weight:700; margin-bottom:6px;}
+  .step p{font-size:14px; color:var(--mid); line-height:1.55;}
 
-/* CURSOR */
-.tcur::after{content:'▋';color:var(--brand);animation:blink .65s infinite;font-size:12px;}
+  /* PRICING */
+  .pricing-teaser{padding:56px 0;}
+  .pt-box{border:1px solid var(--border); padding:36px; display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+  .pt-box h3{font-size:20px; font-weight:800; letter-spacing:-.4px; margin-bottom:6px;}
+  .pt-box p{font-size:14px; color:var(--mid);}
 
-@keyframes up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-@keyframes dot{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-5px);opacity:1}}
-@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  footer{border-top:1px solid var(--border); padding:36px 0;}
+  .foot-row{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;}
+  .foot-links{display:flex; gap:22px; font-size:13px; color:var(--mid);}
+  .foot-links a:hover{color:var(--text);}
+  .foot-copy{font-size:12px; color:var(--dim); font-family:var(--mono);}
 
-/* PRODUCT CARD */
-.pcard{
-  max-width:92%;margin:6px 0;
-  background:var(--surface);border:1.5px solid var(--brand-glow);
-  border-radius:14px;overflow:hidden;
-  box-shadow:0 3px 16px rgba(43,122,120,.1);
-  animation:up .25s ease both;
-}
-.pcard-top{
-  padding:14px;display:flex;align-items:center;gap:12px;
-  cursor:pointer;transition:background .15s;
-  border-bottom:1px solid var(--border);
-}
-.pcard-top:hover{background:var(--brand-dim);}
-.pcard-ico{
-  width:44px;height:44px;border-radius:10px;
-  background:linear-gradient(135deg,var(--brand),var(--brand-l));
-  display:flex;align-items:center;justify-content:center;
-  font-size:22px;flex-shrink:0;
-}
-.pcard-info{flex:1;}
-.pcard-name{font-size:14px;font-weight:700;color:var(--text);}
-.pcard-sub{font-size:11px;color:var(--dim);font-family:var(--mono);margin-top:2px;}
-.pcard-arr{color:var(--dim);font-size:20px;transition:transform .2s;}
-.pcard-arr.open{transform:rotate(90deg);}
-.pcard-menu{display:none;flex-direction:column;}
-.pcard-menu.open{display:flex;}
-.pact{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px;font-size:13px;font-weight:600;
-  color:var(--mid);cursor:pointer;text-decoration:none;
-  transition:background .12s;border-bottom:1px solid var(--border);
-  font-family:var(--font);
-}
-.pact:last-child{border-bottom:none;}
-.pact:hover{background:var(--surface2);}
-.pact.go{color:var(--brand);}
-.pact.cta{background:var(--brand);color:#fff;justify-content:center;font-size:14px;}
-.pact.cta:hover{background:var(--brand-d);}
-.pact-price{font-size:11px;font-family:var(--mono);opacity:.65;}
-
-/* GATE */
-.gate{
-  max-width:92%;margin:6px 0;
-  background:var(--brand-dim);border:1.5px solid var(--brand-glow);
-  border-radius:14px;padding:18px 16px;animation:up .25s ease both;
-}
-.gate h4{font-size:15px;font-weight:700;margin-bottom:5px;}
-.gate p{font-size:13px;color:var(--mid);line-height:1.55;margin-bottom:14px;}
-.gate-btns{display:flex;gap:8px;}
-.gbtn{
-  flex:1;padding:10px;border-radius:10px;
-  font-size:13px;font-weight:700;text-align:center;
-  text-decoration:none;font-family:var(--font);border:none;cursor:pointer;
-}
-.gbtn.p{background:var(--brand);color:#fff;}
-.gbtn.s{background:var(--surface);color:var(--mid);border:1.5px solid var(--border);}
-
-/* CHIPS */
-.chips{
-  max-width:620px;width:100%;margin:0 auto;
-  padding:0 14px 8px;display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;
-}
-
-.chip:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-dim);}
-
-/* INPUT */
-.ibar{
-  padding:10px 14px 20px;
-  background:var(--surface);
-  border-top:none;
-  flex-shrink:0;
-}
-.ibar-in{
-  max-width:620px;margin:0 auto;
-  display:flex;flex-direction:column;
-  gap:0;
-  background:var(--surface2);
-  border:1.5px solid var(--border);
-  border-radius:18px;
-  overflow:hidden;
-  box-shadow:0 2px 12px rgba(0,0,0,.06);
-}
-.ibar-text{
-  padding:12px 16px 4px;
-}
-.ibar-actions{
-  display:flex;align-items:center;
-  gap:6px;padding:6px 10px 10px;
-}
-.ifield{
-  flex:1;border:none;background:transparent;
-  resize:none;outline:none;
-  font-size:15px;color:var(--text);
-  font-family:var(--font);
-  line-height:1.5;
-  max-height:160px;overflow-y:auto;
-  width:100%;padding:0;
-}
-.ifield::placeholder{color:var(--dim);}
-.ifield:focus{border-color:var(--brand-glow);}
-.ibtn{
-  width:36px;height:36px;border-radius:50%;
-  border:none;background:var(--surface);
-  cursor:pointer;display:flex;align-items:center;
-  justify-content:center;font-size:16px;
-  color:var(--mid);transition:background .15s;
-  flex-shrink:0;
-}
-.ibtn:hover{background:var(--border);}
-.ibtn.send{
-  background:var(--brand);color:#fff;
-  width:36px;height:36px;border-radius:50%;
-  font-size:18px;
-}
-.ibtn.send:hover{background:var(--brand-d);}
-.ibtn.plus{
-  background:var(--surface);
-  color:var(--mid);
-  font-size:20px;font-weight:300;
-}
-.ibtn.send{background:var(--brand);border-color:var(--brand);color:#fff;font-size:16px;}
-.ubadge{
-  position:absolute;top:-5px;right:-5px;
-  width:16px;height:16px;background:var(--brand);color:#fff;
-  border-radius:50%;font-size:9px;font-weight:700;
-  display:none;align-items:center;justify-content:center;
-}
-.ubadge.on{display:flex;}
-.ihint{text-align:center;font-size:11px;color:var(--dim);font-family:var(--mono);margin-top:6px;}
-/* ── ATTACH MENU & + BUTTON ─────────────────────────────── */
-.ibtn.plus{
-  background:var(--surface2);border-color:var(--border);
-  font-size:22px;font-weight:300;color:var(--brand);
-  transition:all .15s;
-}
-.ibtn.plus:hover{background:var(--brand-dim);border-color:var(--brand);}
-.ibtn.plus.open #plusIcon{transform:rotate(45deg);}
-#plusIcon{display:inline-block;transition:transform .2s;}
-
-.attach-menu{
-  display:none;
-  position:absolute;bottom:72px;left:14px;
-  background:var(--surface);border:1.5px solid var(--border);
-  border-radius:16px;padding:10px;
-  box-shadow:0 8px 32px rgba(0,0,0,.12);
-  z-index:200;
-  animation:up .18s ease both;
-  flex-direction:row;gap:6px;
-}
-.attach-menu.open{display:flex;}
-.attach-opt{
-  display:flex;flex-direction:column;align-items:center;gap:4px;
-  padding:10px 14px;border:1.5px solid var(--border);
-  border-radius:12px;background:var(--surface2);
-  cursor:pointer;transition:all .12s;font-family:var(--font);
-  min-width:62px;
-}
-.attach-opt:hover{border-color:var(--brand);background:var(--brand-dim);}
-.attach-ico{font-size:22px;}
-.attach-lbl{font-size:11px;font-weight:600;color:var(--mid);}
-
-/* ── VIDEO PANEL ────────────────────────────────────────── */
-.vid-panel{
-  background:var(--surface);border-top:1.5px solid var(--border);
-  padding:12px 14px;display:flex;flex-direction:column;gap:8px;
-}
-.vid-panel-top{display:flex;align-items:center;gap:8px;}
-.vid-file-info{
-  flex:1;font-size:13px;font-weight:600;color:var(--brand);
-  font-family:var(--mono);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.vid-remove{
-  width:28px;height:28px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:7px;
-  cursor:pointer;color:var(--mid);font-size:13px;
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;
-}
-.vid-prompt{
-  width:100%;background:var(--surface2);
-  border:1.5px solid var(--border);border-radius:10px;
-  color:var(--text);padding:10px 13px;
-  font-size:14px;font-family:var(--font);outline:none;
-  transition:border-color .15s;
-}
-.vid-prompt:focus{border-color:var(--brand-glow);}
-.vid-prompt::placeholder{color:var(--dim);}
-.vid-submit{
-  background:linear-gradient(135deg,var(--brand),var(--brand-l));
-  color:#fff;border:none;border-radius:10px;
-  padding:11px 18px;font-weight:700;font-size:14px;
-  cursor:pointer;width:100%;font-family:var(--font);
-  transition:opacity .15s;
-}
-.vid-submit:disabled{opacity:.5;cursor:not-allowed;}
-
-/* ── VIDEO PROGRESS ─────────────────────────────────────── */
-.vid-progress{
-  padding:14px 14px 10px;background:var(--surface);
-  border-top:1.5px solid var(--border);
-}
-.vid-progress-bar{
-  height:5px;background:var(--surface2);
-  border-radius:99px;overflow:hidden;margin-bottom:8px;
-}
-.vid-progress-fill{
-  height:100%;width:0;
-  background:linear-gradient(90deg,var(--brand),var(--brand-l),#6c5ce7);
-  border-radius:99px;animation:vidprog 4s ease-in-out infinite;
-}
-@keyframes vidprog{
-  0%{width:4%} 40%{width:65%} 80%{width:88%} 100%{width:92%}
-}
-.vid-progress-msg{
-  font-size:13px;color:var(--mid);font-family:var(--mono);
-  text-align:center;
-}
-
-/* ── VIDEO RESULT ───────────────────────────────────────── */
-.vid-result{
-  padding:12px 14px;background:var(--surface);
-  border-top:1.5px solid var(--brand-glow);
-}
-.vid-preview{
-  width:100%;max-height:260px;border-radius:12px;
-  background:#000;display:block;margin-bottom:10px;
-}
-.vid-result-row{display:flex;gap:8px;}
-.vid-dl{
-  flex:1;background:linear-gradient(135deg,var(--brand),var(--brand-l));
-  color:#fff;text-decoration:none;border-radius:10px;
-  padding:10px;text-align:center;font-weight:700;font-size:14px;
-  font-family:var(--font);
-}
-.vid-again{
-  background:var(--surface2);color:var(--mid);
-  border:1.5px solid var(--border);border-radius:10px;
-  padding:10px 14px;font-size:13px;cursor:pointer;
-  font-family:var(--font);
-}
-.vid-plan{
-  margin-top:8px;font-size:11px;color:var(--dim);
-  font-family:var(--mono);line-height:1.6;
-}
-.vid-plan b{color:var(--brand);}
-
-/* COLOR PICKERS */
-.tray{max-width:92%;margin:4px 0 8px;animation:up .2s ease both;}
-.tray-lbl{font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px;font-family:var(--mono);}
-.swatches{display:flex;gap:8px;flex-wrap:wrap;}
-.swatch{width:44px;height:44px;border-radius:11px;border:2.5px solid transparent;cursor:pointer;transition:transform .15s;}
-.swatch:hover{transform:scale(1.18);}
-.style-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.scard{
-  padding:12px 10px;background:var(--surface);border:1.5px solid var(--border);
-  border-radius:12px;cursor:pointer;font-family:var(--font);text-align:left;transition:all .15s;
-}
-.scard:hover{border-color:var(--brand);background:var(--brand-dim);}
-.scard .si{font-size:22px;margin-bottom:5px;display:block;}
-.scard .sn{font-size:13px;font-weight:700;color:var(--text);}
-.scard .sd{font-size:11px;color:var(--dim);margin-top:2px;}
-.ctray{display:flex;flex-wrap:wrap;gap:6px;}
-.ctip{
-  padding:8px 14px;background:var(--surface);border:1.5px solid var(--border);
-  border-radius:100px;font-size:13px;font-weight:600;color:var(--mid);
-  cursor:pointer;font-family:var(--font);transition:all .12s;
-}
-.ctip:hover{border-color:var(--brand);color:var(--brand);}
-
-@media(max-width:480px){
-  .chat{padding:16px 12px 6px;}
-  .chips{padding:0 12px 6px;}
-  .ibar{padding:8px 12px 14px;}
-  .dbubble,.ububble{font-size:14px;}
-}
-
-.proof-stars{color:#f59e0b;font-size:11px;letter-spacing:1px;}
-
-/* BUILD EXPERIENCE */
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes stepIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
-@keyframes barFill{from{width:0}to{width:100%}}
-
-.build-box{
-  max-width:92%;margin:6px 0;
-  background:var(--surface);border:1.5px solid var(--brand-glow);
-  border-radius:14px;overflow:hidden;
-  box-shadow:0 3px 16px rgba(43,122,120,.1);
-  animation:up .25s ease both;
-}
-.build-header{
-  padding:14px 16px;display:flex;align-items:center;gap:12px;
-  border-bottom:1px solid var(--border);
-}
-.build-spinner{
-  width:28px;height:28px;border-radius:50%;flex-shrink:0;
-  border:2.5px solid var(--brand-glow);
-  border-top-color:var(--brand);
-  animation:spin .8s linear infinite;
-}
-.build-spinner.done{animation:none;border:none;font-size:22px;display:flex;align-items:center;justify-content:center;}
-.build-title{font-size:14px;font-weight:700;color:var(--text);}
-.build-sub{font-size:11px;color:var(--dim);font-family:var(--mono);margin-top:2px;}
-.build-steps{padding:10px 16px 4px;}
-.build-step{
-  display:flex;align-items:center;gap:10px;
-  padding:7px 0;font-size:12px;color:var(--dim);
-  font-family:var(--mono);border-bottom:1px solid var(--border);
-  opacity:0;
-}
-.build-step:last-child{border-bottom:none;}
-.build-step.active{color:var(--brand);opacity:1;animation:stepIn .3s ease both;}
-.build-step.done-step{color:#16a34a;opacity:1;}
-.build-step.done-step .step-icon::after{content:"✓";}
-.build-step .step-icon{width:16px;text-align:center;font-size:13px;flex-shrink:0;}
-.build-bar-wrap{height:3px;background:var(--border);margin:0 16px 14px;border-radius:2px;overflow:hidden;}
-.build-bar{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-l));width:0;border-radius:2px;transition:width .4s ease;}
-
-/* PREVIEW MODAL */
-.prev-modal{
-  position:fixed;inset:0;z-index:500;
-  background:rgba(0,0,0,.7);
-  display:flex;align-items:center;justify-content:center;
-  padding:16px;
-}
-.prev-inner{
-  background:var(--surface);border-radius:16px;
-  width:100%;max-width:900px;max-height:90vh;
-  display:flex;flex-direction:column;overflow:hidden;
-  box-shadow:0 24px 64px rgba(0,0,0,.4);
-}
-.prev-bar{
-  padding:12px 16px;display:flex;align-items:center;
-  justify-content:space-between;border-bottom:1px solid var(--border);
-  flex-shrink:0;
-}
-.prev-bar-title{font-size:14px;font-weight:700;color:var(--text);}
-.prev-close{
-  background:var(--surface2);border:none;border-radius:8px;
-  width:30px;height:30px;cursor:pointer;font-size:16px;color:var(--mid);
-  display:flex;align-items:center;justify-content:center;
-}
-.prev-frame{flex:1;border:none;width:100%;min-height:300px;}
-.prev-actions{
-  padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;
-  border-top:1px solid var(--border);flex-shrink:0;
-}
-.prev-btn{
-  flex:1;min-width:120px;padding:11px 16px;border-radius:10px;
-  font-size:13px;font-weight:700;text-align:center;
-  cursor:pointer;border:none;font-family:var(--font);
-  text-decoration:none;display:flex;align-items:center;
-  justify-content:center;gap:6px;
-}
-.prev-btn.primary{background:var(--brand);color:#fff;}
-.prev-btn.primary:hover{background:var(--brand-d);}
-.prev-btn.secondary{background:var(--surface2);color:var(--mid);border:1.5px solid var(--border);}
-.prev-btn.secondary:hover{border-color:var(--brand);color:var(--brand);}
-.prev-btn.wa{background:#25D366;color:#fff;}
-.prev-btn.wa:hover{background:#1eaa52;}
-
-/* FILE CARD */
-.file-card{
-  max-width:92%;background:var(--surface);
-  border:1.5px solid var(--border);border-radius:14px;
-  overflow:hidden;margin:4px 0;
-  box-shadow:0 2px 12px rgba(0,0,0,.06);
-}
-.file-card-top{
-  display:flex;align-items:center;gap:12px;
-  padding:14px 14px 10px;
-}
-.file-icon{font-size:26px;flex-shrink:0;}
-.file-info{flex:1;min-width:0;}
-.file-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.file-meta{font-size:11px;color:var(--dim);margin-top:2px;font-family:var(--mono);}
-.file-menu-btn{
-  background:none;border:none;font-size:20px;
-  color:var(--mid);cursor:pointer;padding:4px 8px;
-  border-radius:8px;flex-shrink:0;
-}
-.file-menu-btn:hover{background:var(--surface2);}
-.file-menu{
-  border-top:1px solid var(--border);
-  display:flex;flex-direction:column;
-}
-.file-action{
-  display:flex;align-items:center;gap:10px;
-  padding:12px 16px;font-size:13px;font-weight:600;
-  color:var(--text);background:none;border:none;
-  cursor:pointer;text-align:left;text-decoration:none;
-  font-family:var(--font);border-bottom:1px solid var(--border);
-  transition:background .15s;
-}
-.file-action:last-child{border-bottom:none;}
-.file-action:hover{background:var(--surface2);color:var(--brand);}
-.file-preview-strip{
-  padding:10px 16px;cursor:pointer;
-  background:linear-gradient(90deg,var(--brand)08,transparent);
-  display:flex;align-items:center;
-}
-.file-preview-strip:hover{background:var(--brand)12;}
-.file-preview-hint{font-size:12px;color:var(--brand);font-weight:600;}
-
-/* HERO HEADLINE */
-.daisy-hero{
-  padding:18px 16px 4px;
-  text-align:center;
-  flex-shrink:0;
-}
-.hero-title{
-  font-size:clamp(22px,6vw,32px);
-  font-weight:800;
-  color:var(--text);
-  letter-spacing:-0.5px;
-  margin-bottom:4px;
-  line-height:1.1;
-}
-.hero-title span{color:var(--brand);}
-.hero-sub{
-  font-size:12px;
-  color:var(--dim);
-  letter-spacing:0.5px;
-}
-/* Hide hero once chat starts */
-.hero-hidden{
-  display:none;
-}
-
-
-.chip-main:hover{
-  background:var(--brand-d) !important;
-}
-
-/* BOTTOM SHEET (Gemini style) */
-.attach-sheet{
-  position:fixed;bottom:-100%;left:0;right:0;
-  background:var(--surface);
-  border-radius:20px 20px 0 0;
-  padding:12px 20px 32px;
-  z-index:400;
-  transition:bottom .3s cubic-bezier(.4,0,.2,1);
-  box-shadow:0 -4px 24px rgba(0,0,0,.12);
-}
-.attach-sheet.open{bottom:0;}
-.attach-sheet-handle{
-  width:40px;height:4px;
-  background:var(--border);
-  border-radius:2px;
-  margin:0 auto 20px;
-}
-.attach-sheet-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:12px;
-  max-width:400px;
-  margin:0 auto;
-}
-.asheet-item{
-  display:flex;flex-direction:column;
-  align-items:center;gap:8px;
-  padding:16px 8px;
-  background:var(--surface2);
-  border:1.5px solid var(--border);
-  border-radius:14px;
-  cursor:pointer;
-  font-family:var(--font);
-  transition:background .15s, transform .15s;
-}
-.asheet-item:hover{background:var(--border);transform:scale(.97);}
-.asheet-ico{font-size:26px;}
-.asheet-lbl{font-size:12px;font-weight:600;color:var(--mid);}
-
-
-
-/* OLD attach-menu hidden */
-.attach-menu{display:none !important;}
-
-/* HOME ACTIONS — ChatGPT style 3 items */
-.home-actions{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  padding:8px 14px;
-  flex-shrink:0;
-}
-.hact-item{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:9px 12px;
-  background:transparent;
-  border:none;
-  border-radius:10px;
-  cursor:pointer;
-  font-family:var(--font);
-  text-align:left;
-  transition:background .15s;
-  width:100%;
-}
-.hact-item:hover{background:var(--surface2);}
-.hact-ico{
-  font-size:18px;
-  width:30px;height:30px;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--surface2);
-  border:1px solid var(--border);
-  border-radius:8px;
-  flex-shrink:0;
-}
-.hact-lbl{
-  font-size:14px;
-  font-weight:500;
-  color:var(--text);
-}
+  @media (max-width:760px){
+    h1{font-size:32px;}
+    .proof-grid, .steps{grid-template-columns:1fr;}
+    .pt-box{flex-direction:column; align-items:flex-start;}
+  }
 </style>
 </head>
 <body>
 
-<header class="bar">
-  <a class="logo" href="/">
-    <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/></svg></div>
-    <a href="/portfolio" class="logo-name" style="text-decoration:none;color:inherit">Trusted<b>Biz</b></a>
-  </a>
-  <button class="mbtn" onclick="openD()">&#9776;</button>
+<header>
+  <nav class="wrap">
+    <a href="/" class="logo">Trusted<span>Biz</span></a>
+    <div class="nav-cta">
+      <a href="/login" class="nav-login">Log in</a>
+      <a href="/about" class="nav-login">About</a>
+      <a href="/join" class="btn btn-primary btn-sm">Get started</a>
+    </div>
+  </nav>
 </header>
 
-<div class="veil" id="veil" onclick="closeD()"></div>
-<nav class="drawer" id="drawer">
-  <button class="dclose" onclick="closeD()">&#10005;</button>
-  <div class="dgrp">
-    <div class="dlbl">Get Started</div>
-    <button class="ditem hi" onclick="closeD()"><span class="dicon">&#127804;</span>Talk to Daisy</button>
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <span class="tag">Built and run from <b>Uganda</b></span>
+      <h1>Get your business online <em>in minutes</em>, hosted right.</h1>
+      <p class="hero-sub">TrustedBiz gives your business a real website and a place to run it. No code, no guesswork. Daisy and mybootcamp are built by TrustedBiz, not customers of it, proof of what this platform actually runs.</p>
+      <div class="hero-ctas">
+        <a href="/join" class="btn btn-primary">Get started free</a>
+        <a href="#how" class="btn btn-ghost">See how it works</a>
+      </div>
 
-  </div>
-  <div class="ddiv"></div>
-  <div class="dgrp">
-    <div class="dlbl">Daisy Builds</div>
-    <button class="ditem" onclick="closeD();go('I need a website for my business')"><span class="dicon">&#127760;</span>Business Website</button>
-    <button class="ditem" onclick="closeD();go('I need a logo')"><span class="dicon">&#10024;</span>Logo Design</button>
-    <button class="ditem" onclick="closeD();go('I need a flyer')"><span class="dicon">&#128196;</span>Flyer / Poster</button>
-    <button class="ditem" onclick="closeD();go('I need business cards')"><span class="dicon">&#128250;</span>Business Cards</button>
-    <button class="ditem" onclick="closeD();go('I need a CV')"><span class="dicon">&#128203;</span>CV / Resume</button>
-    <button class="ditem" onclick="closeD();go('I need an exam paper')"><span class="dicon">&#128221;</span>Exam Papers</button>
-  </div>
-  <div class="ddiv"></div>
-  <div class="dgrp">
-    <div class="dlbl">Account</div>
-    {% if current_user %}
-    <a class="ditem" href="/dashboard"><span class="dicon">&#128202;</span>My Dashboard</a>
-    <a class="ditem" href="/trusthost"><span class="dicon">&#128640;</span>TrustHost</a>
-    <a class="ditem" href="/logout"><span class="dicon">&#128682;</span>Sign Out</a>
-    {% else %}
-    <a class="ditem" href="/login" onclick="saveHistToStorage()"><span class="dicon">&#128273;</span>Sign In</a>
-    <a class="ditem" href="/register" onclick="saveHistToStorage()"><span class="dicon">&#128100;</span>Create Account</a>
-    {% endif %}
-  </div>
-  <div class="ddiv"></div>
-  <div class="dgrp">
-    <div class="dlbl">More</div>
-    <a class="ditem" href="/trusthost"><span class="dicon">&#127760;</span>TrustHost Hosting</a>
-    <a class="ditem" href="/join"><span class="dicon">&#129309;</span>Become an Agent</a>
-    <a class="ditem" href="/privacy"><span class="dicon">&#128220;</span>Privacy Policy</a>
-    <a class="ditem" href="/terms"><span class="dicon">&#128203;</span>Terms of Use</a>
-  </div>
-  <div class="dfoot">Made by <a href="/portfolio" style="color:var(--brand);text-decoration:none;font-weight:600">Kazibwe Benjamin</a> &middot; Uganda &#127482;&#127468;</div>
-</nav>
-
-<div class="chat" id="chat">
-  <div class="thread" id="thread"></div>
-</div>
-
-<div class="daisy-hero" id="daisyHero">
-  <h1 class="hero-title">Let&#39;s Build Anything</h1>
-  <p class="hero-sub">Logos · Websites · Flyers · Videos · CVs · Exams · Catalogs</p>
-</div>
-
-    
-    
-  </div>
-    
-    
-  </div>
-    
-    
-  </div>
-    
-    
-  </div>
-    
-    
-  </div>
-    
-    
-  </div>
-    
-    
-  </div>
-    
-    
-  </div>
-  </div>
-</div>
-<div class="home-actions" id="chips">
-  <button class="hact-item" onclick="go('I need help creating something')">
-    <span class="hact-ico">&#128218;</span>
-    <span class="hact-lbl">Create anything</span>
-  </button>
-  <button class="hact-item" onclick="document.getElementById('ufile-vid').click()">
-    <span class="hact-ico">&#9998;</span>
-    <span class="hact-lbl">Edit video</span>
-  </button>
-  <button class="hact-item" onclick="go('I need help writing or editing something')">
-    <span class="hact-ico">&#127760;</span>
-    <span class="hact-lbl">Look something up</span>
-  </button>
-</div>
-
-<!-- hidden file inputs -->
-<input type="file" id="ufile"     accept="image/*" multiple style="display:none" onchange="onImg(this.files)">
-<input type="file" id="ufile-vid" accept="video/mp4,video/quicktime,video/webm,video/3gpp,video/*" style="display:none" onchange="onVid(this.files)">
-<input type="file" id="ufile-doc" accept=".pdf,.doc,.docx,.txt" multiple style="display:none" onchange="onDoc(this.files)">
-
-<!-- attach menu -->
-<div class="attach-sheet" id="attachMenu">
-  <div class="attach-sheet-handle"></div>
-  <div class="attach-sheet-grid">
-    <button class="asheet-item" onclick="closeAttach();document.getElementById('ufile').click()">
-      <span class="asheet-ico">&#128247;</span>
-      <span class="asheet-lbl">Photo</span>
-    </button>
-    <button class="asheet-item" onclick="closeAttach();document.getElementById('ufile-vid').click()">
-      <span class="asheet-ico">&#127916;</span>
-      <span class="asheet-lbl">Video</span>
-    </button>
-    <button class="asheet-item" onclick="closeAttach();go('I need a logo')">
-      <span class="asheet-ico">&#10024;</span>
-      <span class="asheet-lbl">Logo</span>
-    </button>
-    <button class="asheet-item" onclick="closeAttach();go('I need a website')">
-      <span class="asheet-ico">&#127760;</span>
-      <span class="asheet-lbl">Website</span>
-    </button>
-    <button class="asheet-item" onclick="closeAttach();go('I need a CV')">
-      <span class="asheet-ico">&#128203;</span>
-      <span class="asheet-lbl">CV</span>
-    </button>
-    <button class="asheet-item" onclick="closeAttach();go('I need an exam paper')">
-      <span class="asheet-ico">&#128221;</span>
-      <span class="asheet-lbl">Exam</span>
-    </button>
-  </div>
-</div>
-
-
-<!-- video upload panel -->
-<div class="vid-panel" id="vidPanel" style="display:none">
-  <div class="vid-panel-top">
-    <div class="vid-file-info" id="vidFileInfo">🎬 No video selected</div>
-    <button class="vid-remove" onclick="clearVideo()">✕</button>
-  </div>
-  <input type="text" class="vid-prompt" id="vidPrompt"
-    placeholder="How should Daisy edit it? e.g. cinematic restaurant promo, name is Lias Lounge..."
-    onkeydown="if(event.key==='Enter'){event.preventDefault();if(_vidFile)submitVideo();}">
-  <button class="vid-submit" id="vidSubmitBtn" onclick="submitVideo()">✨ Edit with Daisy</button>
-</div>
-
-<!-- video progress -->
-<div class="vid-progress" id="vidProgress" style="display:none">
-  <div class="vid-progress-bar"><div class="vid-progress-fill" id="vidFill"></div></div>
-  <div class="vid-progress-msg" id="vidMsg">🎬 Daisy is editing your video...</div>
-</div>
-
-<!-- video result -->
-<div class="vid-result" id="vidResult" style="display:none">
-  <video class="vid-preview" id="vidPreview" controls playsinline></video>
-  <div class="vid-result-row">
-    <a class="vid-dl" id="vidDl" href="#" download>⬇️ Download</a>
-    <button class="vid-again" onclick="resetVideo()">🔄 Edit Another</button>
-  </div>
-  <div class="vid-plan" id="vidPlan"></div>
-</div>
-
-<div class="ibar">
-  <div class="ibar-in">
-    <div class="ibar-text">
-      <textarea class="ifield" id="ifield" rows="1"
-        placeholder="Talk to Daizy..."
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"
-        oninput="rsz(this)"></textarea>
+      <div class="ask-daisy">
+        <div class="ask-bar">
+          <span class="ask-dot"></span>
+          <span class="ask-title">Ask <b>Daisy</b></span>
+          <span class="ask-sub">no signup</span>
+        </div>
+        <div class="ask-body">
+          <p class="ask-msg" id="daisyMsg">Hi, I'm Daisy, built by TrustedBiz. I can help build your business a site, ask me how.<span class="ask-cursor"></span></p>
+        </div>
+        <form class="ask-form" id="daisyForm">
+          <input class="ask-input" id="daisyInput" type="text" placeholder="e.g. How do I get my shop online?" autocomplete="off" />
+          <button class="ask-send" type="submit">Ask</button>
+        </form>
+      </div>
     </div>
-    <div class="ibar-actions">
-      <button class="ibtn plus" id="plusBtn" onclick="toggleAttach()" title="Attach">
-        <span id="plusIcon">+</span>
-        <span class="ubadge" id="ubadge"></span>
-      </button>
-      <div style="flex:1"></div>
-      <button class="ibtn" onclick="startVoice()" title="Voice" style="font-size:18px">&#127908;</button>
-      <button class="ibtn send" id="sbtn" onclick="send()">&#8593;</button>
+  </section>
+
+  <section class="proof" id="proof">
+    <div class="wrap">
+      <p class="label">Part of TrustedBiz</p>
+      <h2 class="section-title">We didn't just build a platform. We built businesses on it first.</h2>
+      <div class="proof-grid">
+        <div class="proof-item">
+          <span class="proof-kicker">TrustedBiz product</span>
+          <h3>mybootcamp</h3>
+          <p>A coding bootcamp, run entirely on TrustedBiz, from its first page to its student sign-ups.</p>
+          <a href="https://mybootcamp.trustedbiz.co.ug" class="proof-link">Visit mybootcamp →</a>
+        </div>
+        <div class="proof-item dark">
+          <span class="proof-kicker">TrustedBiz product</span>
+          <h3>Daisy</h3>
+          <p>TrustedBiz's own AI. She can talk to you, and she can build a business site with you.</p>
+          <a href="/daisy" class="proof-link">Meet Daisy →</a>
+        </div>
+      </div>
     </div>
+  </section>
+
+  <section class="how" id="how">
+    <div class="wrap">
+      <p class="label">How it works</p>
+      <h2 class="section-title">Three steps. No technical knowledge required.</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h4>Tell us about your business</h4>
+          <p>Answer a few simple questions, or let Daisy build your site through a conversation.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h4>We set it up for you</h4>
+          <p>Your site is built and connected to your own address. No domains or hosting jargon.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h4>Your business goes live</h4>
+          <p>Share your link, take customers, manage everything from one dashboard.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing-teaser">
+    <div class="wrap">
+      <div class="pt-box">
+        <div>
+          <h3>Start free. Upgrade when you're ready.</h3>
+          <p>Plans built for a single shop, a growing business, or a franchise with many branches.</p>
+        </div>
+        <a href="/choose-plan" class="btn btn-primary">View pricing</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-row">
+    <div class="foot-links">
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/daisy">Daisy</a>
+      <a href="/join">Get started</a>
+    </div>
+    <span class="foot-copy">© TrustedBiz — made in Uganda</span>
   </div>
-  <div class="ihint">Enter to send &middot; &#128206; attach &middot; <em>Daizy is young and can make mistakes</em></div>
-</div>
-<!-- PREVIEW MODAL -->
-<div class="prev-modal" id="prevModal" style="display:none" onclick="if(event.target===this)closePreview()">
-  <div class="prev-inner">
-    <div class="prev-bar">
-      <span class="prev-bar-title" id="prevTitle">Preview</span>
-      <button class="prev-close" onclick="closePreview()">&#10005;</button>
-    </div>
-    <iframe class="prev-frame" id="prevFrame"></iframe>
-    <div class="prev-actions">
-      <button class="prev-btn secondary" onclick="closePreview()">&#8592; Back</button>
-      <button class="prev-btn primary" onclick="downloadResult()">&#11015; Download</button>
-    </div>
-  </div>
-</div>
+</footer>
 
 <script>
-var LOGGED = {{ 'true' if current_user else 'false' }};
-var WA     = "256753187966";
-var FREE   = 12;
-var busy   = false;
-var msgs   = 0;
-var gated  = false;
-var ctx    = {};
-var mode   = null;
-var imgs   = [];
-var hist   = [];
-var sid    = Math.random().toString(36).slice(2,8);
-
-// ── FORMAT ───────────────────────────────────────────────────────
-function fmt(t) {
-  return String(t||"")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
-    .replace(/\*(.*?)\*/g,"<em>$1</em>")
-    .replace(/\n/g,"<br>");
-}
-
-// ── RENDER ───────────────────────────────────────────────────────
-function addD(html, extra) {
-  var t = document.getElementById("thread");
-  var g = document.createElement("div");
-  g.className = "dg";
-  g.innerHTML = "<div class=\"dlabel\">Daisy</div>"
-    + "<div class=\"dbubble\">" + html + "</div>"
-    + (extra || "");
-  t.appendChild(g);
-  scrl();
-  return g;
-}
-
-function addU(text, imgArr) {
-  var t = document.getElementById("thread");
-  var g = document.createElement("div");
-  g.className = "ug";
-  var ih = "";
-  if (imgArr && imgArr.length) {
-    ih = "<div style=\"display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;\">"
-      + imgArr.map(function(s){return "<img src=\""+s+"\" style=\"width:56px;height:56px;border-radius:7px;object-fit:cover;\">"; }).join("")
-      + "</div>";
-  }
-  g.innerHTML = "<div class=\"ububble\">" + fmt(text||"&#128206;") + ih + "</div>";
-  t.appendChild(g);
-  scrl();
-}
-
-function showDots() {
-  var t = document.getElementById("thread");
-  var g = document.createElement("div");
-  g.className = "dg"; g.id = "dotsg";
-  g.innerHTML = "<div class=\"dlabel\">Daisy</div>"
-    + "<div class=\"dbubble\"><div class=\"tdots\"><span></span><span></span><span></span></div></div>";
-  t.appendChild(g); scrl();
-}
-function hideDots() { var d = document.getElementById("dotsg"); if(d) d.remove(); }
-function scrl() { var c = document.getElementById("chat"); c.scrollTop = c.scrollHeight; }
-function slp(ms) { return new Promise(function(r){setTimeout(r,ms);}); }
-
-// ── CALL DAISY ───────────────────────────────────────────────────
-async function callDaisy(text, hasImg) {
-  // Show slow-start message after 8 seconds
-  var slowT = setTimeout(function() {
-    var el = document.createElement("div");
-    el.id = "slowmsg";
-    el.style.cssText = "font-size:12px;color:var(--dim);font-family:var(--mono);padding:4px 14px;";
-    el.textContent = "Daisy is waking up, just a moment...";
-    var c = document.getElementById("chat");
-    c.appendChild(el); scrl();
-  }, 8000);
-
-  try {
-    var ctrl = new AbortController();
-    var tout = setTimeout(function(){ ctrl.abort(); }, 55000);
-
-    var res = await fetch("/daisy/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        message: text,
-        history: hist.slice(-12),
-        context: ctx,
-        mode: mode,
-        session_id: sid,
-        has_image: (hasImg ? true : false)
-      })
-    });
-
-    clearTimeout(tout);
-    clearTimeout(slowT);
-    var el = document.getElementById("slowmsg"); if(el) el.remove();
-
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    var data = await res.json();
-    if (!data.reply && data.response) data.reply = data.response;
-    return data;
-
-  } catch(e) {
-    clearTimeout(slowT);
-    var el = document.getElementById("slowmsg"); if(el) el.remove();
-    if (e.name === "AbortError") {
-      return { reply: "Daisy is waking up on a free server. Please send your message again!", done: false };
-    }
-    return { reply: "I had a small moment. Try again! &#128156;", done: false };
-  }
-}
-
-// ── OPENING ──────────────────────────────────────────────────────
-async function boot() {
-  await slp(500);
-  showDots();
-  await slp(1200);
-  hideDots();
-
-  var t = document.getElementById("thread");
-  var g = document.createElement("div");
-  g.className = "dg";
-  g.innerHTML = "<div class=\"dlabel\">Daisy</div>"
-    + "<div class=\"dbubble\"><span id=\"otxt\"></span><span class=\"tcur\"></span></div>";
-  t.appendChild(g);
-
-  // Restore conversation from before signup/login
-  var restored = loadHistFromStorage();
-  if (restored) {
-    hist.forEach(function(turn) {
-      if (turn.role === 'user') addU(turn.content, null);
-      else addD(fmt(turn.content));
-    });
-    addD("Welcome back! I remember our conversation. &#127804; What would you like to do next?");
-    return;
-  }
-
-  var full = "Hey! I'm Daisy.\n\nI build websites, logos, flyers, business cards, CVs, exam papers and more — for you, in minutes.\n\nWhat do you need today?";
-  var el = document.getElementById("otxt");
-  var i  = 0;
-
-  await new Promise(function(resolve) {
-    var iv = setInterval(function() {
-      if (i < full.length) {
-        el.innerHTML = fmt(full.slice(0, ++i));
-        scrl();
-      } else {
-        clearInterval(iv);
-        var cur = g.querySelector(".tcur");
-        if (cur) cur.remove();
-        resolve();
-      }
-    }, 14);
-  });
-}
-
-// ── PRODUCT CARD ──────────────────────────────────────────────────
-var ICONS  = {website:"&#127760;",logo:"&#10024;",flyer:"&#128196;",cards:"&#128250;",cv:"&#128203;",presentation:"&#128202;",exam:"&#128221;",priceguard:"&#128737;"};
-var LABELS = {website:"Your Website",logo:"Your Logo",flyer:"Your Flyer",cards:"Your Business Cards",cv:"Your CV",presentation:"Your Presentation",exam:"Your Exam Paper",priceguard:"Price Report"};
-var PRICES = {logo:"UGX 2,000",flyer:"UGX 2,000",cards:"UGX 2,000",cv:"UGX 2,000",presentation:"UGX 3,000",exam:"Free"};
-
-// ── BUILD STEPS per mode ─────────────────────────────────────────
-var BUILD_STEPS = {
-  website:  ["Reading your business details","Choosing layout and style","Writing your sections","Adding your brand colors","Polishing the design","Almost ready..."],
-  logo:     ["Reading your brand name","Choosing shapes and style","Laying out the mark","Applying your colors","Refining the details","Finishing up..."],
-  flyer:    ["Reading your message","Choosing layout","Writing the copy","Adding visual flair","Applying your colors","Finishing up..."],
-  cards:    ["Reading your details","Designing front side","Designing back side","Applying brand style","Polishing typography","Finishing up..."],
-  cv:       ["Reading your details","Structuring sections","Writing professional copy","Applying clean layout","Final formatting","Almost ready..."],
-  presentation: ["Reading your topic","Building slide structure","Writing slide content","Applying visual theme","Adding finishing touches","Almost ready..."],
-  exam:     ["Reading subject details","Setting difficulty level","Writing questions","Adding mark scheme","Formatting paper","Almost ready..."],
-  priceguard: ["Reading your item","Checking market data","Comparing local prices","Calculating fair range","Writing your report","Almost ready..."]
-};
-
-// ── PREVIEW MODAL ─────────────────────────────────────────────────
-var _prevContent = null;
-var _prevMode    = null;
-
-function openPreview(htmlContent, modeKey, name) {
-  _prevContent = htmlContent;
-  _prevMode    = modeKey;
-  var modal = document.getElementById("prevModal");
-  var frame = document.getElementById("prevFrame");
-  var title = document.getElementById("prevTitle");
-  if (!modal) return;
-  title.textContent = (LABELS[modeKey] || "Preview") + " — " + name;
-  // Use blob URL — works on Android Chrome (doc.write often fails with sandbox)
-  try {
-    var blob = new Blob([htmlContent], {type: "text/html"});
-    var blobUrl = URL.createObjectURL(blob);
-    if (frame._blobUrl) { try { URL.revokeObjectURL(frame._blobUrl); } catch(e){} }
-    frame._blobUrl = blobUrl;
-    frame.src = blobUrl;
-  } catch(e) {
-    frame.srcdoc = htmlContent;
-  }
-  modal.style.display = "flex";
-  document.body.style.overflow = "hidden";
-}
-
-function closePreview() {
-  var modal = document.getElementById("prevModal");
-  if (modal) modal.style.display = "none";
-  document.body.style.overflow = "";
-}
-
-function downloadResult() {
-  if (!_prevContent) return;
-  var ext = (_prevMode === "logo") ? "svg" : "html";
-  var blob = new Blob([_prevContent], {type: "text/html"});
-  var a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = (_prevMode || "document") + "." + ext;
-  a.click();
-}
-
-// ── BUILD FLOW ────────────────────────────────────────────────────
-async function runBuild(modeKey, ctxData) {
-  var name  = ctxData.name || ctxData.fullname || ctxData.topic || ctxData.subject || "Document";
-  var icon  = ICONS[modeKey]  || "&#128193;";
-  var label = LABELS[modeKey] || "Your File";
-  var steps = BUILD_STEPS[modeKey] || ["Preparing your file","Building structure","Adding details","Applying style","Finishing up...","Almost ready..."];
-  var bid   = "build" + Date.now();
-
-  // Build the box HTML
-  var stepsHtml = steps.map(function(s, i) {
-    return "<div class=\"build-step\" id=\"" + bid + "s" + i + "\">"
-      + "<span class=\"step-icon\">&#9679;</span>" + s + "</div>";
-  }).join("");
-
-  var boxHtml = "<div class=\"build-box\" id=\"" + bid + "\">"
-    + "<div class=\"build-header\">"
-    + "<div class=\"build-spinner\" id=\"" + bid + "sp\"></div>"
-    + "<div><div class=\"build-title\">" + icon + " Building " + label + "</div>"
-    + "<div class=\"build-sub\">" + name + " &middot; Daisy is working...</div></div>"
-    + "</div>"
-    + "<div class=\"build-steps\">" + stepsHtml + "</div>"
-    + "<div class=\"build-bar-wrap\"><div class=\"build-bar\" id=\"" + bid + "bar\"></div></div>"
-    + "</div>";
-
-  // Inject into thread (no extra Daisy bubble, the box IS the reply)
-  var t = document.getElementById("thread");
-  var wrapper = document.createElement("div");
-  wrapper.className = "dg";
-  wrapper.innerHTML = "<div class=\"dlabel\">Daisy</div>" + boxHtml;
-  t.appendChild(wrapper);
-  scrl();
-
-  // Animate steps while calling backend
-  var bar = document.getElementById(bid + "bar");
-  var stepDelay = 0;
-  steps.forEach(function(s, i) {
-    setTimeout(function() {
-      // Mark previous done
-      if (i > 0) {
-        var prev = document.getElementById(bid + "s" + (i-1));
-        if (prev) { prev.classList.remove("active"); prev.classList.add("done-step"); prev.querySelector(".step-icon").textContent = "✓"; }
-      }
-      var el = document.getElementById(bid + "s" + i);
-      if (el) el.classList.add("active");
-      if (bar) bar.style.width = Math.round(((i+1)/steps.length)*85) + "%";
-    }, i * 900);
-    stepDelay = (i+1) * 900;
-  });
-
-  // Call backend to generate
-  var result = null;
-  try {
-    var resp = await fetch("/daisy/build", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({mode: modeKey, context: ctxData, history: hist.slice(-10), seed: Date.now()})
-    });
-    if (resp.ok) result = await resp.json();
-  } catch(e) { console.log("build error", e); }
-
-  // Wait for animations to finish before revealing
-  await slp(Math.max(stepDelay + 600, 2200));
-
-  // Mark last step done
-  var lastEl = document.getElementById(bid + "s" + (steps.length-1));
-  if (lastEl) { lastEl.classList.remove("active"); lastEl.classList.add("done-step"); lastEl.querySelector(".step-icon").textContent = "✓"; }
-  if (bar) bar.style.width = "100%";
-
-  // Swap spinner to checkmark
-  var sp = document.getElementById(bid + "sp");
-  if (sp) { sp.classList.add("done"); sp.innerHTML = "&#9989;"; }
-
-  // Update subtitle
-  var box = document.getElementById(bid);
-  if (box) {
-    var sub = box.querySelector(".build-sub");
-    if (sub) sub.textContent = name + " · Ready to preview";
-  }
-
-  // Get the generated HTML
-  var html = (result && result.html) ? result.html : _fallbackHtml(modeKey, ctxData);
-  var waMsg = "Hi TrustedBiz! I want to download my " + label + " for " + name + ". Details: " + JSON.stringify(ctxData);
-  var waUrl = "https://wa.me/" + WA + "?text=" + encodeURIComponent(waMsg);
-
-  // Store html safely in a map keyed by bid - no inline injection
-  window._daisyBuilds = window._daisyBuilds || {};
-  window._daisyBuilds[bid] = {html: html, mode: modeKey, name: name};
-
-  var isSmall = ["logo","flyer","cards","cv","exam","presentation","catalog"].indexOf(modeKey) > -1;
-  var ext = (modeKey === "logo") ? "svg" : "html";
-
-  // File card with menu
-  var actionsHtml = "<div class=\"file-card\">"
-    + "<div class=\"file-card-top\">"
-    + "<div class=\"file-icon\">" + (ICONS[modeKey] || "&#128196;") + "</div>"
-    + "<div class=\"file-info\">"
-    + "<div class=\"file-name\">" + (LABELS[modeKey] || modeKey) + "</div>"
-    + "<div class=\"file-meta\">" + name + " &middot; Ready</div>"
-    + "</div>"
-    + "<button class=\"file-menu-btn\" onclick=\"toggleFileMenu(\'" + bid + "\')\">&#8942;</button>"
-    + "</div>"
-    + "<div class=\"file-menu\" id=\"fm-" + bid + "\" style=\"display:none\">"
-    + "<button class=\"file-action\" onclick=\"_previewByKey(\'" + bid + "\');toggleFileMenu(\'" + bid + "\')\">&#128065; Preview</button>"
-    + (isSmall
-        ? "<button class=\"file-action\" onclick=\"_dlByKey(\'" + bid + "\');toggleFileMenu(\'" + bid + "\')\">&#11015; Download Free</button>"
-        : "<a class=\"file-action\" href=\"" + waUrl + "\" target=\"_blank\">&#128247; Get Full Version</a>")
-    + "<button class=\"file-action\" onclick=\"_copyByKey(\'" + bid + "\');toggleFileMenu(\'" + bid + "\')\">&#128203; Copy HTML</button>"
-    + "<button class=\"file-action\" onclick=\"_shareByKey(\'" + bid + "\');toggleFileMenu(\'" + bid + "\')\">&#128279; Share</button>"
-    + "</div>"
-    + "<div class=\"file-preview-strip\" onclick=\"_previewByKey(\'" + bid + "\')\">"
-    + "<span class=\"file-preview-hint\">Tap to preview &rarr;</span>"
-    + "</div>"
-    + "</div>";
-
-  var aw = document.createElement("div");
-  aw.className = "dg";
-  aw.innerHTML = "<div class=\"dlabel\">Daisy</div>" + actionsHtml;
-  t.appendChild(aw);
-  scrl();
-}
-
-function _previewByKey(bid) {
-  var d = (window._daisyBuilds || {})[bid];
-  if (!d) return;
-  _prevContent = d.html; _prevMode = d.mode;
-  openPreview(d.html, d.mode, d.name);
-}
-
-function _dlByKey(bid) {
-  var d = (window._daisyBuilds || {})[bid];
-  if (!d) return;
-  _prevContent = d.html; _prevMode = d.mode;
-  downloadResult();
-}
-
-function _copyByKey(bid) {
-  var d = (window._daisyBuilds || {})[bid];
-  if (!d) return;
-  try {
-    navigator.clipboard.writeText(d.html).then(function(){
-      addD("HTML copied to clipboard. You can paste it anywhere. &#128203;");
-    });
-  } catch(e) {
-    addD("Copy failed — try the Download button instead.");
-  }
-}
-
-function _shareByKey(bid) {
-  var d = (window._daisyBuilds || {})[bid];
-  if (!d) return;
-  if (navigator.share) {
-    var blob = new Blob([d.html], {type:'text/html'});
-    var file = new File([blob], (d.mode || 'file') + '.html', {type:'text/html'});
-    navigator.share({title: d.name, files: [file]}).catch(function(){
-      addD("Share cancelled.");
-    });
-  } else {
-    addD("Sharing not supported on this browser — use Download instead.");
-  }
-}
-
-function toggleFileMenu(bid) {
-  var m = document.getElementById('fm-' + bid);
-  if (!m) return;
-  var open = m.style.display !== 'none';
-  // Close all other menus first
-  document.querySelectorAll('.file-menu').forEach(function(el){ el.style.display='none'; });
-  m.style.display = open ? 'none' : 'block';
-}
-
-function _fallbackHtml(modeKey, ctx) {
-  var name = ctx.name || "Your Business";
-  var color = ctx.color || "#2b7a78";
-  return "<!DOCTYPE html><html><head><meta charset=UTF-8><title>" + name + "</title>"
-    + "<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f8f8;}"
-    + ".box{text-align:center;padding:40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);}"
-    + "h1{color:" + color + ";font-size:2em;margin-bottom:12px;}"
-    + "p{color:#6b7280;}</style></head><body>"
-    + "<div class=box><h1>" + name + "</h1><p>Your " + (LABELS[modeKey]||"file") + " is ready.</p>"
-    + "<p style=margin-top:16px;font-size:13px;color:#9ca3af>Powered by TrustedBiz Uganda</p></div></body></html>";
-}
-
-function makeCard(modeKey, ctxData) {
-  // Replaced — now triggers the animated build flow
-  runBuild(modeKey, ctxData || ctx);
-  return ""; // send() appends this, we return empty since runBuild injects directly
-}
-
-function toggleC(id) {
-  var m = document.getElementById("menu-" + id);
-  var a = document.getElementById("arr-" + id);
-  if (!m) return;
-  m.classList.toggle("open");
-  if (a) a.classList.toggle("open");
-}
-
-// ── SOFT GATE ────────────────────────────────────────────────────
-function saveHistToStorage() {
-  try {
-    localStorage.setItem('daisy_hist', JSON.stringify(hist));
-    localStorage.setItem('daisy_ctx',  JSON.stringify(ctx));
-    localStorage.setItem('daisy_msgs', String(msgs));
-  } catch(e) {}
-}
-
-function loadHistFromStorage() {
-  try {
-    var h = localStorage.getItem('daisy_hist');
-    var c = localStorage.getItem('daisy_ctx');
-    var m = localStorage.getItem('daisy_msgs');
-    if (h) { hist = JSON.parse(h); localStorage.removeItem('daisy_hist'); }
-    if (c) { ctx  = JSON.parse(c); localStorage.removeItem('daisy_ctx'); }
-    if (m) { msgs = parseInt(m) || 0; localStorage.removeItem('daisy_msgs'); }
-    return hist.length > 0;
-  } catch(e) { return false; }
-}
-
-function saveTraining(userMsg, daisyReply) {
-  if (!userMsg || !daisyReply) return;
-  fetch('/daisy/save-training', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({input: userMsg, output: daisyReply})
-  }).catch(function(){});
-}
-
-function showGate() {
-  if (gated || LOGGED) return;
-  gated = true;
-  var extra = "<div class=\"gate\">"
-    + "<h4>Save your work &mdash; it\'s free</h4>"
-    + "<p>Create a free account to keep building. Your conversation will be right here waiting for you.</p>"
-    + "<div class=\"gate-btns\">"
-    + "<a class=\"gbtn p\" href=\"/register?next=/\" onclick=\"saveHistToStorage()\">Create free account</a>"
-    + "<a class=\"gbtn s\" href=\"/login\" onclick=\"saveHistToStorage()\">Sign in</a>"
-    + "</div></div>";
-  addD("Almost there! &#127804; One last step to save everything.", extra);
-}
-
-// ── COLOR / STYLE PICKERS ────────────────────────────────────────
-var COLORS = [
-  {v:"#2b7a78",n:"Teal"},{v:"#1e3a5f",n:"Navy"},{v:"#6d28d9",n:"Purple"},
-  {v:"#ea580c",n:"Orange"},{v:"#16a34a",n:"Green"},{v:"#dc2626",n:"Red"},
-  {v:"#111827",n:"Black"},{v:"surprise",n:"Surprise"}
-];
-var STYLES = [
-  {v:"modern",i:"&#10024;",n:"Modern",d:"Clean & minimal"},
-  {v:"bold",i:"&#127912;",n:"Bold",d:"Eye-catching"},
-  {v:"classic",i:"&#127963;",n:"Classic",d:"Traditional"},
-  {v:"playful",i:"&#127881;",n:"Playful",d:"Fun & friendly"}
-];
-var LEVELS   = ["Primary (P1-P7)","O-Level (S1-S4)","A-Level (S5-S6)","University"];
-var SUBJECTS = ["Mathematics","English","Biology","Chemistry","Physics","History","Geography","Economics"];
-
-function showPicker(type, cb) {
-  var tray = document.createElement("div");
-  tray.className = "tray";
-  var html = "<div class=\"tray-lbl\">";
-
-  if (type === "color") {
-    html += "Pick a color:</div><div class=\"swatches\">";
-    COLORS.forEach(function(c) {
-      var bg = c.v === "surprise" ? "linear-gradient(135deg,#f59e0b,#ec4899,#6366f1)" : c.v;
-      html += "<button class=\"swatch\" style=\"background:" + bg + "\" title=\"" + c.n + "\" onclick=\"pickDone(this.closest('.tray'),'" + c.v + "','" + c.n + "')\"></button>";
-    });
-    html += "</div>";
-  } else if (type === "style") {
-    html += "Choose a style:</div><div class=\"style-grid\">";
-    STYLES.forEach(function(s) {
-      html += "<button class=\"scard\" onclick=\"pickDone(this.closest('.tray'),'" + s.v + "','" + s.n + "')\">"
-        + "<span class=\"si\">" + s.i + "</span><div class=\"sn\">" + s.n + "</div><div class=\"sd\">" + s.d + "</div></button>";
-    });
-    html += "</div>";
-  } else if (type === "level") {
-    html += "What level?</div><div class=\"ctray\">";
-    LEVELS.forEach(function(l) {
-      html += "<button class=\"ctip\" onclick=\"pickDone(this.closest('.tray'),'" + l + "','" + l + "')\">" + l + "</button>";
-    });
-    html += "</div>";
-  } else if (type === "subject") {
-    html += "Which subject?</div><div class=\"ctray\">";
-    SUBJECTS.forEach(function(s) {
-      html += "<button class=\"ctip\" onclick=\"pickDone(this.closest('.tray'),'" + s + "','" + s + "')\">" + s + "</button>";
-    });
-    html += "</div>";
-  }
-
-  tray.innerHTML = html;
-  tray._cb = cb;
-  document.getElementById("thread").appendChild(tray);
-  scrl();
-}
-
-function pickDone(tray, val, label) {
-  var cb = tray._cb;
-  tray.remove();
-  addU(label, null);
-  if (cb) cb(val, label);
-}
-
-function maybePicker(reply, cb) {
-  var r = reply.toLowerCase();
-  if (r.indexOf("color") > -1 || r.indexOf("colour") > -1) { setTimeout(function(){showPicker("color",cb);}, 250); return; }
-  if (r.indexOf("design style") > -1 || r.indexOf("what style") > -1) { setTimeout(function(){showPicker("style",cb);}, 250); return; }
-  if (r.indexOf("level") > -1 || r.indexOf("what form") > -1) { setTimeout(function(){showPicker("level",cb);}, 250); return; }
-  if (r.indexOf("which subject") > -1) { setTimeout(function(){showPicker("subject",cb);}, 250); }
-}
-
-// ── SEND ─────────────────────────────────────────────────────────
-async function send() {
-  var f    = document.getElementById("ifield");
-  var text = f.value.trim();
-  if ((!text && !imgs.length) || busy) return;
-
-  busy = true;
-  document.getElementById("sbtn").disabled = true;
-  document.getElementById("chips").style.display = "none";
-
-  var sentImgs = imgs.slice();
-  imgs = [];
-  document.getElementById("ubadge").classList.remove("on");
-
-  addU(text, sentImgs);
-  f.value = ""; rsz(f); msgs++;
-  // Fade out hero + chips + proof strip once chat starts
-  if (msgs === 1) {
-    var _hero = document.getElementById('daisyHero');
-    if (_hero) { _hero.style.transition='opacity .5s'; _hero.style.opacity='0'; setTimeout(function(){ _hero.style.display='none'; },500); }
-    var _chips = document.getElementById('chips');
-    if (_chips) { _chips.style.transition='opacity .5s'; _chips.style.opacity='0'; setTimeout(function(){ _chips.style.display='none'; },500); }
-  }
-
-  try {
-    showDots();
-    var data = await callDaisy(text, sentImgs[0]);
-    hideDots();
-
-    var reply = data.reply || "I'm here! What do you need?";
-
-    // Save history
-    if (text) hist.push({ role: "user", content: text });
-    hist.push({ role: "assistant", content: reply });
-    if (hist.length > 24) hist = hist.slice(-24);
-    // Save to Daisy training so she learns
-    if (text) saveTraining(text, reply);
-    maybeTestimonialGate();
-
-    // Save context
-    if (text) {
-      if (!ctx.name)             ctx.name        = text;
-      else if (!ctx.description) ctx.description = text;
-      else if (!ctx.location)    ctx.location    = text;
-      else if (!ctx.whatsapp && /\d{9,}/.test(text)) ctx.whatsapp = text;
-    }
-    if (data.mode) mode = data.mode;
-
-    if (data.done && data.mode) {
-      addD(fmt(reply));
-      makeCard(data.mode, ctx);
-      mode = null; ctx = {};
-    } else {
-      addD(fmt(reply));
-      maybePicker(reply, async function(val, label) {
-        if (reply.toLowerCase().indexOf("color") > -1) ctx.color = val;
-        else if (reply.toLowerCase().indexOf("style") > -1) ctx.style = val;
-        else if (reply.toLowerCase().indexOf("level") > -1) ctx.level = val;
-        else if (reply.toLowerCase().indexOf("subject") > -1) ctx.subject = val;
-
-        addU(label, null);
-        showDots();
-        var d2 = await callDaisy(label, null);
-        hideDots();
-        hist.push({ role: "user", content: label });
-        hist.push({ role: "assistant", content: d2.reply || "" });
-
-        if (d2.done && d2.mode) {
-          addD(fmt(d2.reply || "Here it is! 🌼"), makeCard(d2.mode, ctx));
-          mode = null; ctx = {};
-        } else {
-          addD(fmt(d2.reply || "Got it!"));
-        }
+  // Real call to Daisy's API via /daisy/chat. If she isn't connected yet in
+  // Render, this still responds — just with an honest "not connected" message.
+  const form = document.getElementById('daisyForm');
+  const input = document.getElementById('daisyInput');
+  const msg = document.getElementById('daisyMsg');
+  let history = [];
+
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    const val = input.value.trim();
+    if(!val) return;
+    history.push({role: 'user', content: val});
+    input.value = '';
+    msg.classList.remove('show');
+    try{
+      const res = await fetch('/daisy/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: val, history: history})
       });
+      const data = await res.json();
+      const reply = data.reply || "I'm having a small moment — try again.";
+      history.push({role: 'assistant', content: reply});
+      setTimeout(function(){
+        msg.textContent = reply;
+        msg.innerHTML += '<span class="ask-cursor"></span>';
+        msg.classList.add('show');
+      }, 150);
+    }catch(err){
+      setTimeout(function(){
+        msg.textContent = "Couldn't reach Daisy just now — try again in a moment.";
+        msg.innerHTML += '<span class="ask-cursor"></span>';
+        msg.classList.add('show');
+      }, 150);
     }
-
-    if (msgs >= FREE && !LOGGED && !gated) {
-      await slp(400);
-      showGate();
-    }
-
-  } catch(err) {
-    hideDots();
-    addD("Something went wrong — try again!");
-  } finally {
-    busy = false;
-    document.getElementById("sbtn").disabled = false;
-    document.getElementById("ifield").focus();
-  }
-}
-
-// ── HELPERS ──────────────────────────────────────────────────────
-function go(t) { document.getElementById("ifield").value = t; send(); }
-function rsz(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight,100)+"px"; }
-function openD()  { document.getElementById("veil").classList.add("on"); document.getElementById("drawer").classList.add("on"); }
-function closeD() { document.getElementById("veil").classList.remove("on"); document.getElementById("drawer").classList.remove("on"); }
-
-function onImg(files) {
-  if (!files || !files.length) return;
-  Array.from(files).forEach(function(f) {
-    var r = new FileReader();
-    r.onload = function(e) {
-      imgs.push(e.target.result);
-      var b = document.getElementById("ubadge");
-      b.textContent = imgs.length;
-      b.classList.add("on");
-    };
-    r.readAsDataURL(f);
   });
-}
-
-// Keep Daisy warm
-
-function startVoice() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    addD("Voice input isn't supported on this browser. Try Chrome on Android. &#127908;");
-    return;
-  }
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var rec = new SR();
-  rec.lang = 'en-UG';
-  rec.interimResults = false;
-  rec.onresult = function(e) {
-    var transcript = e.results[0][0].transcript;
-    document.getElementById('ifield').value = transcript;
-    rsz(document.getElementById('ifield'));
-  };
-  rec.onerror = function() { addD("Couldn't catch that. Try again. &#127908;"); };
-  rec.start();
-  addD("Listening... &#127908;");
-}
-function ping() {
-  fetch("/daisy/ping", {method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).catch(function(){});
-}
-
-// ══════════════════════════════════════════════════════════════════
-// ATTACH MENU — + button logic
-// ══════════════════════════════════════════════════════════════════
-var _attachOpen = false;
-
-function toggleAttach() {
-  var m = document.getElementById('attachMenu');
-  if (m.classList.contains('open')) closeAttach(); else openAttach();
-}
-function openAttach() {
-  var menu = document.getElementById('attachMenu');
-  var icon = document.getElementById('plusIcon');
-  if (menu) menu.classList.add('open');
-  if (icon) icon.textContent = '×';
-  // Close when tapping anywhere outside the sheet
-  setTimeout(function() {
-    document.addEventListener('click', _closeOnOutside);
-    document.addEventListener('touchstart', _closeOnOutside);
-  }, 100);
-}
-
-function _closeOnOutside(e) {
-  var menu = document.getElementById('attachMenu');
-  if (menu && !menu.contains(e.target) && e.target.id !== 'plusBtn') {
-    closeAttach();
-  }
-}
-
-function closeAttach() {
-  var menu = document.getElementById('attachMenu');
-  var icon = document.getElementById('plusIcon');
-  if (menu) menu.classList.remove('open');
-  if (icon) icon.textContent = '+';
-  // Remove outside-click listeners completely
-  document.removeEventListener('click', _closeOnOutside);
-  document.removeEventListener('touchstart', _closeOnOutside);
-}
-
-function closeAttach() {
-  _attachOpen = false;
-  var menu = document.getElementById('attachMenu');
-  var btn  = document.getElementById('plusBtn');
-  if (menu) menu.classList.remove('open');
-  if (btn)  btn.classList.remove('open');
-  document.removeEventListener('click', _outsideAttach);
-}
-
-function _outsideAttach(e) {
-  var menu = document.getElementById('attachMenu');
-  var btn  = document.getElementById('plusBtn');
-  if (menu && !menu.contains(e.target) && btn && !btn.contains(e.target)) {
-    closeAttach();
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════
-// VIDEO ENGINE — full client logic
-// ══════════════════════════════════════════════════════════════════
-var _vidFile    = null;
-var _vidJobId   = null;
-var _vidPollTmr = null;
-
-function onVid(files) {
-  if (!files || !files.length) return;
-  var file = files[0];
-  var maxMB = 150;
-  if (file.size > maxMB * 1024 * 1024) {
-    addD('That video is over 150MB. Please compress it or use a shorter clip.');
-    return;
-  }
-  _vidFile = file;
-  document.getElementById('vidFileInfo').textContent =
-    '🎬 ' + file.name + ' (' + (file.size/1024/1024).toFixed(1) + 'MB)';
-  _showVidSection('panel');
-  // Update badge
-  var b = document.getElementById('ubadge');
-  b.textContent = '▶'; b.classList.add('on');
-}
-
-function clearVideo() {
-  _vidFile = null;
-  document.getElementById('ufile-vid').value = '';
-  var b = document.getElementById('ubadge');
-  b.textContent = ''; b.classList.remove('on');
-  _showVidSection('none');
-}
-
-async function submitVideo() {
-  // Strong guard — never hit server without a real file
-  if (!_vidFile || !(_vidFile instanceof File)) {
-    _showVidSection('panel');
-    document.getElementById('vidFileInfo').textContent = '⚠️ Please select a video first';
-    return;
-  }
-  var prompt = (document.getElementById('vidPrompt').value || '').trim();
-  if (!prompt) {
-    document.getElementById('vidPrompt').placeholder = 'Please describe what you want first...';
-    document.getElementById('vidPrompt').focus();
-    return;
-  }
-
-  // Capture file reference BEFORE clearVideo() clears _vidFile
-  var fileToUpload = _vidFile;
-
-  _showVidSection('progress');
-  clearVideo();
-
-  var msgs = [
-    '🎬 Daisy is color grading your video...',
-    '✨ Applying cinematic effects...',
-    '🎵 Mixing in the background music...',
-    '📝 Burning your title cards in...',
-    '🎞️ Final render — almost done...',
-    '⚡ Just a few more seconds...',
-  ];
-  var msgIdx = 0;
-
-  var formData = new FormData();
-  formData.append('video',  fileToUpload);  // use captured ref, not _vidFile
-  formData.append('prompt', prompt);
-
-  try {
-    var resp = await fetch('/daisy/video/upload', { method: 'POST', body: formData });
-    var data = await resp.json();
-    if (data.error) { _vidError(data.error); return; }
-    _vidJobId = data.job_id;
-
-    // Poll for result
-    _vidPollTmr = setInterval(async function() {
-      var msgEl = document.getElementById('vidMsg');
-      if (msgEl && msgIdx < msgs.length) {
-        msgEl.textContent = msgs[msgIdx++];
-      }
-      try {
-        var sr = await fetch('/daisy/video/status/' + _vidJobId);
-        var sd = await sr.json();
-        if (sd.status === 'done') {
-          clearInterval(_vidPollTmr);
-          _vidDone(sd.url, sd.plan);
-        } else if (sd.status === 'error') {
-          clearInterval(_vidPollTmr);
-          _vidError(sd.error || 'Something went wrong. Try a shorter clip.');
-        }
-      } catch(e) {}
-    }, 5000);
-
-    // Auto-timeout after 6 minutes
-    setTimeout(function() {
-      if (_vidPollTmr) {
-        clearInterval(_vidPollTmr);
-        _vidError('This video is taking too long. Try a clip under 60 seconds.');
-      }
-    }, 360000);
-
-  } catch(e) {
-    _vidError('Upload failed. Check your connection and try again.');
-  }
-}
-
-function _vidDone(url, plan) {
-  _showVidSection('result');
-  var preview = document.getElementById('vidPreview');
-  var dl      = document.getElementById('vidDl');
-  if (preview) { preview.src = url; preview.load(); }
-  if (dl) { dl.href = url; }
-  if (plan) {
-    var planEl = document.getElementById('vidPlan');
-    if (planEl) {
-      planEl.innerHTML =
-        '<b>Style:</b> ' + (plan.grade||'—') + ' &nbsp; ' +
-        '<b>Music:</b> ' + (plan.music||'—') + ' &nbsp; ' +
-        '<b>Format:</b> ' + (plan.format||'—') + ' &nbsp; ' +
-        '<b>Mood:</b> ' + (plan.mood||'—');
-    }
-  }
-  // Also show in chat
-  addD('Your video is ready! ✨ Download it below or record another. 🎬');
-}
-
-function _vidError(msg) {
-  // Show error inline under the + button area, not in chat
-  _showVidSection('none');
-  var errDiv = document.getElementById('vidInlineError');
-  if (!errDiv) {
-    errDiv = document.createElement('div');
-    errDiv.id = 'vidInlineError';
-    errDiv.style.cssText = 'font-size:12px;color:#e17055;padding:4px 14px 0;font-family:var(--mono);text-align:center;';
-    var ibar = document.querySelector('.ibar');
-    if (ibar) ibar.parentNode.insertBefore(errDiv, ibar);
-  }
-  errDiv.textContent = '⚠️ ' + msg;
-  setTimeout(function(){ errDiv.textContent = ''; }, 5000);
-}
-
-function resetVideo() {
-  if (_vidPollTmr) clearInterval(_vidPollTmr);
-  _vidFile   = null;
-  _vidJobId  = null;
-  document.getElementById('vidPrompt').value = '';
-  document.getElementById('ufile-vid').value = '';
-  _showVidSection('none');
-}
-
-function _showVidSection(name) {
-  var sections = { panel:'vidPanel', progress:'vidProgress', result:'vidResult' };
-  Object.keys(sections).forEach(function(k) {
-    var el = document.getElementById(sections[k]);
-    if (el) el.style.display = (k === name) ? '' : 'none';
-  });
-}
-
-// ══════════════════════════════════════════════════════════════════
-// DOCUMENT ATTACH — show in chat bubble
-// ══════════════════════════════════════════════════════════════════
-function onDoc(files) {
-  if (!files || !files.length) return;
-  var names = Array.from(files).map(function(f){ return f.name; }).join(', ');
-  addU('📄 Attached: ' + names);
-  addD('I can see you attached a file. For now I can read text files — paste the content into the chat and I\'ll help you work with it!');
-}
-
-ping();
-setInterval(ping, 4 * 60 * 1000);
-
-// Boot
-boot();
-
-// ── TESTIMONIAL GATE: after 20 msgs ask for testimonial to continue ──
-var _testGiven = false;
-var _testChecked = false;
-
-function maybeTestimonialGate() {
-  if (_testGiven || _testChecked || msgs < 20 || !LOGGED) return;
-  _testChecked = true;
-  var tid = 'tgate' + Date.now();
-  var box = "<div class=\"gate\" id=\"" + tid + "\">"
-    + "<h4>&#127804; You're a power user!</h4>"
-    + "<p>You've gotten a lot of value from Daisy. Would you share a quick testimonial? It helps other Ugandan businesses trust TrustedBiz &mdash; and unlocks your next session.</p>"
-    + "<textarea id=\"ttext\" style=\"width:100%;border-radius:8px;border:1.5px solid var(--border);"
-    + "padding:10px;font-family:var(--font);font-size:13px;resize:none;height:72px;margin-bottom:10px;"
-    + "background:var(--surface2);color:var(--text);outline:none\" placeholder=\"What has Daisy helped you build?\"></textarea>"
-    + "<div style=\"display:flex;gap:8px;\">"
-    + "<button class=\"gbtn p\" onclick=\"submitTestimonial('" + tid + "')\">Share &amp; Continue</button>"
-    + "<button class=\"gbtn s\" onclick=\"skipTestimonial('" + tid + "')\">Maybe later</button>"
-    + "</div></div>";
-  addD("One moment &#128522;", box);
-}
-
-function submitTestimonial(tid) {
-  var txt = (document.getElementById('ttext') || {}).value || '';
-  if (txt.trim().length < 10) {
-    alert('Please write a little more — even one sentence helps!'); return;
-  }
-  fetch('/daisy/save-testimonial', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({text: txt.trim()})
-  }).catch(function(){});
-  _testGiven = true;
-  var box = document.getElementById(tid);
-  if (box) { box.innerHTML = "<p style=\"font-size:13px;color:var(--brand)\">&#10003; Thank you! That means a lot. Keep building &#127804;</p>"; }
-  setTimeout(function(){ var b=document.getElementById(tid); if(b) b.style.display='none'; }, 3000);
-}
-
-function skipTestimonial(tid) {
-  _testGiven = true;
-  var box = document.getElementById(tid);
-  if (box) box.style.display = 'none';
-}
+  setTimeout(function(){ msg.classList.add('show'); }, 200);
 </script>
+
 </body>
 </html>
