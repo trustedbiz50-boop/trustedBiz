@@ -1816,6 +1816,8 @@ def join_with_code():
         invite = db_fetchone(q("SELECT * FROM invite_codes WHERE code=? AND used=0"), (code,))
         if invite:
             biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (invite['biz_id'],))
+        else:
+            flash("That invite code is invalid or already used. Contact your TrustedBiz agent for a new one.", "error")
 
     if request.method == 'POST':
         code     = request.form.get('code', '').strip().upper()
