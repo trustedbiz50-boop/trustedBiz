@@ -715,7 +715,7 @@ def daisy_create_business():
 @login_required
 def generate_site(biz_id):
     biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id,session['user_id']))
-    if not biz: flash("Not found."); return redirect('/dashboard')
+    if not biz: flash("Not found."); return redirect('/dashboard#sites')
     bd = biz_to_dict(biz)
     branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
     bd['branches'] = [dict(b) for b in branches]
@@ -1259,21 +1259,21 @@ def deploy_site():
                         break
                 if not custom_html:
                     flash('Could not find an index.html on the main or master branch of that repo.', 'error')
-                    return redirect('/dashboard')
+                    return redirect('/dashboard#sites')
             else:
                 flash('That doesn\'t look like a valid GitHub repo URL.', 'error')
-                return redirect('/dashboard')
+                return redirect('/dashboard#sites')
         except Exception as e:
             print(f"GitHub import error: {e}")
             flash('Could not fetch that repo. Check the URL and that it\'s public.', 'error')
-            return redirect('/dashboard')
+            return redirect('/dashboard#sites')
 
     if not name:
         flash('Site name is required.', 'error')
-        return redirect('/dashboard')
+        return redirect('/dashboard#sites')
     if not custom_html:
         flash('Please upload HTML, paste it, or link a public GitHub repo.', 'error')
-        return redirect('/dashboard')
+        return redirect('/dashboard#sites')
     slug   = make_slug(name)
     biz_id = db_insert(
         q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
@@ -1281,7 +1281,7 @@ def deploy_site():
     )
     ping_google(slug)
     flash(f'🚀 "{name}" is now LIVE at {slug}.trustedbiz.co.ug!', 'success')
-    return redirect('/dashboard')
+    return redirect('/dashboard#sites')
 
 
 @app.route('/trusthost/request-domain', methods=['POST'])
@@ -1301,7 +1301,7 @@ def trusthost_request_domain():
                 flash('Run /admin/migrate-db first to enable custom domains.', 'error')
         else:
             flash('Site not found.', 'error')
-    return redirect('/dashboard')
+    return redirect('/dashboard#hosting')
 
 
 @app.route('/daisy/ping', methods=['GET','POST'])
