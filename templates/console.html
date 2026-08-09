@@ -32,6 +32,9 @@ button{font-family:var(--font);}
 [hidden]{display:none !important;}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:4px;font-weight:600;font-size:13px;cursor:pointer;border:1.5px solid var(--border);color:var(--mid);background:none;transition:all .12s;}
+.flash{padding:11px 16px;border-radius:4px;font-size:13.5px;font-weight:500;margin-bottom:14px;border-left:3px solid;}
+.flash-ok{background:var(--green-bg,#e8f7ec);border-color:var(--green,#16a34a);color:var(--text);}
+.flash-error{background:var(--red-bg,#fdecec);border-color:var(--red,#dc2626);color:var(--text);}
 .btn:hover{color:var(--text);border-color:var(--dim);}
 .btn-solid{background:var(--text);color:#fff;border-color:var(--text);}
 .btn-solid:hover{background:var(--brand);border-color:var(--brand);}
@@ -223,7 +226,7 @@ button{font-family:var(--font);}
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="side-logo">Trusted<span>Biz</span></div>
-    <button class="side-new" data-target="daisy">+ New site</button>
+    <button class="side-new" data-target="sites">+ New site</button>
 
     <div class="side-group">Workspace</div>
     <button class="side-link active" data-target="overview">
@@ -238,9 +241,9 @@ button{font-family:var(--font);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>
       Daisy builder
     </button>
-    <button class="side-link" data-target="domains">
+    <button class="side-link" data-target="hosting">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20l-1-4h-4l5-9 5 9h-4l-1 4z"/><path d="M4 20h16"/></svg>
-      Domains
+      Hosting
     </button>
     <button class="side-link" data-target="security">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"/></svg>
@@ -260,31 +263,41 @@ button{font-family:var(--font);}
   <!-- MAIN -->
   <main class="main">
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div style="padding:16px 30px 0;">
+      {% for cat, msg in messages %}
+      <div class="flash {{ 'flash-error' if cat=='error' else 'flash-ok' }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
     <!-- OVERVIEW -->
     <div class="panel" data-panel="overview">
       <div class="topbar" style="margin:-28px -30px 26px;">
         <div><h1>Overview</h1><p>// everything running on your workspace</p></div>
-        <button class="btn btn-solid" data-target="daisy">+ New site</button>
+        <button class="btn btn-solid" data-target="sites">+ New site</button>
       </div>
 
       <div class="stats-row">
-        <div class="stat-card"><div class="stat-num">3</div><div class="stat-lbl">live sites</div></div>
-        <div class="stat-card"><div class="stat-num">1,204</div><div class="stat-lbl">views this month</div><div class="stat-trend">↑ 18%</div></div>
-        <div class="stat-card"><div class="stat-num">99.9%</div><div class="stat-lbl">uptime</div></div>
-        <div class="stat-card"><div class="stat-num">86</div><div class="stat-lbl">security score</div></div>
+        <div class="stat-card"><div class="stat-num">{{ live_count }}</div><div class="stat-lbl">live sites</div></div>
+        <div class="stat-card"><div class="stat-num">{{ total_views }}</div><div class="stat-lbl">total views</div></div>
+        <div class="stat-card"><div class="stat-num">{{ total_listings }}</div><div class="stat-lbl">total listings</div></div>
+        <div class="stat-card"><div class="stat-num">{{ chosen_plan|capitalize }}</div><div class="stat-lbl">current plan</div></div>
       </div>
 
       <div class="label">Quick actions</div>
       <div class="tiles">
         <button class="tile" data-target="daisy">
           <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></span>
-          <span class="tile-label">New website</span>
+          <span class="tile-label">Build with Daisy</span>
         </button>
-        <button class="tile" data-target="daisy">
-          <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg></span>
-          <span class="tile-label">New logo</span>
+        <button class="tile" data-target="sites" id="deployTileOverview">
+          <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20V4M5 11l7-7 7 7"/></svg></span>
+          <span class="tile-label">Deploy your own code</span>
         </button>
-        <button class="tile" data-target="domains">
+        <button class="tile" data-target="hosting">
           <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20l-1-4h-4l5-9 5 9h-4l-1 4z"/><path d="M4 20h16"/></svg></span>
           <span class="tile-label">Connect domain</span>
         </button>
@@ -294,12 +307,19 @@ button{font-family:var(--font);}
         </button>
       </div>
 
-      <div class="label">Recent activity</div>
+      <div class="label">Your sites</div>
       <div class="activity">
-        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>mybootcamp</b> deployed successfully</span><span class="act-time">2h ago</span></div>
-        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>DermaBloom</b> security scan completed, score 92</span><span class="act-time">1d ago</span></div>
-        <div class="activity-row"><span class="act-dot warn"></span><span class="act-text"><b>Kampala Eats</b> SSL certificate expiring in 14 days</span><span class="act-time">2d ago</span></div>
-        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text">Daisy generated a new homepage for <b>mybootcamp</b></span><span class="act-time">4d ago</span></div>
+        {% if businesses %}
+          {% for b in businesses[:4] %}
+          <div class="activity-row">
+            <span class="act-dot {{ 'ok' if b.status=='approved' else 'warn' }}"></span>
+            <span class="act-text"><b>{{ b.name }}</b> is {{ 'live' if b.status=='approved' else b.status }}</span>
+            <span class="act-time">{{ b.created_at[:10] if b.created_at else '' }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="activity-row"><span class="act-text">No sites yet — build one with Daisy, or deploy your own code above.</span></div>
+        {% endif %}
       </div>
     </div>
 
@@ -307,48 +327,66 @@ button{font-family:var(--font);}
     <div class="panel" data-panel="sites" hidden>
       <div class="topbar" style="margin:-28px -30px 26px;">
         <div><h1>Sites</h1><p>// businesses running on TrustedBiz</p></div>
-        <button class="btn btn-solid" data-target="daisy">+ New site</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" id="showDeployForm">Deploy your own HTML</button>
+          <button class="btn btn-solid" data-target="daisy">+ Build with Daisy</button>
+        </div>
       </div>
 
+      <form id="deployForm" method="POST" action="/deploy" enctype="multipart/form-data"
+            style="display:none;border:1px solid var(--border);padding:18px;margin-bottom:18px;background:var(--surface);">
+        <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:10px;">
+          <input name="name" placeholder="Site name" required
+                 style="padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;">
+          <input name="category" placeholder="Category (e.g. Portfolio)"
+                 style="padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;">
+        </div>
+        <div style="margin-bottom:10px;">
+          <input type="file" name="html_file" accept=".html">
+          <span style="font-size:12px;color:var(--dim);">— or paste HTML below, or link a public GitHub repo</span>
+        </div>
+        <input name="github_url" placeholder="https://github.com/you/your-repo"
+               style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12.5px;margin-bottom:10px;">
+        <textarea name="custom_html" placeholder="<!DOCTYPE html>..." rows="4"
+                  style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12.5px;margin-bottom:10px;"></textarea>
+        <button type="submit" class="btn btn-solid">Deploy</button>
+      </form>
+      <script>
+        document.getElementById('showDeployForm')?.addEventListener('click', function(){
+          var f = document.getElementById('deployForm');
+          f.style.display = f.style.display === 'none' ? 'block' : 'none';
+        });
+        // Overview's "Deploy your own code" tile jumps here AND opens the form directly
+        document.getElementById('deployTileOverview')?.addEventListener('click', function(){
+          setTimeout(function(){
+            document.getElementById('deployForm').style.display = 'block';
+          }, 50);
+        });
+      </script>
+
+      {% if businesses %}
+      {% for b in businesses %}
       <div class="site-row">
         <div class="site-main">
-          <div class="site-name">mybootcamp</div>
-          <div class="site-url">mybootcamp.trustedbiz.co.ug</div>
+          <div class="site-name">{{ b.name }}</div>
+          <div class="site-url">{{ b.slug }}.trustedbiz.co.ug</div>
         </div>
-        <span class="site-status live">Live</span>
-        <span class="site-plan">Pro Max</span>
+        <span class="site-status {{ 'live' if b.status=='approved' else 'building' }}">{{ 'Live' if b.status=='approved' else b.status|capitalize }}</span>
+        <span class="site-plan">{{ (b.plan or 'free')|replace('_',' ')|capitalize }}</span>
         <div class="site-actions">
-          <a class="btn" href="#">View</a>
-          <a class="btn" href="#">Edit</a>
-          <a class="btn" href="#">Redeploy</a>
+          {% if b.status=='approved' %}
+          <a class="btn" href="//{{ b.slug }}.trustedbiz.co.ug" target="_blank">View</a>
+          {% endif %}
+          <a class="btn" href="/edit-business/{{ b.id }}">Edit</a>
+          <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
+            <button type="submit" class="btn">Redeploy</button>
+          </form>
         </div>
       </div>
-      <div class="site-row">
-        <div class="site-main">
-          <div class="site-name">DermaBloom</div>
-          <div class="site-url">dermabloom.trustedbiz.co.ug</div>
-        </div>
-        <span class="site-status live">Live</span>
-        <span class="site-plan">Free</span>
-        <div class="site-actions">
-          <a class="btn" href="#">View</a>
-          <a class="btn" href="#">Edit</a>
-          <a class="btn" href="#">Redeploy</a>
-        </div>
-      </div>
-      <div class="site-row">
-        <div class="site-main">
-          <div class="site-name">Kampala Eats</div>
-          <div class="site-url">kampalaeats.trustedbiz.co.ug</div>
-        </div>
-        <span class="site-status building">Building</span>
-        <span class="site-plan">Free</span>
-        <div class="site-actions">
-          <a class="btn" href="#">View</a>
-          <a class="btn" href="#">Edit</a>
-          <a class="btn btn-ok" href="#">Activate</a>
-        </div>
-      </div>
+      {% endfor %}
+      {% else %}
+      <div class="site-row"><div class="site-main"><div class="site-name">No sites yet</div><div class="site-url">Deploy your own HTML above, or build with Daisy</div></div></div>
+      {% endif %}
     </div>
 
     <!-- DAISY BUILDER -->
@@ -362,47 +400,75 @@ button{font-family:var(--font);}
           <span class="daisy-dot"></span>
           <span><b>Daisy</b> — site builder</span>
         </div>
-        <div class="daisy-body">
+        <div class="daisy-body" id="daisyMessages" style="max-height:340px;overflow-y:auto;">
           <p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p>
           <div class="prompt-chips">
-            <button class="prompt-chip">A hair salon in Kampala</button>
-            <button class="prompt-chip">A coding bootcamp</button>
-            <button class="prompt-chip">A restaurant with delivery</button>
+            <button type="button" class="prompt-chip">A hair salon in Kampala</button>
+            <button type="button" class="prompt-chip">A coding bootcamp</button>
+            <button type="button" class="prompt-chip">A restaurant with delivery</button>
           </div>
         </div>
-        <form class="daisy-form" onsubmit="return false;">
-          <input class="daisy-input" type="text" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" />
+
+        <div id="goLiveBox" style="display:none;padding:16px 18px;border-top:1px solid var(--daisy-border);">
+          <p style="color:#c3c1d4;font-size:13px;margin-bottom:10px;">Ready to go live? Confirm the details:</p>
+          <input id="goLiveName" placeholder="Business name" required
+                 style="width:100%;margin-bottom:8px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
+          <input id="goLiveCategory" placeholder="Category (e.g. Salon)"
+                 style="width:100%;margin-bottom:8px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
+          <input id="goLiveWhatsapp" placeholder="WhatsApp number (256...)"
+                 style="width:100%;margin-bottom:10px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
+          <button id="goLiveBtn" class="daisy-send" style="width:100%;padding:11px;">Make it live</button>
+          <p id="goLiveStatus" style="font-size:12px;color:#c3c1d4;margin-top:8px;"></p>
+        </div>
+
+        <form class="daisy-form" id="daisyChatForm">
+          <input class="daisy-input" id="daisyChatInput" type="text" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" autocomplete="off" />
           <button class="daisy-send" type="submit">Build</button>
         </form>
       </div>
     </div>
 
     <!-- DOMAINS -->
-    <div class="panel" data-panel="domains" hidden>
+    <div class="panel" data-panel="hosting" hidden>
       <div class="topbar" style="margin:-28px -30px 26px;">
-        <div><h1>Domains</h1><p>// where your sites live</p></div>
+        <div><h1>Hosting</h1><p>// deploy history, domains, and SSL</p></div>
       </div>
 
-      <div class="domain-row">
-        <span class="domain-name">mybootcamp.trustedbiz.co.ug</span>
-        <span class="site-status live">Connected</span>
-        <span class="site-plan">Default</span>
-      </div>
-      <div class="domain-row">
-        <span class="domain-name">mybootcamp.co.ug</span>
-        <span class="site-status live">Connected</span>
-        <span class="site-plan">Custom</span>
-        <a class="btn" href="#">Manage DNS</a>
-      </div>
-      <div class="domain-row">
-        <span class="domain-name">dermabloom.trustedbiz.co.ug</span>
-        <span class="site-status live">Connected</span>
-        <span class="site-plan">Default</span>
+      <div class="label">Deploy events</div>
+      <div class="activity" style="margin-bottom:28px;">
+        <!-- PLACEHOLDER — real deploy events need a deploy_events table +
+             logging calls added to /deploy, /generate-site, and Daisy's
+             create-business route. Not wired yet, frontend only for now. -->
+        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>mybootcamp</b> deployed successfully</span><span class="act-time">2h ago</span></div>
+        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>DermaBloom</b> custom domain connected</span><span class="act-time">1d ago</span></div>
+        <div class="activity-row"><span class="act-dot warn"></span><span class="act-text"><b>Kampala Eats</b> deploy failed — Daisy timed out</span><span class="act-time">2d ago</span></div>
+        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>mybootcamp</b> redeployed via GitHub push</span><span class="act-time">4d ago</span></div>
       </div>
 
-      <div class="label" style="margin-top:26px;">Connect a custom domain</div>
-      <form class="dns-form" onsubmit="return false;">
-        <input class="dns-input" type="text" placeholder="yourbusiness.co.ug" />
+      <div class="label">Domains &amp; SSL</div>
+      <div style="margin-bottom:24px;">
+        <div class="domain-row">
+          <span class="domain-name">mybootcamp.trustedbiz.co.ug</span>
+          <span class="site-status live">SSL active</span>
+          <span class="site-plan">Default subdomain</span>
+        </div>
+        <div class="domain-row">
+          <span class="domain-name">mybootcamp.co.ug</span>
+          <span class="site-status live">SSL active</span>
+          <span class="site-plan">Custom</span>
+          <a class="btn" href="#">Manage DNS</a>
+        </div>
+        <div class="domain-row">
+          <span class="domain-name">dermabloom.trustedbiz.co.ug</span>
+          <span class="site-status live">SSL active</span>
+          <span class="site-plan">Default subdomain</span>
+        </div>
+      </div>
+
+      <div class="label">Connect a custom domain</div>
+      <p style="font-size:12.5px;color:var(--dim);margin-bottom:12px;">Available on Pro Max. Point your domain's A record at TrustedBiz, then connect it here.</p>
+      <form class="dns-form" method="POST" action="/trusthost/request-domain">
+        <input class="dns-input" name="domain" type="text" placeholder="yourbusiness.co.ug" required />
         <button class="btn btn-solid" type="submit">Connect</button>
       </form>
     </div>
@@ -477,7 +543,7 @@ button{font-family:var(--font);}
       <div class="label">Choose the plan that fits right now</div>
       <div class="plan-grid">
 
-        <div class="plan-tier">
+        <div class="plan-tier {{ 'current' if chosen_plan=='free' }}">
           <div class="tier-name">Free</div>
           <div class="tier-price">UGX 0</div>
           <div class="tier-sub">Get listed and online</div>
@@ -489,10 +555,11 @@ button{font-family:var(--font);}
             <li>✓ WhatsApp inquiries</li>
             <li>✓ 100 MB storage</li>
           </ul>
-          <button class="tier-btn">Downgrade</button>
+          {% if chosen_plan=='free' %}<button class="tier-btn">Your current plan</button>
+          {% else %}<a class="tier-btn" href="https://wa.me/256753187966?text=I+want+to+move+to+the+Free+plan+on+TrustedBiz">Downgrade</a>{% endif %}
         </div>
 
-        <div class="plan-tier">
+        <div class="plan-tier {{ 'current' if chosen_plan=='basic' }}">
           <div class="tier-name">Basic</div>
           <div class="tier-price">UGX 8,000<span>/month</span></div>
           <div class="tier-sub">For a growing business</div>
@@ -504,10 +571,11 @@ button{font-family:var(--font);}
             <li>✓ Priority placement in directory</li>
             <li>✓ 500 MB storage · 5 GB bandwidth</li>
           </ul>
-          <button class="tier-btn solid">Switch to Basic</button>
+          {% if chosen_plan=='basic' %}<button class="tier-btn">Your current plan</button>
+          {% else %}<a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+to+upgrade+to+Basic+on+TrustedBiz">Switch to Basic</a>{% endif %}
         </div>
 
-        <div class="plan-tier current">
+        <div class="plan-tier {{ 'current' if chosen_plan=='pro_max' }}">
           <div class="tier-name">Pro Max</div>
           <div class="tier-price">UGX 15,000<span>/month</span></div>
           <div class="tier-sub">For businesses ready to grow fast</div>
@@ -521,7 +589,8 @@ button{font-family:var(--font);}
             <li>✓ Priority support via WhatsApp</li>
             <li>✓ 2 GB storage · 25 GB bandwidth</li>
           </ul>
-          <button class="tier-btn">Your current plan</button>
+          {% if chosen_plan=='pro_max' %}<button class="tier-btn">Your current plan</button>
+          {% else %}<a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+Pro+Max+on+TrustedBiz">Switch to Pro Max</a>{% endif %}
         </div>
 
       </div>
@@ -554,15 +623,24 @@ button{font-family:var(--font);}
 </div>
 
 <script>
-  // Client-side panel switching — no backend required.
+  // Client-side panel switching — no backend required. Also persists the
+  // active panel in the URL hash, so a form POST that redirects back to
+  // /dashboard#sites lands on the right panel instead of always resetting
+  // to Overview.
   const links = document.querySelectorAll('[data-target]');
   const panels = document.querySelectorAll('.panel');
 
-  function showPanel(name){
+  function showPanel(name, setHash){
     panels.forEach(p => p.hidden = p.dataset.panel !== name);
     document.querySelectorAll('.side-link').forEach(l => l.classList.toggle('active', l.dataset.target === name));
+    if(setHash !== false) history.replaceState(null, '', '#' + name);
   }
   links.forEach(el => el.addEventListener('click', () => showPanel(el.dataset.target)));
+
+  const initial = (location.hash || '').replace('#', '');
+  if(initial && document.querySelector('.panel[data-panel="' + initial + '"]')){
+    showPanel(initial, false);
+  }
 
   // Security scan demo animation
   const rescanBtn = document.getElementById('rescanBtn');
@@ -574,6 +652,93 @@ button{font-family:var(--font);}
       fill.style.width = '0%';
       requestAnimationFrame(function(){ fill.style.width = '100%'; });
       setTimeout(function(){ overlay.hidden = true; }, 2000);
+    });
+  }
+
+  // ── DAISY BUILDER — real calls to /daisy/chat and /daisy/create-business.
+  // If DAISY_API_URL isn't set in Render yet, /daisy/chat still responds —
+  // just with an honest "Daisy isn't connected yet" message instead of a fake one.
+  const daisyMessages  = document.getElementById('daisyMessages');
+  const daisyForm      = document.getElementById('daisyChatForm');
+  const daisyInput     = document.getElementById('daisyChatInput');
+  const goLiveBox       = document.getElementById('goLiveBox');
+  const goLiveBtn       = document.getElementById('goLiveBtn');
+  const goLiveStatus    = document.getElementById('goLiveStatus');
+  let daisyHistory = [];
+  let readyMode = null;
+
+  function addDaisyMsg(text, who){
+    const p = document.createElement('p');
+    p.className = 'daisy-msg';
+    if(who === 'user'){ p.style.color = '#f0f0f6'; p.style.textAlign = 'right'; }
+    p.textContent = text;
+    daisyMessages.appendChild(p);
+    daisyMessages.scrollTop = daisyMessages.scrollHeight;
+  }
+
+  async function sendToDaisy(text){
+    addDaisyMsg(text, 'user');
+    daisyHistory.push({role: 'user', content: text});
+    try{
+      const res = await fetch('/daisy/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: text, history: daisyHistory})
+      });
+      const data = await res.json();
+      addDaisyMsg(data.reply || "I'm having a small moment — try again.", 'daisy');
+      daisyHistory.push({role: 'assistant', content: data.reply || ''});
+      if(data.done && data.mode === 'website'){
+        readyMode = data.mode;
+        goLiveBox.style.display = 'block';
+      }
+    }catch(e){
+      addDaisyMsg("Couldn't reach Daisy just now — try again in a moment.", 'daisy');
+    }
+  }
+
+  if(daisyForm){
+    daisyForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      const val = daisyInput.value.trim();
+      if(!val) return;
+      sendToDaisy(val);
+      daisyInput.value = '';
+    });
+  }
+  document.querySelectorAll('.prompt-chip').forEach(chip => {
+    chip.addEventListener('click', () => sendToDaisy(chip.textContent));
+  });
+
+  if(goLiveBtn){
+    goLiveBtn.addEventListener('click', async function(){
+      const name = document.getElementById('goLiveName').value.trim();
+      if(!name){ goLiveStatus.textContent = 'Business name is required.'; return; }
+      goLiveStatus.textContent = 'Creating your listing…';
+      goLiveBtn.disabled = true;
+      try{
+        const res = await fetch('/daisy/create-business', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            name: name,
+            category: document.getElementById('goLiveCategory').value.trim(),
+            whatsapp: document.getElementById('goLiveWhatsapp').value.trim(),
+            description: daisyHistory.filter(h => h.role === 'user').map(h => h.content).join(' ').slice(0, 500)
+          })
+        });
+        const data = await res.json();
+        if(data.success){
+          goLiveStatus.textContent = 'Live! Your site: ' + data.url + ' — refresh Sites in a moment.';
+          goLiveBtn.textContent = 'Live ✓';
+        }else{
+          goLiveStatus.textContent = data.error || 'Something went wrong — try again.';
+          goLiveBtn.disabled = false;
+        }
+      }catch(e){
+        goLiveStatus.textContent = 'Could not reach TrustedBiz — try again.';
+        goLiveBtn.disabled = false;
+      }
     });
   }
 </script>
