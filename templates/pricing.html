@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing | TrustedBiz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#2b7a78;--bg:#f5f8f8;--surface:#fff;--border:#d8e4e4;
+  --text:#0d1c1c;--mid:#43605f;--dim:#8aa5a4;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0d1412;--surface:#141d1b;--border:#233230;--text:#eef5f4;--mid:#a9c4c1;--dim:#5f7d7a; }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+.btn{display:inline-flex;padding:12px 24px;border-radius:4px;font-weight:600;font-size:13.5px;border:1.5px solid var(--border);color:var(--mid);}
+.btn-solid{background:var(--text);color:var(--bg);border-color:var(--text);}
+header{border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;}
+.logo{font-family:var(--mono);font-weight:500;font-size:15px;}
+.logo span{color:var(--brand);}
+.wrap{max-width:900px;margin:0 auto;padding:56px 24px 80px;}
+h1{font-size:30px;font-weight:800;letter-spacing:-.7px;text-align:center;margin-bottom:10px;}
+.sub{text-align:center;color:var(--mid);font-size:14.5px;margin-bottom:40px;}
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);}
+.plan-tier{background:var(--surface);padding:26px 22px;display:flex;flex-direction:column;}
+.plan-tier.mid{background:var(--bg);}
+.tier-name{font-size:16px;font-weight:800;margin-bottom:4px;}
+.tier-price{font-family:var(--mono);font-size:22px;font-weight:700;margin-bottom:2px;}
+.tier-price span{font-size:12px;font-weight:500;color:var(--dim);}
+.tier-sub{font-size:12px;color:var(--dim);margin-bottom:18px;}
+.tier-features{list-style:none;flex:1;margin-bottom:20px;}
+.tier-features li{font-size:13px;color:var(--mid);padding:6px 0;}
+.tier-btn{width:100%;text-align:center;padding:11px;border-radius:4px;font-size:13px;font-weight:600;border:1.5px solid var(--border);color:var(--mid);}
+.tier-btn.solid{background:var(--text);color:var(--bg);border-color:var(--text);}
+@media(max-width:760px){.plan-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="logo">Trusted<span>Biz</span></a>
+  <a href="/" class="btn">← Home</a>
+</header>
+<div class="wrap">
+  <h1>Simple pricing, upgrade when you're ready</h1>
+  <p class="sub">Every plan includes hosting, a WhatsApp button, and reviews. Pay by MTN or Airtel Money.</p>
+
+  <div class="plan-grid">
+    <div class="plan-tier">
+      <div class="tier-name">Free</div>
+      <div class="tier-price">UGX 0</div>
+      <div class="tier-sub">Get listed and online</div>
+      <ul class="tier-features">
+        <li>✓ 1 business listing</li>
+        <li>✓ Hosted at yourbiz.trustedbiz.co.ug</li>
+        <li>✓ 1 site built with Daisy</li>
+        <li>✓ Reviews &amp; ratings</li>
+        <li>✓ WhatsApp inquiries</li>
+        <li>✓ 100 MB storage</li>
+      </ul>
+      <a class="tier-btn" href="/register">Get started</a>
+    </div>
+    <div class="plan-tier mid">
+      <div class="tier-name">Basic</div>
+      <div class="tier-price">UGX 8,000<span>/month</span></div>
+      <div class="tier-sub">For a growing business</div>
+      <ul class="tier-features">
+        <li>✓ Everything in Free</li>
+        <li>✓ Up to 3 business listings</li>
+        <li>✓ Edit &amp; regenerate with Daisy anytime</li>
+        <li>✓ Logo &amp; flyer generation</li>
+        <li>✓ Priority placement in directory</li>
+        <li>✓ 500 MB storage · 5 GB bandwidth</li>
+      </ul>
+      <a class="tier-btn solid" href="/register">Get started</a>
+    </div>
+    <div class="plan-tier">
+      <div class="tier-name">Pro Max</div>
+      <div class="tier-price">UGX 15,000<span>/month</span></div>
+      <div class="tier-sub">For businesses ready to grow fast</div>
+      <ul class="tier-features">
+        <li>✓ Everything in Basic</li>
+        <li>✓ Up to 5 business listings</li>
+        <li>✓ Your own custom domain</li>
+        <li>✓ Google visibility &amp; search indexing</li>
+        <li>✓ Full Daisy suite — sites, logos, flyers, cards</li>
+        <li>✓ Security scans &amp; protection dashboard</li>
+        <li>✓ Priority WhatsApp support</li>
+      </ul>
+      <a class="tier-btn" href="/register">Get started</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

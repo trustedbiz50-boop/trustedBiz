@@ -45,7 +45,7 @@
   .btn-ghost{color:var(--text); border-color:var(--border); background:none;}
   .btn-ghost:hover{border-color:var(--text);}
   .btn-sm{padding:9px 18px; font-size:13.5px;}
-  .nav-login{font-size:14px; font-weight:500; color:var(--mid);}
+  .nav-login{font-size:14px; font-weight:500; color:var(--mid); white-space:nowrap;}
   .nav-login:hover{color:var(--text);}
 
   /* NAV */
@@ -53,7 +53,7 @@
   nav{display:flex; align-items:center; justify-content:space-between; padding:26px 0;}
   .logo{font-family:var(--mono); font-weight:500; font-size:16px; letter-spacing:-.2px;}
   .logo span{color:var(--brand);}
-  .nav-cta{display:flex; align-items:center; gap:22px;}
+  .nav-cta{display:flex; align-items:center; gap:14px;}
 
   /* HERO */
   .hero{padding:60px 0 46px; border-bottom:1px solid var(--border);}
@@ -120,6 +120,9 @@
   .foot-links a:hover{color:var(--text);}
   .foot-copy{font-size:12px; color:var(--dim); font-family:var(--mono);}
 
+  @media (max-width:480px){
+    .nav-login[href="/about"]{display:none;}
+  }
   @media (max-width:760px){
     h1{font-size:32px;}
     .proof-grid, .steps{grid-template-columns:1fr;}
@@ -135,7 +138,7 @@
     <div class="nav-cta">
       <a href="/login" class="nav-login">Log in</a>
       <a href="/about" class="nav-login">About</a>
-      <a href="/join" class="btn btn-primary btn-sm">Get started</a>
+      <a href="/register" class="btn btn-primary btn-sm">Get started</a>
     </div>
   </nav>
 </header>
@@ -147,7 +150,7 @@
       <h1>Get your business online <em>in minutes</em>, hosted right.</h1>
       <p class="hero-sub">TrustedBiz gives your business a real website and a place to run it. No code, no guesswork. Daisy and mybootcamp are built by TrustedBiz, not customers of it, proof of what this platform actually runs.</p>
       <div class="hero-ctas">
-        <a href="/join" class="btn btn-primary">Get started free</a>
+        <a href="/register" class="btn btn-primary">Get started free</a>
         <a href="#how" class="btn btn-ghost">See how it works</a>
       </div>
 
@@ -220,7 +223,7 @@
           <h3>Start free. Upgrade when you're ready.</h3>
           <p>Plans built for a single shop, a growing business, or a franchise with many branches.</p>
         </div>
-        <a href="/choose-plan" class="btn btn-primary">View pricing</a>
+        <a href="/pricing" class="btn btn-primary">View pricing</a>
       </div>
     </div>
   </section>
@@ -232,7 +235,7 @@
       <a href="/terms">Terms</a>
       <a href="/privacy">Privacy</a>
       <a href="/daisy">Daisy</a>
-      <a href="/join">Get started</a>
+      <a href="/register">Get started</a>
     </div>
     <span class="foot-copy">© TrustedBiz — made in Uganda</span>
   </div>
