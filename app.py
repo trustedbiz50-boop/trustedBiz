@@ -1105,6 +1105,20 @@ def check_payments():
 @app.route('/about')
 def about():
     return render_template('landing.html')
+
+@app.route('/pricing')
+def pricing():
+    # Public — no login required, so people can see prices before committing.
+    return render_template('pricing.html')
+
+@app.route('/daisy')
+def daisy_page():
+    # Stopgap until Daisy's own pages are transferred into this app —
+    # redirect to her current live deployment so this link never 404s.
+    # Once her templates + /daisy/chat are wired locally, replace this
+    # with render_template('daisy_landing.html') instead.
+    return redirect('https://daisy-qg1c.onrender.com/welcome')
+
 @app.route('/agent/set-password', methods=['GET', 'POST'])
 def agent_set_password():
     email = request.args.get('email', '')
