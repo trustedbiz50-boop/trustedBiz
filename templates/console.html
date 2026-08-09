@@ -377,7 +377,7 @@ button{font-family:var(--font);}
           {% if b.status=='approved' %}
           <a class="btn" href="//{{ b.slug }}.trustedbiz.co.ug" target="_blank">View</a>
           {% endif %}
-          <a class="btn" href="/edit-business/{{ b.id }}">Edit</a>
+          <button class="btn" data-target="daisy" onclick="document.getElementById('daisyChatInput').value='Update the {{ b.name }} website: '; document.getElementById('daisyChatInput').focus();">Edit with Daisy</button>
           <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
             <button type="submit" class="btn">Redeploy</button>
           </form>

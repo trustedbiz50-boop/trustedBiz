@@ -173,14 +173,37 @@ button{font-family:var(--font);}
       </div>
 
       <div class="auto-note">
-        <b>Listings and plan upgrades are automatic now.</b> Daisy generates and publishes new businesses the moment someone signs up or activates an agent invite, and billing upgrades apply the instant payment is confirmed. Nothing here needs manual approval, admin now handles moderation only, reports, verification, and removals.
+        <b>Listings publish automatically now.</b> Daisy generates and publishes new businesses the moment someone signs up or activates an agent invite, no approval queue needed for that anymore. <b>Billing still needs you.</b> When someone pays via WhatsApp/mobile money, you confirm it and click Set Basic or Set Pro Max in Listings, that part isn't automatic yet, real payment automation needs a mobile money webhook that doesn't exist. Admin now mainly handles moderation, reports, verification, and plan confirmations.
       </div>
+
+      {% if late_alert %}
+      <div class="auto-note" style="border-left-color:#dc2626;">
+        <b style="color:#dc2626;">{{ late_alert|length }} business{{ 'es' if late_alert|length != 1 }} with overdue payment.</b>
+        <div style="margin-top:10px;">
+        {% for b in late_alert %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border);flex-wrap:wrap;gap:8px;">
+          <span style="font-size:13px;font-weight:600;">{{ b.name }} — {{ b.payment_months_late or 0 }} month(s) late</span>
+          <div style="display:flex;gap:6px;">
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="mark_late"><button type="submit" class="btn" style="font-size:11px;color:#dc2626;border-color:rgba(220,38,38,.35);">+1 month late</button></form>
+            {% if (b.payment_months_late or 0) >= 2 %}
+            <form method="POST" style="display:inline;" onsubmit="return confirm('Block {{ b.name }}? This removes it from the directory.')"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="block"><button type="submit" class="btn" style="font-size:11px;background:#dc2626;color:#fff;border-color:#dc2626;">Block</button></form>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+        </div>
+      </div>
+      {% endif %}
 
       <div class="label">Recent activity</div>
       <div class="activity">
-        <div class="activity-row"><span class="act-dot"></span><span class="act-text">Daisy published a new site for <b>Kampala Eats</b></span><span class="act-time">12m ago</span></div>
-        <div class="activity-row"><span class="act-dot"></span><span class="act-text"><b>DermaBloom</b> upgraded to Pro Max automatically after payment</span><span class="act-time">1h ago</span></div>
-        <div class="activity-row"><span class="act-dot"></span><span class="act-text">Agent invite activated — <b>Nakato's Tailoring</b> is now live</span><span class="act-time">3h ago</span></div>
+        {% if businesses %}
+          {% for b in businesses[:5] %}
+          <div class="activity-row"><span class="act-dot"></span><span class="act-text"><b>{{ b.name }}</b> {{ 'is live' if b.status=='approved' else b.status }}</span><span class="act-time">{{ b.created_at[:10] if b.created_at else '' }}</span></div>
+          {% endfor %}
+        {% else %}
+          <div class="activity-row"><span class="act-text">No businesses yet.</span></div>
+        {% endif %}
       </div>
     </div>
 
@@ -242,6 +265,17 @@ button{font-family:var(--font);}
 
             {% if b.generated_html and not b.owner_id %}
             <form method="POST" style="display:inline;" onsubmit="return confirm('Move {{ b.name }} website to pool? Use this when the owner never activated it.')"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="send_to_pool"><button type="submit" class="btn btn-pool" title="Save this generated site for the next business in the same category">Pool</button></form>
+            {% endif %}
+
+            {% if not b.plan or b.plan == 'free' %}
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_basic"><button type="submit" class="btn" style="color:#2563eb;border-color:rgba(37,99,235,.35);">Set Basic</button></form>
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_pro_max"><button type="submit" class="btn" style="color:#b45309;border-color:rgba(180,83,9,.35);">Set Pro Max</button></form>
+            {% elif b.plan == 'basic' %}
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_pro_max"><button type="submit" class="btn" style="color:#b45309;border-color:rgba(180,83,9,.35);">Upgrade to Pro Max</button></form>
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_free"><button type="submit" class="btn">Downgrade to Free</button></form>
+            {% elif b.plan == 'pro_max' %}
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="regen"><button type="submit" class="btn" style="color:#b45309;border-color:rgba(180,83,9,.35);">Regen site</button></form>
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_basic"><button type="submit" class="btn">Downgrade to Basic</button></form>
             {% endif %}
 
             <form method="POST" style="display:inline;" onsubmit="return confirm('Delete {{ b.name }}? Cannot be undone.')"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="delete"><button type="submit" class="btn btn-delete">Delete</button></form>
