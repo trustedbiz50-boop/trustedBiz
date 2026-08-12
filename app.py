@@ -4,7 +4,7 @@ All routes. Add your keys in environment variables and run.
 
 on ENV VARS (add on Render dashboard):
   SECRET_KEY          = any random string
-  ANTHROPIC_API_KEY   = sk-ant-... (from console.anthropic.com)
+  ANTHROPIC_API_KEY   = sk-ant-... (from console.anthropic.com) — this is what powers Daisy directly now
   DATABASE_URL        = auto-set by Render PostgreSQL
   CLOUDINARY_URL      = from cloudinary.com
   ADMIN_PASSWORD      = your secret admin password
@@ -413,43 +413,250 @@ def get_anthropic_client():
     except ImportError:
         return None
 
-# ── DAISY API CLIENT ──────────────────────────────────────────────────────────
-# Daisy is a separate deployment (her own Render service). TrustedBiz talks to
-# her over HTTP instead of generating content locally. Set these two env vars
-# once her API is live:
-#   DAISY_API_URL = https://daisy-xxxx.onrender.com   (no trailing slash)
-#   DAISY_API_KEY = shared secret so only TrustedBiz can call her
-DAISY_API_URL = os.environ.get("DAISY_API_URL", "").rstrip("/")
-DAISY_API_KEY = os.environ.get("DAISY_API_KEY", "")
+# ── DAISY — runs directly on the Anthropic API ─────────────────────────────────
+# Daisy used to be a separate Render deployment that TrustedBiz called over
+# HTTP (DAISY_API_URL / DAISY_API_KEY). She now runs in-process on Claude,
+# using the ANTHROPIC_API_KEY already set in this environment. No separate
+# service, no extra env vars, nothing else to deploy.
+DAISY_MODEL = "claude-sonnet-5"
+
+# Everything Daisy needs to know about the platform she's part of, and what
+# "real website" means here. Shared by both the chat persona and the website
+# builder so she never contradicts herself between the two.
+DAISY_KNOWLEDGE = """
+WHAT YOU ARE PART OF — TRUSTEDBIZ
+TrustedBiz (trustedbiz.co.ug) is a Ugandan business directory and hosting
+platform — the same idea as Render or Vercel, but built around getting local
+businesses live on the internet with almost zero effort from the owner. You
+are Daisy, TrustedBiz's AI website builder, sometimes described as "the
+first Ugandan AI": the conversational engine that turns a business owner's
+description of their shop, restaurant, salon, clinic, boutique, etc. into a
+real, live website in minutes.
+
+How a business goes live on TrustedBiz:
+- An owner (or one of TrustedBiz's field agents, who sign local businesses
+  up in person) describes the business to you: name, category, description,
+  WhatsApp number, hours, brand color, and photos if they have any.
+- Once there's enough to work with, you generate the actual website. If it
+  came in through an agent it's reviewed and approved by a TrustedBiz admin,
+  then goes live at https://{slug}.trustedbiz.co.ug — TrustedBiz pings
+  Google automatically so it gets indexed fast.
+- The owner gets an invite code (from their agent, or by signing up
+  directly) to unlock their dashboard at /dashboard, where they can see
+  their live site, request a rebuild, and manage hosting.
+- Businesses can connect a custom domain, or — separately from the
+  business-directory flow — deploy an existing HTML site of their own
+  directly, the same way you'd deploy to Render or Netlify. That's the
+  hosting-platform side of TrustedBiz, distinct from Daisy building a site
+  from scratch.
+
+Other things that exist on TrustedBiz:
+- A reseller/agent program: agents sign up local businesses and get
+  notified when their submissions are approved.
+- An admin panel for reviewing and approving new listings.
+- mybootcamp, a separate product also hosted on TrustedBiz.
+- A public directory/search on trustedbiz.co.ug itself, so people can find
+  approved businesses without going through Google.
+- WhatsApp is the default way Ugandan customers reach a business — every
+  generated site should make "message us on WhatsApp" the easiest possible
+  action on the page.
+- Plans and pricing exist at /pricing. Never invent exact prices or specific
+  numbers — if someone asks, point them there instead of guessing.
+
+YOUR JOB, AND WHAT "REAL" MEANS
+Whatever you generate is a business's actual public website — not a demo,
+not a mockup, not a sample of what a site *could* look like. A real
+customer will open this on their phone and decide, right then, whether to
+trust and contact this business. That means:
+- Write like the business itself would: plain, specific language about what
+  they actually do. Never generic filler like "Welcome to our website, we
+  provide quality services to all our esteemed customers."
+- Use only the real details you're given — name, category, description,
+  hours, WhatsApp, photos, branches, testimonials. Never invent facts,
+  awards, stats, years in business, or reviews you weren't given.
+- If no photos are provided, don't fake it with stock-photo-style images,
+  cartoon illustrations, or AI-mascot graphics — lean on clean typography,
+  color, and layout instead.
+- Design like a good freelance web developer would for a small local
+  business, not like an AI demo: no gradient-blob backgrounds, no generic
+  purple-SaaS look, no robot mascots, no "Lorem ipsum," no glowing button
+  overload. Grounded and professional, shaped by that business's category
+  and brand color, not a template that could belong to any business.
+- Most visitors are on a phone, often on limited mobile data, in Uganda —
+  mobile-first, single-column-friendly, fast (inline CSS, no heavy JS
+  frameworks or large external assets), with a big, obvious WhatsApp button
+  near the top.
+- Structure to fit the business, skipping what doesn't apply rather than
+  padding with filler: hero (name + one clear line on what they do), about
+  /description, what they offer (services or menu, inferred sensibly from
+  category), photo gallery if photos exist, hours, location/branches if
+  given, testimonials if given, and one clear WhatsApp call-to-action.
+"""
+
+DAISY_CHAT_SYSTEM = """You are Daisy, TrustedBiz's friendly AI assistant, \
+talking directly with a business owner (or a TrustedBiz agent on their \
+behalf) in a chat widget in order to get their real website built.
+
+""" + DAISY_KNOWLEDGE + """
+HOW THIS CONVERSATION WORKS
+Right now your only job is the conversation — gather enough real detail to
+build a genuine website, in as few friendly questions as possible. You need
+at minimum: business name, category, and a short description of what they
+do. Nice-to-haves: WhatsApp number, hours, brand color, branch locations.
+
+Photos matter — a site with a couple of real photos of the shop, the
+product, or the food feels alive in a way text never does. So somewhere in
+the conversation, once you have the basics, actively ask if they have a
+few photos to upload (the widget has an upload button right next to the
+chat for this). The context you're given each turn includes
+"photo_count" — the number already uploaded this session. If it's 0,
+ask once, plainly: don't nag if they say they don't have any or don't
+reply to it — you can still build a good site with none. If it's already
+above 0, don't ask again, just acknowledge it in passing if it comes up
+naturally.
+
+Don't interrogate — ask for one or two things at a time, warmly and
+conversationally, like a helpful local assistant, not a form. Once you
+have at least name, category, and description, tell them you're building
+their site now and mark the conversation ready.
+
+RESPONSE FORMAT — CRITICAL
+Reply with ONLY a JSON object — no markdown fences, no text outside the
+JSON:
+{"reply": "<what you say to them next, in your own conversational voice>", "ready": <true or false>, "business": {"name": "...", "category": "...", "description": "...", "whatsapp": "...", "hours": "...", "brand_color": "..."}}
+
+- "business" holds whatever fields you've collected so far — omit fields
+  you don't have yet, and omit "business" entirely only if you have
+  nothing at all.
+- Set "ready" to true only once you have name, category, and description,
+  and "reply" has told the user their site is being built now.
+"""
+
+DAISY_WEBSITE_SYSTEM = """You are Daisy, TrustedBiz's website builder. You \
+are about to generate the real, live, public website for one specific \
+business, from the details TrustedBiz sends you.
+
+""" + DAISY_KNOWLEDGE + """
+OUTPUT FORMAT — CRITICAL
+Respond with ONLY the complete HTML document — starting with <!DOCTYPE
+html> and ending with </html>. No markdown code fences, no explanation
+before or after, no commentary. Everything (CSS, and minimal JS only if
+truly needed) must be inline in this one file — no external stylesheets or
+scripts, though Google Fonts is fine. Write a real <title> and meta
+description built from the business's actual name and description. Use the
+business's brand_color as the primary accent color throughout. If a
+WhatsApp number is given, the primary contact button must be a wa.me link
+built from it. Include a small, unobtrusive "Built with TrustedBiz" footer
+credit.
+
+PHOTOS — REAL CONTENT, NOT DECORATION
+If the business details include photo URLs, use every one of them as an
+actual, visible <img> in the page content — a gallery grid, next to the
+about text, alongside a service or menu item, wherever it genuinely fits
+that business. They exist to make the page feel like a real, lived-in
+place. Never use a supplied photo as a full-bleed CSS background-image
+behind a hero or section — that's exactly the "AI demo" look this site
+must not have. Photos are things a visitor looks *at* in the page, not
+scenery behind a headline. If no photos are given, don't add any image
+placeholders or filler graphics in their place — build the page well
+without them instead.
+"""
+
+def _daisy_extract_json(text):
+    """Pull a JSON object out of a Claude response that should be pure JSON
+    but might come wrapped in markdown fences or stray text."""
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r'^```[a-zA-Z]*\n?', '', text)
+        text = re.sub(r'```\s*$', '', text).strip()
+    try:
+        return json.loads(text)
+    except Exception:
+        m = re.search(r'\{.*\}', text, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except Exception:
+                return None
+    return None
+
+def _daisy_extract_html(text):
+    """Pull the HTML document out of a Claude response that should be pure
+    HTML but might come wrapped in markdown fences or stray commentary."""
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r'^```[a-zA-Z]*\n?', '', text)
+        text = re.sub(r'```\s*$', '', text).strip()
+    lower = text.lower()
+    idx = lower.find("<!doctype")
+    if idx == -1:
+        idx = lower.find("<html")
+    if idx > 0:
+        text = text[idx:]
+    return text
 
 def call_daisy(mode, context=None, history=None, message=None, timeout=55):
     """
-    Calls Daisy's own API. Returns (result_dict, error_string).
-    On any failure, error_string is a plain message safe to show the user —
-    never raises, so callers don't need try/except.
+    Runs Daisy directly on the Anthropic API (Claude) — no separate Daisy
+    service to call. Returns (result_dict, error_string), same contract as
+    before, so every existing call site keeps working unchanged.
     """
-    if not DAISY_API_URL:
-        return None, "Daisy isn't connected yet — set DAISY_API_URL."
+    client = get_anthropic_client()
+    if not client:
+        return None, "Daisy isn't connected yet — set ANTHROPIC_API_KEY."
+
     try:
-        payload = {
-            "mode": mode,
-            "context": context or {},
-            "history": history or [],
-        }
-        if message is not None:
-            payload["message"] = message
-        resp = requests.post(
-            f"{DAISY_API_URL}/build",
-            json=payload,
-            headers={"Authorization": f"Bearer {DAISY_API_KEY}"} if DAISY_API_KEY else {},
-            timeout=timeout,
-        )
-        resp.raise_for_status()
-        return resp.json(), None
-    except requests.exceptions.Timeout:
-        return None, "Daisy is thinking hard on this one. Please try again in a moment."
+        if mode == 'chat':
+            msgs = []
+            for turn in (history or [])[-20:]:
+                role = 'user' if turn.get('role') == 'user' else 'assistant'
+                content = turn.get('content') or turn.get('message') or ''
+                if content:
+                    msgs.append({"role": role, "content": content})
+            msgs.append({"role": "user", "content": message or ""})
+
+            resp = client.messages.create(
+                model=DAISY_MODEL,
+                max_tokens=1000,
+                system=DAISY_CHAT_SYSTEM,
+                messages=msgs,
+                timeout=timeout,
+            )
+            raw = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+            data = _daisy_extract_json(raw)
+            if not data:
+                return {"reply": raw.strip() or "Tell me a bit more about your business.",
+                         "mode": None}, None
+            ready = bool(data.get("ready"))
+            result = {"reply": data.get("reply") or "Tell me a bit more about your business.",
+                      "mode": "website" if ready else None}
+            if ready:
+                result["business"] = data.get("business") or {}
+            return result, None
+
+        else:
+            prompt = ("Build the real, live website for this business now. "
+                       "Business details (JSON):\n" +
+                       json.dumps(context or {}, ensure_ascii=False, indent=2) +
+                       "\n\nRespond with the complete HTML document only.")
+            resp = client.messages.create(
+                model=DAISY_MODEL,
+                max_tokens=8000,
+                system=DAISY_WEBSITE_SYSTEM,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=timeout,
+            )
+            raw = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+            html = _daisy_extract_html(raw)
+            if not html or len(html) < 200:
+                return None, "Daisy is thinking hard on this one. Please try again in a moment."
+            return {"html": html, "mode": mode}, None
+
     except Exception as e:
-        print(f"[Daisy API] {e}")
+        msg = str(e).lower()
+        print(f"[Daisy/Claude] {e}")
+        if "timeout" in msg or "timed out" in msg:
+            return None, "Daisy is thinking hard on this one. Please try again in a moment."
         return None, "Daisy couldn't be reached right now. Please try again shortly."
 
 # ── HOME ──────────────────────────────────────────────────────────────────────
@@ -682,20 +889,28 @@ def daisy_create_business():
     description = (data.get('description') or '').strip()
     color       = (data.get('brand_color') or '#2b7a78').strip()
     html        = data.get('html')  # Daisy may have already generated this during chat
+    # Photos the owner uploaded mid-conversation via /daisy/upload-photo —
+    # frontend sends back the URLs it already collected, comma-joined or as
+    # a list; store the same way manual uploads are stored (comma string).
+    photos_in   = data.get('photos') or []
+    if isinstance(photos_in, str):
+        photos_in = [p.strip() for p in photos_in.split(',') if p.strip()]
+    photos_str  = ','.join(p for p in photos_in if p)[:2000]
 
     if not name:
         return jsonify({'error': 'A business name is required.'}), 400
 
     slug = make_slug(name)
     biz_id = db_insert(
-        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?)"),
-        (name, category, whatsapp, description, color, slug, user['id'], 'approved', 'free', html)
+        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, generated_html, photos) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
+        (name, category, whatsapp, description, color, slug, user['id'], 'approved', 'free', html, photos_str)
     )
     ping_google(slug)
 
     if not html:
         daisy_ctx = {'name': name, 'category': category, 'description': description,
-                     'whatsapp': whatsapp, 'brand_color': color, 'hours': 'Mon-Sat 8am-7pm'}
+                     'whatsapp': whatsapp, 'brand_color': color, 'hours': 'Mon-Sat 8am-7pm',
+                     'photos': photos_in}
         def _bg(ctx, bid):
             result, err = call_daisy('website', context=ctx)
             h = (result or {}).get('html') if result else None
@@ -1390,23 +1605,55 @@ def export_training():
 @app.route('/daisy/chat', methods=['POST'])
 def daisy_chat():
     """Thin proxy to Daisy's own API for the conversational flow."""
-    data    = request.get_json() or {}
-    msg     = (data.get('message') or data.get('user_input') or '').strip()
-    history = data.get('history', [])
-    has_img = data.get('has_image', False)
+    data        = request.get_json() or {}
+    msg         = (data.get('message') or data.get('user_input') or '').strip()
+    history     = data.get('history', [])
+    has_img     = data.get('has_image', False)
+    photo_count = data.get('photo_count', 0)  # photos already uploaded this session, if any
     if not msg:
         return jsonify({'reply': 'What would you like to build today?', 'done': False})
 
-    result, err = call_daisy('chat', context={'has_image': has_img},
+    result, err = call_daisy('chat', context={'has_image': has_img, 'photo_count': photo_count},
                               history=history, message=msg, timeout=20)
     if not result:
         return jsonify({'reply': err or "I'm having a small moment — try again!", 'done': False})
 
     return jsonify({
-        'reply': result.get('reply', ''),
-        'done':  bool(result.get('mode')),
-        'mode':  result.get('mode'),
+        'reply':    result.get('reply', ''),
+        'done':     bool(result.get('mode')),
+        'mode':     result.get('mode'),
+        'business': result.get('business'),
     })
+
+
+@app.route('/daisy/upload-photo', methods=['POST'])
+@login_required
+def daisy_upload_photo():
+    """Photos uploaded mid-conversation in the Daisy builder — separate from
+    the older /add-business form upload. Client sends already-compressed
+    base64 images (see save_photos_b64) to dodge 413s; we save them the same
+    way every other photo on TrustedBiz is saved and hand back real URLs the
+    frontend can show as thumbnails and Daisy can drop straight into the
+    generated site."""
+    data   = request.get_json() or {}
+    images = data.get('images') or []
+    if isinstance(images, str):
+        images = [images]
+    if not images:
+        return jsonify({'urls': [], 'error': 'No images received.'}), 400
+
+    refs = save_photos_b64(images[:8])  # cap per request, matches gallery-sized use, not a bulk importer
+    if not refs:
+        return jsonify({'urls': [], 'error': "Couldn't save those photos — try a smaller image."}), 400
+
+    urls = []
+    for ref in refs:
+        if ref.startswith('http'):
+            urls.append(ref)
+        else:
+            urls.append(request.host_url.rstrip('/') + '/static/images/' + ref)
+
+    return jsonify({'urls': urls})
 
 
 @app.route('/search')
