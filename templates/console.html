@@ -409,6 +409,10 @@ button{font-family:var(--font);}
           </div>
         </div>
 
+        <div id="photoStrip" style="display:none;padding:12px 18px 0;border-top:1px solid var(--daisy-border);">
+          <div id="photoThumbs" style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:12px;"></div>
+        </div>
+
         <div id="goLiveBox" style="display:none;padding:16px 18px;border-top:1px solid var(--daisy-border);">
           <p style="color:#c3c1d4;font-size:13px;margin-bottom:10px;">Ready to go live? Confirm the details:</p>
           <input id="goLiveName" placeholder="Business name" required
@@ -422,9 +426,15 @@ button{font-family:var(--font);}
         </div>
 
         <form class="daisy-form" id="daisyChatForm">
+          <input type="file" id="photoInput" accept="image/*" multiple hidden>
+          <button type="button" id="photoBtn" class="daisy-send" title="Add photos"
+                  style="background:transparent;color:#c3c1d4;border-right:1px solid var(--daisy-border);padding:0 16px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
           <input class="daisy-input" id="daisyChatInput" type="text" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" autocomplete="off" />
           <button class="daisy-send" type="submit">Build</button>
         </form>
+        <p id="photoStatus" style="font-size:11.5px;color:#8b899c;padding:0 18px 12px;display:none;"></p>
       </div>
     </div>
 
@@ -655,17 +665,22 @@ button{font-family:var(--font);}
     });
   }
 
-  // ── DAISY BUILDER — real calls to /daisy/chat and /daisy/create-business.
-  // If DAISY_API_URL isn't set in Render yet, /daisy/chat still responds —
-  // just with an honest "Daisy isn't connected yet" message instead of a fake one.
+  // ── DAISY BUILDER — real calls to /daisy/chat, /daisy/upload-photo, and
+  // /daisy/create-business. If ANTHROPIC_API_KEY isn't set in Render yet,
+  // /daisy/chat still responds — just with an honest "not connected" message.
   const daisyMessages  = document.getElementById('daisyMessages');
   const daisyForm      = document.getElementById('daisyChatForm');
   const daisyInput     = document.getElementById('daisyChatInput');
   const goLiveBox       = document.getElementById('goLiveBox');
   const goLiveBtn       = document.getElementById('goLiveBtn');
   const goLiveStatus    = document.getElementById('goLiveStatus');
+  const photoInput      = document.getElementById('photoInput');
+  const photoBtn        = document.getElementById('photoBtn');
+  const photoStrip      = document.getElementById('photoStrip');
+  const photoThumbs     = document.getElementById('photoThumbs');
+  const photoStatus     = document.getElementById('photoStatus');
   let daisyHistory = [];
-  let readyMode = null;
+  let uploadedPhotos = []; // real URLs, sent to Daisy's build + saved on go-live
 
   function addDaisyMsg(text, who){
     const p = document.createElement('p');
@@ -683,13 +698,17 @@ button{font-family:var(--font);}
       const res = await fetch('/daisy/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: text, history: daisyHistory})
+        body: JSON.stringify({message: text, history: daisyHistory, photo_count: uploadedPhotos.length})
       });
       const data = await res.json();
       addDaisyMsg(data.reply || "I'm having a small moment — try again.", 'daisy');
       daisyHistory.push({role: 'assistant', content: data.reply || ''});
+      if(data.business){
+        if(data.business.name && !document.getElementById('goLiveName').value) document.getElementById('goLiveName').value = data.business.name;
+        if(data.business.category) document.getElementById('goLiveCategory').value = data.business.category;
+        if(data.business.whatsapp) document.getElementById('goLiveWhatsapp').value = data.business.whatsapp;
+      }
       if(data.done && data.mode === 'website'){
-        readyMode = data.mode;
         goLiveBox.style.display = 'block';
       }
     }catch(e){
@@ -710,6 +729,71 @@ button{font-family:var(--font);}
     chip.addEventListener('click', () => sendToDaisy(chip.textContent));
   });
 
+  // ── Photo upload — resize client-side on a canvas before sending, so a
+  // phone photo (often several MB) never hits the 413 limit. Sends straight
+  // to /daisy/upload-photo, which saves it the same way every other
+  // TrustedBiz photo is saved and hands back a real, usable URL.
+  function resizeToDataUrl(file, maxDim){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = () => { img.src = reader.result; };
+      reader.onerror = reject;
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+        else if(h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function addPhotoThumb(url){
+    const div = document.createElement('div');
+    div.style.cssText = 'width:52px;height:52px;border-radius:4px;overflow:hidden;border:1.5px solid var(--daisy-border);flex-shrink:0;';
+    const img = document.createElement('img');
+    img.src = url; img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    div.appendChild(img);
+    photoThumbs.appendChild(div);
+    photoStrip.style.display = 'block';
+  }
+
+  if(photoBtn){
+    photoBtn.addEventListener('click', () => photoInput.click());
+  }
+  if(photoInput){
+    photoInput.addEventListener('change', async function(){
+      const files = Array.from(photoInput.files || []).slice(0, 6);
+      if(!files.length) return;
+      photoStatus.style.display = 'block';
+      photoStatus.textContent = 'Uploading photos…';
+      try{
+        const dataUrls = await Promise.all(files.map(f => resizeToDataUrl(f, 1200)));
+        const res = await fetch('/daisy/upload-photo', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({images: dataUrls})
+        });
+        const data = await res.json();
+        if(data.urls && data.urls.length){
+          data.urls.forEach(addPhotoThumb);
+          uploadedPhotos = uploadedPhotos.concat(data.urls);
+          photoStatus.textContent = uploadedPhotos.length + ' photo' + (uploadedPhotos.length===1?'':'s') + ' added — Daisy will use ' + (uploadedPhotos.length===1?'it':'them') + ' in the site.';
+        }else{
+          photoStatus.textContent = data.error || "Couldn't upload those — try again.";
+        }
+      }catch(e){
+        photoStatus.textContent = "Couldn't upload those — try again.";
+      }
+      photoInput.value = '';
+    });
+  }
+
   if(goLiveBtn){
     goLiveBtn.addEventListener('click', async function(){
       const name = document.getElementById('goLiveName').value.trim();
@@ -724,7 +808,8 @@ button{font-family:var(--font);}
             name: name,
             category: document.getElementById('goLiveCategory').value.trim(),
             whatsapp: document.getElementById('goLiveWhatsapp').value.trim(),
-            description: daisyHistory.filter(h => h.role === 'user').map(h => h.content).join(' ').slice(0, 500)
+            description: daisyHistory.filter(h => h.role === 'user').map(h => h.content).join(' ').slice(0, 500),
+            photos: uploadedPhotos
           })
         });
         const data = await res.json();
