@@ -11,6 +11,10 @@ on ENV VARS (add on Render dashboard):
   ADMIN_WHATSAPP      = 256753187966
   DGATEWAY_API_KEY    = (add when ready)
   DGATEWAY_MERCHANT_ID= (add when ready)
+  DAISY_API_KEY       = shared secret — must match DAISY_API_KEY on Daisy's
+                         own server (daisy_backend/app.py). Only Daisy's
+                         backend calls /api/daisy/publish with this key;
+                         it never reaches a browser.
 """
 
 import os, math, json, re, secrets, requests
@@ -924,6 +928,87 @@ def daisy_create_business():
 
     return jsonify({'success': True, 'biz_id': biz_id, 'slug': slug,
                      'url': f"https://{slug}.trustedbiz.co.ug"})
+
+
+# ── DAISY PUBLISH (server-to-server) ────────────────────────────────────────
+# Called by Daisy's own standalone backend (daisy_backend/app.py) when a user
+# clicks "Publish to TrustedBiz" there. That's a *separate* Daisy from the
+# in-process one above — a general assistant that can build a whole site in
+# chat and hand the finished HTML here. Auth is a shared secret in the
+# Authorization header, never a browser session, since the caller is a server.
+DAISY_API_KEY = os.environ.get("DAISY_API_KEY", "")
+
+@app.route('/api/daisy/publish', methods=['POST'])
+def api_daisy_publish():
+    if not DAISY_API_KEY:
+        return jsonify({'error': 'Daisy publishing is not configured on this server.'}), 503
+
+    auth  = request.headers.get('Authorization', '')
+    token = auth.split(' ', 1)[1] if auth.startswith('Bearer ') else ''
+    if not token or not secrets.compare_digest(token, DAISY_API_KEY):
+        return jsonify({'error': 'unauthorized'}), 401
+
+    data        = request.get_json(silent=True) or {}
+    name        = (data.get('name') or '').strip()[:100]
+    category    = (data.get('category') or '').strip().lower()[:60]
+    description = (data.get('description') or '').strip()[:2000]
+    whatsapp    = re.sub(r'\D', '', data.get('whatsapp') or '')[:20]
+    brand_color = (data.get('brand_color') or '').strip()[:20] or '#2b7a78'
+    owner_email = (data.get('owner_email') or '').strip().lower()[:150]
+    owner_name  = (data.get('owner_name') or name or 'Business Owner').strip()[:100]
+    html        = data.get('html') or ''
+
+    if not name:
+        return jsonify({'error': 'A business name is required.'}), 400
+    if not html or len(html) < 200:
+        return jsonify({'error': 'No finished site to publish.'}), 400
+    if len(html) > 500_000:
+        return jsonify({'error': 'Site is too large to publish.'}), 400
+
+    # Reuse an existing TrustedBiz account for this email, or create a
+    # placeholder one — same pattern agent_add_business already uses — so
+    # the owner can claim the listing later via /agent/set-password.
+    owner_id = 0
+    is_new_user = False
+    if owner_email:
+        existing = db_fetchone(q("SELECT id FROM users WHERE email=?"), (owner_email,))
+        if existing:
+            owner_id = existing['id']
+        else:
+            temp_password = generate_password_hash(secrets.token_urlsafe(8))
+            owner_id = db_insert(
+                q("INSERT INTO users (name, email, password) VALUES (?,?,?)"),
+                (owner_name, owner_email, temp_password)
+            )
+            is_new_user = True
+
+    slug = make_slug(name)
+    try:
+        biz_id = db_insert(
+            q("INSERT INTO business (name, category, whatsapp, description, brand_color, "
+              "slug, owner_id, status, plan, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?)"),
+            (name, category, whatsapp, description, brand_color, slug, owner_id, 'approved', 'free', html)
+        )
+    except Exception as e:
+        print(f"[api/daisy/publish] insert error: {e}")
+        return jsonify({'error': 'Could not save the site. Try again.'}), 500
+
+    ping_google(slug)
+
+    join_link = None
+    if owner_email:
+        from urllib.parse import quote
+        join_link = f"https://trustedbiz.co.ug/agent/set-password?email={quote(owner_email)}"
+        if is_new_user:
+            _email_approved(owner_name, owner_email, name, slug)
+
+    return jsonify({
+        'success':  True,
+        'biz_id':   biz_id,
+        'slug':     slug,
+        'url':      f"https://{slug}.trustedbiz.co.ug",
+        'join_link': join_link,
+    }), 201
 
 
 @app.route('/generate-site/<int:biz_id>', methods=['POST'])
