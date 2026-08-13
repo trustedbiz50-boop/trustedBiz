@@ -956,6 +956,7 @@ def api_daisy_publish():
     brand_color = (data.get('brand_color') or '').strip()[:20] or '#2b7a78'
     owner_email = (data.get('owner_email') or '').strip().lower()[:150]
     owner_name  = (data.get('owner_name') or name or 'Business Owner').strip()[:100]
+    owner_password_hash = (data.get('owner_password_hash') or '').strip()
     html        = data.get('html') or ''
 
     if not name:
@@ -973,12 +974,22 @@ def api_daisy_publish():
     if owner_email:
         existing = db_fetchone(q("SELECT id FROM users WHERE email=?"), (owner_email,))
         if existing:
+            # Existing TrustedBiz account — never touch its password here.
             owner_id = existing['id']
         else:
-            temp_password = generate_password_hash(secrets.token_urlsafe(8))
+            # New account. If this email has a Daisy account, Daisy forwards
+            # that account's password hash so the same email/password logs
+            # into TrustedBiz too — both apps hash with werkzeug, so the hash
+            # verifies correctly here without ever seeing the plaintext.
+            # Only accept it if it actually looks like a werkzeug hash;
+            # otherwise fall back to the old random-password + claim-link flow.
+            if owner_password_hash and owner_password_hash.split(':', 1)[0] in ('pbkdf2', 'scrypt'):
+                new_password = owner_password_hash
+            else:
+                new_password = generate_password_hash(secrets.token_urlsafe(8))
             owner_id = db_insert(
                 q("INSERT INTO users (name, email, password) VALUES (?,?,?)"),
-                (owner_name, owner_email, temp_password)
+                (owner_name, owner_email, new_password)
             )
             is_new_user = True
 
