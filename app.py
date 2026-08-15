@@ -536,6 +536,41 @@ JSON:
   and "reply" has told the user their site is being built now.
 """
 
+DAISY_HOME_SYSTEM = """You are Daisy, TrustedBiz's friendly AI assistant, \
+answering a visitor's question in a small chat bubble right on the \
+TrustedBiz homepage, before they've signed up for anything.
+
+""" + DAISY_KNOWLEDGE + """
+HOW THIS CONVERSATION WORKS — THIS IS NOT THE BUILDER
+This widget is not where websites get built — it's where visitors get their
+questions answered and get pointed to the right next step. Your job here is
+to explain how TrustedBiz works, answer questions about pricing, hosting,
+the agent program, or anything else about the platform, and warmly direct
+people toward what they should do next: /register to sign up directly, or
+mention that a TrustedBiz field agent can sign them up in person if that
+fits better.
+
+If someone starts describing their business or asks you to build them a
+site right here, don't start gathering business details or attempt to
+build anything in this chat. Instead, tell them plainly that you'd love to
+build it, that it only takes a couple of minutes, and point them to
+/register (or /dashboard if they mention already having an account) to
+start that conversation for real. One short, specific reason it's worth
+doing now (e.g. getting found on Google, a WhatsApp button customers can
+tap) is welcome — a full pitch is not.
+
+Keep replies short — two or three sentences, plain language, no jargon,
+like a helpful local assistant chatting on the phone, not a landing page.
+
+RESPONSE FORMAT — CRITICAL
+Reply with ONLY a JSON object — no markdown fences, no text outside the
+JSON:
+{"reply": "<your short, direct answer or nudge>", "ready": false}
+
+Always set "ready" to false and never include a "business" field — no
+website gets built from this widget, only explained and pointed toward.
+"""
+
 DAISY_WEBSITE_SYSTEM = """You are Daisy, TrustedBiz's website builder. You \
 are about to generate the real, live, public website for one specific \
 business, from the details TrustedBiz sends you.
@@ -611,6 +646,7 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
 
     try:
         if mode == 'chat':
+            ctx = context or {}
             msgs = []
             for turn in (history or [])[-20:]:
                 role = 'user' if turn.get('role') == 'user' else 'assistant'
@@ -619,10 +655,30 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                     msgs.append({"role": role, "content": content})
             msgs.append({"role": "user", "content": message or ""})
 
+            # Homepage widget gets the "explain and direct" persona; every
+            # other caller (the real builder in /dashboard) gets the
+            # build-a-site persona.
+            system = DAISY_HOME_SYSTEM if ctx.get('surface') == 'home' else DAISY_CHAT_SYSTEM
+
+            # CLIENT MEMORY — if this conversation is about a specific
+            # business Daisy already built (the "Edit with Daisy" flow),
+            # fold in what's already known so she doesn't ask for it again
+            # and can talk about that real, live site by name.
+            existing = ctx.get('existing_business')
+            if existing:
+                system += (
+                    "\n\nCLIENT MEMORY — YOU ALREADY BUILT THIS SITE\n"
+                    "You are mid-conversation with a client whose real website you "
+                    "already built. Here is everything you know about them and their "
+                    "live site so far, as JSON — treat it as true, don't ask for any "
+                    "of it again, and only ask about what's genuinely new or changing "
+                    "this time:\n" + json.dumps(existing, ensure_ascii=False, indent=2)
+                )
+
             resp = client.messages.create(
                 model=DAISY_MODEL,
                 max_tokens=1000,
-                system=DAISY_CHAT_SYSTEM,
+                system=system,
                 messages=msgs,
                 timeout=timeout,
             )
@@ -1706,10 +1762,35 @@ def daisy_chat():
     history     = data.get('history', [])
     has_img     = data.get('has_image', False)
     photo_count = data.get('photo_count', 0)  # photos already uploaded this session, if any
+    surface     = data.get('surface') or 'builder'  # 'home' = homepage widget, 'builder' = dashboard
+    biz_id      = data.get('biz_id')  # set when the user picked "Edit with Daisy" on an existing site
     if not msg:
-        return jsonify({'reply': 'What would you like to build today?', 'done': False})
+        default_reply = ('Hi! Ask me anything about TrustedBiz.' if surface == 'home'
+                          else 'What would you like to build today?')
+        return jsonify({'reply': default_reply, 'done': False})
 
-    result, err = call_daisy('chat', context={'has_image': has_img, 'photo_count': photo_count},
+    # Client memory: if we're editing a specific existing business, load
+    # what Daisy already knows about it so she remembers it in this chat.
+    existing_business = None
+    if biz_id:
+        user = get_current_user()
+        if user:
+            biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
+            if biz:
+                existing_business = {
+                    'name':        biz.get('name'),
+                    'category':    biz.get('category'),
+                    'description': biz.get('description'),
+                    'whatsapp':    biz.get('whatsapp'),
+                    'hours':       biz.get('hours'),
+                    'brand_color': biz.get('brand_color'),
+                    'live_url':    f"https://{biz['slug']}.trustedbiz.co.ug" if biz.get('slug') else None,
+                    'status':      biz.get('status'),
+                }
+
+    result, err = call_daisy('chat',
+                              context={'has_image': has_img, 'photo_count': photo_count,
+                                       'surface': surface, 'existing_business': existing_business},
                               history=history, message=msg, timeout=20)
     if not result:
         return jsonify({'reply': err or "I'm having a small moment — try again!", 'done': False})
