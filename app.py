@@ -29,6 +29,9 @@ from werkzeug.utils import secure_filename
 
 # ── EMAIL ─────────────────────────────────────────────────────────────────────
 import threading, urllib.request
+from plan_power import get_website_power, get_artifact_power, artifact_allowed
+from image_generator import generate_business_images, generate_single_image
+from daisy_builders import build_artifact, ARTIFACT_MODES, register_template_saver
 
 _BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 _MAIL_FROM     = os.environ.get("MAIL_FROM", "TrustedBiz <hello@trustedbiz.co.ug>")
@@ -524,16 +527,35 @@ conversationally, like a helpful local assistant, not a form. Once you
 have at least name, category, and description, tell them you're building
 their site now and mark the conversation ready.
 
+BEYOND WEBSITES — OTHER THINGS YOU CAN BUILD
+A website isn't the only thing you build. If someone asks for a WhatsApp
+product catalog, a logo, a promotional flyer, business cards, a CV, or a
+presentation, you can build that too — right in this chat, no separate
+tool needed. Recognize the request and gather what that specific thing
+needs instead of steering them toward a website:
+- catalog: business name, description, WhatsApp, brand color, and the
+  list of products/services with prices if they have them
+- logo: business name, brand color, a style word or two (e.g. "modern",
+  "playful", "elegant")
+- flyer: business name, brand color, style, what the flyer is announcing
+- cards: business name, brand color, style, role/tagline, WhatsApp
+- cv: full name, role/title, email, phone, key skills
+- presentation: topic, brand color, style
+
+Once you have enough for the thing they asked for, tell them you're
+building it now and mark the conversation ready.
+
 RESPONSE FORMAT — CRITICAL
 Reply with ONLY a JSON object — no markdown fences, no text outside the
 JSON:
-{"reply": "<what you say to them next, in your own conversational voice>", "ready": <true or false>, "business": {"name": "...", "category": "...", "description": "...", "whatsapp": "...", "hours": "...", "brand_color": "..."}}
+{"reply": "<what you say to them next, in your own conversational voice>", "ready": <true or false>, "artifact_type": "<omit for a website, otherwise one of: catalog, logo, flyer, cards, cv, presentation>", "business": {"name": "...", "category": "...", "description": "...", "whatsapp": "...", "hours": "...", "brand_color": "...", "style": "...", "items": ["..."]}}
 
 - "business" holds whatever fields you've collected so far — omit fields
   you don't have yet, and omit "business" entirely only if you have
   nothing at all.
-- Set "ready" to true only once you have name, category, and description,
-  and "reply" has told the user their site is being built now.
+- Omit "artifact_type" entirely when this is an ordinary website request.
+- Set "ready" to true only once you have what that thing needs, and
+  "reply" has told the user it's being built now.
 """
 
 DAISY_HOME_SYSTEM = """You are Daisy, TrustedBiz's friendly AI assistant, \
@@ -599,6 +621,13 @@ must not have. Photos are things a visitor looks *at* in the page, not
 scenery behind a headline. If no photos are given, don't add any image
 placeholders or filler graphics in their place — build the page well
 without them instead.
+
+If the business details include an "ai_photos" list instead of (or
+alongside) "photos", those are custom images made specifically for this
+business — use them exactly like real photos: genuine content in the page
+(gallery, next to the about text, alongside a service), never as a
+full-bleed background behind text. Don't mention anywhere in the page that
+they're AI-generated.
 """
 
 def _daisy_extract_json(text):
@@ -688,20 +717,48 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                 return {"reply": raw.strip() or "Tell me a bit more about your business.",
                          "mode": None}, None
             ready = bool(data.get("ready"))
+            artifact_type = (data.get("artifact_type") or "").strip().lower() or None
+            if artifact_type and artifact_type not in ARTIFACT_MODES:
+                artifact_type = None
+            if ready and artifact_type:
+                mode_out = "artifact"
+            elif ready:
+                mode_out = "website"
+            else:
+                mode_out = None
             result = {"reply": data.get("reply") or "Tell me a bit more about your business.",
-                      "mode": "website" if ready else None}
+                      "mode": mode_out}
+            if artifact_type:
+                result["artifact_type"] = artifact_type
             if ready:
                 result["business"] = data.get("business") or {}
             return result, None
 
         else:
+            ctx = dict(context or {})
+            power = get_website_power(ctx.get('plan'))
+            model = power['model']
+            max_tokens = power['max_tokens']
+
+            # Give Daisy custom AI-generated imagery to work with on paid
+            # plans when the business hasn't supplied its own photos —
+            # otherwise a paid site with no photos looks identical to a
+            # free one.
+            if power['images'] and not ctx.get('photos'):
+                try:
+                    ai_photos = generate_business_images(ctx, count=power['images'])
+                    if ai_photos:
+                        ctx['ai_photos'] = ai_photos
+                except Exception as e:
+                    print(f"[Daisy/Images] {e}")
+
             prompt = ("Build the real, live website for this business now. "
                        "Business details (JSON):\n" +
-                       json.dumps(context or {}, ensure_ascii=False, indent=2) +
+                       json.dumps(ctx, ensure_ascii=False, indent=2) +
                        "\n\nRespond with the complete HTML document only.")
             resp = client.messages.create(
-                model=DAISY_MODEL,
-                max_tokens=8000,
+                model=model,
+                max_tokens=max_tokens,
                 system=DAISY_WEBSITE_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
                 timeout=timeout,
@@ -710,6 +767,44 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
             html = _daisy_extract_html(raw)
             if not html or len(html) < 200:
                 return None, "Daisy is thinking hard on this one. Please try again in a moment."
+
+            # Pro Max gets a second pass: Daisy reviews her own first draft
+            # as a senior art director and rewrites it. This is the real
+            # difference between plans — not just a bigger token budget —
+            # and is what should make a Pro Max site look like it came from
+            # an agency, not a fast first draft.
+            if power['passes'] >= 2:
+                try:
+                    review_prompt = (
+                        "Here is the first draft of this Pro Max client's website — "
+                        "the full HTML document:\n\n" + html + "\n\n"
+                        "You are now the senior art director reviewing a junior "
+                        "designer's first draft before it ships to a paying Pro Max "
+                        "client who is paying for noticeably more premium, more "
+                        "distinctive work than a standard site. Rewrite the ENTIRE "
+                        "document, keeping every real business fact exactly as given "
+                        "(never invent new facts), but elevating the design: more "
+                        "confident typography, better spacing and rhythm, a stronger "
+                        "sense of visual hierarchy and a signature layout idea "
+                        "specific to this business — the kind of detail that makes a "
+                        "client feel like this was designed *for them*, not generated. "
+                        "Fix anything that reads as generic, templated, or unfinished. "
+                        "Respond with the complete rewritten HTML document only."
+                    )
+                    resp2 = client.messages.create(
+                        model=model,
+                        max_tokens=max_tokens,
+                        system=DAISY_WEBSITE_SYSTEM,
+                        messages=[{"role": "user", "content": review_prompt}],
+                        timeout=timeout,
+                    )
+                    raw2 = "".join(b.text for b in resp2.content if getattr(b, "type", "") == "text")
+                    html2 = _daisy_extract_html(raw2)
+                    if html2 and len(html2) > 200:
+                        html = html2
+                except Exception as e:
+                    print(f"[Daisy/Pass2] {e}")
+
             return {"html": html, "mode": mode}, None
 
     except Exception as e:
@@ -903,6 +998,7 @@ def site(slug=None):
         'brand_color': bd.get('brand_color') or '#2b7a78',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
+        'plan': bd.get('plan') or 'free',
     }
     result, err = call_daisy('website', context=daisy_ctx)
     html = (result or {}).get('html') if result else None
@@ -1262,6 +1358,7 @@ def admin():
                     'brand_color': bd.get('brand_color') or '#2b7a78',
                     'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
                     'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
+                    'plan': bd.get('plan') or 'free',
                 }
                 def _admin_regen_bg(ctx, bid):
                     result, err = call_daisy('website', context=ctx)
@@ -1425,6 +1522,7 @@ def admin_preview(biz_id):
         'brand_color': bd.get('brand_color') or '#2b7a78',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
+        'plan': bd.get('plan') or 'free',
     }
     result, err = call_daisy('website', context=daisy_ctx)
     html = (result or {}).get('html') if result else None
