@@ -1415,14 +1415,25 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                        "Business details (JSON):\n" +
                        json.dumps(ctx, ensure_ascii=False, indent=2) +
                        "\n\nRespond with the complete HTML document only.")
-            resp = client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                system=DAISY_WEBSITE_SYSTEM,
-                messages=[{"role": "user", "content": prompt}],
-                timeout=timeout,
-            )
-            raw = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+            messages = [{"role": "user", "content": prompt}]
+            raw = ""
+            for rnd in range(3):
+                resp = client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    system=DAISY_WEBSITE_SYSTEM,
+                    messages=messages,
+                    timeout=timeout,
+                )
+                chunk = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+                raw += chunk
+                print(f"[Daisy/Website] round={rnd+1} stop={resp.stop_reason} len={len(raw)}")
+                if resp.stop_reason != "max_tokens":
+                    break
+                # Got cut off mid-page — ask Claude to continue exactly where
+                # it stopped instead of shipping a broken half-built site.
+                messages.append({"role": "assistant", "content": chunk})
+                messages.append({"role": "user", "content": "Continue exactly where you stopped. Do not repeat anything already written."})
             html = _daisy_extract_html(raw)
             if not html or len(html) < 200:
                 return None, "Daisy is thinking hard on this one. Please try again in a moment."
@@ -1450,17 +1461,29 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                         "Fix anything that reads as generic, templated, or unfinished. "
                         "Respond with the complete rewritten HTML document only."
                     )
-                    resp2 = client.messages.create(
-                        model=model,
-                        max_tokens=max_tokens,
-                        system=DAISY_WEBSITE_SYSTEM,
-                        messages=[{"role": "user", "content": review_prompt}],
-                        timeout=timeout,
-                    )
-                    raw2 = "".join(b.text for b in resp2.content if getattr(b, "type", "") == "text")
+                    messages2 = [{"role": "user", "content": review_prompt}]
+                    raw2 = ""
+                    for rnd in range(3):
+                        resp2 = client.messages.create(
+                            model=model,
+                            max_tokens=max_tokens,
+                            system=DAISY_WEBSITE_SYSTEM,
+                            messages=messages2,
+                            timeout=timeout,
+                        )
+                        chunk2 = "".join(b.text for b in resp2.content if getattr(b, "type", "") == "text")
+                        raw2 += chunk2
+                        print(f"[Daisy/Website/Pass2] round={rnd+1} stop={resp2.stop_reason} len={len(raw2)}")
+                        if resp2.stop_reason != "max_tokens":
+                            break
+                        messages2.append({"role": "assistant", "content": chunk2})
+                        messages2.append({"role": "user", "content": "Continue exactly where you stopped. Do not repeat anything already written."})
                     html2 = _daisy_extract_html(raw2)
                     if html2 and len(html2) > 200:
                         html = html2
+                    # If the art-director rewrite came back truncated even
+                    # after retries, keep the good first draft rather than
+                    # shipping a broken "premium" rewrite.
                 except Exception as e:
                     print(f"[Daisy/Pass2] {e}")
 
