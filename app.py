@@ -1398,6 +1398,13 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
             power = get_website_power(ctx.get('plan'))
             model = power['model']
             max_tokens = power['max_tokens']
+            # Paid tiers get real thinking time, not the same clock as free.
+            # A 1-pass free build only ever needs one short round-trip; a
+            # 2-pass Pro Max build (draft + art-director rewrite, each with
+            # up to 3 continuation rounds) needs real room per call.
+            call_timeout = 180 if power['passes'] >= 2 else (90 if timeout == 55 else timeout)
+            if timeout != 55:
+                call_timeout = timeout
 
             # Give Daisy custom AI-generated imagery to work with on paid
             # plans when the business hasn't supplied its own photos —
@@ -1411,9 +1418,45 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                 except Exception as e:
                     print(f"[Daisy/Images] {e}")
 
+            # DESIGN RESEARCH PASS — paid tiers only. Before writing any
+            # HTML, Daisy first thinks like a designer researching this
+            # specific brief: what references fit this category, what the
+            # signature layout idea should be, what to deliberately avoid.
+            # That plan is then fed into the real build so the first line
+            # of code written is already aimed at something specific,
+            # instead of drifting into the same generic template every
+            # category tends to produce under time pressure.
+            design_brief = ""
+            if power['passes'] >= 2:
+                try:
+                    brief_prompt = (
+                        "You are about to design a real website for this Uganda "
+                        "business. Before writing any code, think like a designer "
+                        "researching the brief. Business details (JSON):\n" +
+                        json.dumps(ctx, ensure_ascii=False, indent=2) +
+                        "\n\nIn under 200 words, write a short design brief: the "
+                        "specific visual direction for this business's category "
+                        "(not a generic SaaS look), one signature layout idea that "
+                        "makes this site distinctive, and one or two things to "
+                        "deliberately avoid because they'd make it feel templated. "
+                        "Plain text only, no headings, no markdown."
+                    )
+                    brief_resp = client.messages.create(
+                        model=model, max_tokens=500,
+                        messages=[{"role": "user", "content": brief_prompt}],
+                        timeout=60,
+                    )
+                    design_brief = "".join(
+                        b.text for b in brief_resp.content if getattr(b, "type", "") == "text"
+                    ).strip()
+                except Exception as e:
+                    print(f"[Daisy/DesignBrief] {e}")
+
             prompt = ("Build the real, live website for this business now. "
                        "Business details (JSON):\n" +
                        json.dumps(ctx, ensure_ascii=False, indent=2) +
+                       (f"\n\nYOUR OWN DESIGN BRIEF (from researching this business "
+                        f"before building — follow it):\n{design_brief}" if design_brief else "") +
                        "\n\nRespond with the complete HTML document only.")
             messages = [{"role": "user", "content": prompt}]
             raw = ""
@@ -1423,7 +1466,7 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                     max_tokens=max_tokens,
                     system=DAISY_WEBSITE_SYSTEM,
                     messages=messages,
-                    timeout=timeout,
+                    timeout=call_timeout,
                 )
                 chunk = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
                 raw += chunk
@@ -1469,7 +1512,7 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                             max_tokens=max_tokens,
                             system=DAISY_WEBSITE_SYSTEM,
                             messages=messages2,
-                            timeout=timeout,
+                            timeout=call_timeout,
                         )
                         chunk2 = "".join(b.text for b in resp2.content if getattr(b, "type", "") == "text")
                         raw2 += chunk2
@@ -1495,6 +1538,194 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
         if "timeout" in msg or "timed out" in msg:
             return None, "Daisy is thinking hard on this one. Please try again in a moment."
         return None, "Daisy couldn't be reached right now. Please try again shortly."
+
+
+# ── DAISY BACKGROUND BUILD (progress-tracked) ──────────────────────────────
+# Every "regenerate/rebuild the site" call site used to fire its own
+# threading.Thread with its own bespoke bookkeeping and no visibility for
+# the user beyond a flash message. This is the one shared version: it runs
+# the build on a background thread (so it keeps going even if the user
+# closes the tab or navigates away — the thread isn't tied to the request),
+# ticks build_progress up in the business row while it works so the
+# frontend can poll and show a real 0-100% bar, and always leaves the row
+# in a terminal build_status ('done' or 'failed') when it's finished.
+def start_daisy_build(biz_id, daisy_ctx, event_user_id=None, event_label=None):
+    try:
+        db_execute(q("UPDATE business SET build_status='building', build_progress=4 WHERE id=?"), (biz_id,))
+    except Exception as e:
+        print(f"[Daisy/Build] couldn't set building status for biz {biz_id}: {e}")
+
+    def _ticker(stop_flag):
+        # Smooth, honest-ish progress while the real call is in flight:
+        # creeps toward 90% and holds — it only jumps to 100 once the HTML
+        # actually lands, so the bar never lies about being finished.
+        import time as _time
+        pct = 4
+        while not stop_flag['done'] and pct < 90:
+            _time.sleep(2 if pct < 40 else 4)
+            pct = min(90, pct + (6 if pct < 40 else 3))
+            try:
+                db_execute(q("UPDATE business SET build_progress=? WHERE id=?"), (pct, biz_id))
+            except Exception:
+                pass
+
+    def _run():
+        stop_flag = {'done': False}
+        import threading as _t
+        ticker_thread = _t.Thread(target=_ticker, args=(stop_flag,), daemon=True)
+        ticker_thread.start()
+        try:
+            result, err = call_daisy('website', context=daisy_ctx)
+            html = (result or {}).get('html') if result else None
+            stop_flag['done'] = True
+            if html and len(html) > 200:
+                save_site_html(biz_id, html)
+                db_execute(q("UPDATE business SET build_status='done', build_progress=100 WHERE id=?"), (biz_id,))
+                if event_user_id is not None:
+                    try:
+                        log_deploy_event(biz_id, event_user_id, 'deploy',
+                                          f'"{event_label or biz_id}" rebuilt successfully', 'ok')
+                    except Exception:
+                        pass
+                print(f"[Daisy/Build] done for biz_id={biz_id}")
+            else:
+                db_execute(q("UPDATE business SET build_status='failed' WHERE id=?"), (biz_id,))
+                if event_user_id is not None:
+                    try:
+                        log_deploy_event(biz_id, event_user_id, 'deploy_failed',
+                                          f'"{event_label or biz_id}" rebuild failed — {err}', 'warn')
+                    except Exception:
+                        pass
+                print(f"[Daisy/Build] failed for biz_id={biz_id}: {err}")
+        except Exception as e:
+            stop_flag['done'] = True
+            try:
+                db_execute(q("UPDATE business SET build_status='failed' WHERE id=?"), (biz_id,))
+            except Exception:
+                pass
+            print(f"[Daisy/Build] exception for biz_id={biz_id}: {e}")
+
+    import threading as _t
+    _t.Thread(target=_run, daemon=True).start()
+
+
+def build_daisy_ctx(biz_id):
+    """Assemble the same daisy_ctx shape every rebuild call site needs,
+    from a business's current DB row — one place to fix instead of six."""
+    biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
+    if not biz:
+        return None, None
+    bd = biz_to_dict(biz)
+    branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
+    bd['branches'] = [dict(b) for b in branches]
+    ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
+    bd['ads'] = [dict(a) for a in ads]
+    ctx = {
+        'name': bd.get('name'), 'category': bd.get('category'),
+        'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
+        'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
+        'brand_color': bd.get('brand_color') or '#2b7a78',
+        'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
+        'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
+        'plan': bd.get('plan') or 'free',
+    }
+    return ctx, bd
+
+
+EDIT_CODE_PAGE = """<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit Code — {{ biz.name }}</title>
+<style>
+* { box-sizing:border-box; }
+body { margin:0; font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:#0d1117; color:#e6edf3; }
+.bar { display:flex; align-items:center; gap:12px; padding:10px 16px; background:#161b22; border-bottom:1px solid #30363d; flex-wrap:wrap; }
+.bar a { color:#8b949e; text-decoration:none; font-size:14px; }
+.bar h1 { font-size:15px; margin:0; flex:1; color:#e6edf3; }
+.bar button { background:#238636; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
+.bar button.secondary { background:#21262d; border:1px solid #30363d; }
+.wrap { display:flex; height:calc(100vh - 52px); }
+textarea { width:50%; height:100%; background:#0d1117; color:#c9d1d9; border:none; border-right:1px solid #30363d;
+  font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; padding:14px; resize:none; outline:none; line-height:1.5; }
+iframe { width:50%; height:100%; border:none; background:#fff; }
+.msg { font-size:12px; color:#7ee787; padding:0 16px; }
+@media (max-width:800px){ .wrap{flex-direction:column;} textarea,iframe{width:100%;height:50%;} }
+</style></head>
+<body>
+<div class="bar">
+  <a href="/dashboard">← Dashboard</a>
+  <h1>{{ biz.name }} — Code</h1>
+  <span class="msg" id="msg"></span>
+  <button class="secondary" type="button" onclick="preview()">▶ Preview</button>
+  <button type="button" onclick="save()">💾 Save & Publish</button>
+</div>
+<div class="wrap">
+  <textarea id="code" spellcheck="false">{{ html_escaped }}</textarea>
+  <iframe id="frame"></iframe>
+</div>
+<script>
+function preview(){
+  var html = document.getElementById('code').value;
+  document.getElementById('frame').srcdoc = html;
+}
+function save(){
+  var html = document.getElementById('code').value;
+  var msg = document.getElementById('msg');
+  msg.textContent = 'Saving…';
+  fetch('/dashboard/edit-code/{{ biz.id }}', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({html: html})
+  }).then(r=>r.json()).then(d=>{
+    msg.textContent = d.success ? '✅ Saved & live' : ('Error: '+(d.error||'unknown'));
+  }).catch(e=>{ msg.textContent = 'Error saving.'; });
+}
+preview();
+</script>
+</body></html>"""
+
+@app.route('/dashboard/edit-code/<int:biz_id>', methods=['GET', 'POST'])
+@login_required
+def dashboard_edit_code(biz_id):
+    """The 'room where she can see the code' — a direct view/edit surface
+    on top of whatever Daisy generated. Regenerating with Daisy always
+    overwrites this (she doesn't know about manual edits), so this is for
+    small fixes between rebuilds, not a permanent fork."""
+    biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, session['user_id']))
+    if not biz:
+        if request.method == 'POST':
+            return jsonify({'error': 'not found'}), 404
+        flash("Not found."); return redirect('/dashboard')
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        html = data.get('html') or ''
+        if len(html) < 50:
+            return jsonify({'error': 'That looks too short to be a real page.'}), 400
+        if len(html) > 500_000:
+            return jsonify({'error': 'That file is too large.'}), 400
+        save_site_html(biz_id, html)
+        log_deploy_event(biz_id, session['user_id'], 'manual_edit', f'"{biz["name"]}" edited directly in code view', 'ok')
+        return jsonify({'success': True})
+
+    html_escaped = (biz.get('generated_html') or '<!-- Daisy hasn\'t built this site yet. Click Regenerate on your dashboard first. -->').replace('</textarea>', '<\\/textarea>')
+    from markupsafe import Markup
+    return render_template_string(EDIT_CODE_PAGE, biz=biz_to_dict(biz), html_escaped=Markup.escape(html_escaped))
+
+
+@app.route('/api/build-status/<int:biz_id>')
+def api_build_status(biz_id):
+    biz = db_fetchone(q("SELECT id, owner_id, build_status, build_progress FROM business WHERE id=?"), (biz_id,))
+    if not biz:
+        return jsonify({'error': 'not found'}), 404
+    user = get_current_user()
+    is_owner = user and biz.get('owner_id') == user.get('id')
+    is_admin = bool(session.get('admin_auth'))
+    if not (is_owner or is_admin):
+        return jsonify({'error': 'unauthorized'}), 403
+    return jsonify({
+        'status':   biz.get('build_status') or 'idle',
+        'progress': biz.get('build_progress') or 0,
+    })
+
 
 # ── HOME ──────────────────────────────────────────────────────────────────────
 @app.route('/')
@@ -1742,9 +1973,33 @@ def daisy_create_business():
         return jsonify({'error': 'A business name is required.'}), 400
 
     slug = make_slug(name)
+
+    # THE BUG: this used to hardcode plan='free' here no matter what plan
+    # the account is actually on, and never told the generator what plan
+    # to build for — so a Pro Max customer building through Daisy's chat
+    # panel silently got a Free-tier build (1 pass, no images, small token
+    # budget) every time. Use the account's real current plan instead —
+    # same "highest plan across their businesses" logic the dashboard
+    # already uses to show it in the stat card.
+    plan_rank = {'free': 0, 'basic': 1, 'pro_max': 2}
+    _PLAN_ALIASES_LOCAL = {'promax': 'pro_max'}
+    existing_bizzes = db_fetchall(q("SELECT plan FROM business WHERE owner_id=?"), (user['id'],))
+    account_plan = 'free'
+    for b in existing_bizzes:
+        p = _PLAN_ALIASES_LOCAL.get((b.get('plan') or 'free'), b.get('plan') or 'free')
+        if plan_rank.get(p, 0) > plan_rank.get(account_plan, 0):
+            account_plan = p
+    # Frontend may also pass an explicit plan (e.g. a plan picker on the
+    # go-live step) — trust that over the inferred account plan if given.
+    requested_plan = (data.get('plan') or '').strip().lower()
+    requested_plan = _PLAN_ALIASES_LOCAL.get(requested_plan, requested_plan)
+    if requested_plan in ('free', 'basic', 'pro_max'):
+        account_plan = requested_plan
+    is_premium = 1 if account_plan != 'free' else 0
+
     biz_id = db_insert(
-        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, generated_html, photos) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
-        (name, category, whatsapp, description, color, slug, user['id'], 'approved', 'free', html, photos_str)
+        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html, photos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"),
+        (name, category, whatsapp, description, color, slug, user['id'], 'approved', account_plan, is_premium, html, photos_str)
     )
     ping_google(slug)
 
@@ -1754,20 +2009,11 @@ def daisy_create_business():
     else:
         daisy_ctx = {'name': name, 'category': category, 'description': description,
                      'whatsapp': whatsapp, 'brand_color': color, 'hours': 'Mon-Sat 8am-7pm',
-                     'photos': photos_in}
-        def _bg(ctx, bid, uid, bname):
-            result, err = call_daisy('website', context=ctx)
-            h = (result or {}).get('html') if result else None
-            if h:
-                save_site_html(bid, h)
-                log_deploy_event(bid, uid, 'deploy', f'"{bname}" deployed successfully', 'ok')
-            else:
-                log_deploy_event(bid, uid, 'deploy_failed', f'"{bname}" deploy failed — Daisy timed out', 'warn')
-                print(f"[Daisy API] create-business gen failed for biz {bid}: {err}")
-        import threading
-        threading.Thread(target=_bg, args=(daisy_ctx, biz_id, user['id'], name), daemon=True).start()
+                     'photos': photos_in, 'plan': account_plan}
+        start_daisy_build(biz_id, daisy_ctx, event_user_id=user['id'], event_label=name)
 
     return jsonify({'success': True, 'biz_id': biz_id, 'slug': slug,
+                     'plan': account_plan,
                      'url': f"https://{slug}.trustedbiz.co.ug"})
 
 
@@ -1885,19 +2131,8 @@ def generate_site(biz_id):
         'plan': bd.get('plan') or 'free',
     }
 
-    def _regen_bg(ctx, biz_id, user_id, biz_name):
-        result, err = call_daisy('website', context=ctx)
-        html = (result or {}).get('html') if result else None
-        if html:
-            save_site_html(biz_id, html)
-            log_deploy_event(biz_id, user_id, 'redeploy', f'"{biz_name}" redeployed successfully', 'ok')
-        else:
-            log_deploy_event(biz_id, user_id, 'redeploy_failed', f'"{biz_name}" redeploy failed — Daisy timed out', 'warn')
-            print(f"[Daisy API] regen failed for biz {biz_id}: {err}")
-
-    import threading
-    threading.Thread(target=_regen_bg, args=(daisy_ctx, biz_id, session['user_id'], bd.get('name')), daemon=True).start()
-    flash("✨ Your website is being rebuilt by Daisy... refresh in about 30 seconds to see it live.")
+    start_daisy_build(biz_id, daisy_ctx, event_user_id=session['user_id'], event_label=bd.get('name'))
+    flash(f"✨ Daisy is rebuilding \"{bd.get('name')}\" on the {(bd.get('plan') or 'free').replace('_',' ').title()} plan — watch progress on this page, it'll keep building even if you leave.")
     return redirect('/dashboard')
 
 # ── ADD BUSINESS ──────────────────────────────────────────────────────────────
@@ -2043,6 +2278,7 @@ def admin():
         elif action in ('set_basic', 'set_pro_max', 'set_free'):
             new_plan = {'set_basic': 'basic', 'set_pro_max': 'pro_max', 'set_free': 'free'}[action]
             is_paid  = 1 if new_plan != 'free' else 0
+            prior = db_fetchone(q("SELECT plan, generated_html, owner_id FROM business WHERE id=?"), (biz_id,))
             db_execute(q("UPDATE business SET plan=?, is_premium=?, last_payment_date=CURRENT_DATE, payment_months_late=0 WHERE id=?"),
                        (new_plan, is_paid, biz_id))
             owner = db_fetchone(q("SELECT owner_id FROM business WHERE id=?"), (biz_id,))
@@ -2050,38 +2286,29 @@ def admin():
                 label = {'basic': 'Basic', 'pro_max': 'Pro Max', 'free': 'Free'}[new_plan]
                 db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
                           (owner['owner_id'], f"Your plan is now {label}."))
+            # THE ACTUAL FIX: changing a business's plan used to only touch
+            # the `plan`/`is_premium` columns — the already-generated site
+            # stayed exactly as it was built on the old plan. A business
+            # upgraded from Free to Pro Max would show the plan change on
+            # their invoice but keep serving the Free-tier build forever,
+            # unless someone remembered to also click "Regenerate" as a
+            # separate step. Now an upgrade/downgrade always rebuilds the
+            # live site with the new plan's model power immediately.
+            if prior and new_plan != (prior.get('plan') or 'free') and prior.get('generated_html'):
+                ctx, bd = build_daisy_ctx(biz_id)
+                if ctx:
+                    start_daisy_build(biz_id, ctx, event_user_id=prior.get('owner_id'),
+                                       event_label=bd.get('name') if bd else None)
+                    flash(f"✅ Plan set to {label} — Daisy is rebuilding the live site now with the new plan's power.", 'success')
         elif action == 'mark_late':
             db_execute(q("UPDATE business SET payment_months_late=payment_months_late+1 WHERE id=?"), (biz_id,))
         elif action == 'block':
             db_execute(q("UPDATE business SET status='rejected' WHERE id=?"), (biz_id,))
         elif action == 'regen':
-            biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
-            if biz:
-                bd = biz_to_dict(biz)
-                branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
-                bd['branches'] = [dict(b) for b in branches]
-                ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
-                bd['ads'] = [dict(a) for a in ads]
-                daisy_ctx = {
-                    'name': bd.get('name'), 'category': bd.get('category'),
-                    'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
-                    'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
-                    'brand_color': bd.get('brand_color') or '#2b7a78',
-                    'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
-                    'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
-                    'plan': bd.get('plan') or 'free',
-                }
-                def _admin_regen_bg(ctx, bid):
-                    result, err = call_daisy('website', context=ctx)
-                    html = (result or {}).get('html') if result else None
-                    if html:
-                        try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, bid))
-                        except Exception as e: print(f"Admin regen save error: {e}")
-                    else:
-                        print(f"[Daisy API] admin regen failed for biz {bid}: {err}")
-                import threading as _threading
-                _threading.Thread(target=_admin_regen_bg, args=(daisy_ctx, int(biz_id)), daemon=True).start()
-                flash("✅ Daisy is regenerating this site — refresh in about 60 seconds!")
+            ctx, bd = build_daisy_ctx(biz_id)
+            if ctx:
+                start_daisy_build(int(biz_id), ctx, event_user_id=bd.get('owner_id'), event_label=bd.get('name'))
+                flash("✅ Daisy is regenerating this site — progress bar is on the admin row.")
         elif action == 'delete':
             db_execute(q("DELETE FROM business WHERE id=?"), (biz_id,))
         elif action == 'send_to_pool':
@@ -2195,6 +2422,8 @@ def migrate_db():
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS hero_price_label TEXT")
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS generated_html TEXT")
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#2b7a78'")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS build_status TEXT DEFAULT 'idle'")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS build_progress INTEGER DEFAULT 0")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS chosen_plan TEXT DEFAULT 'free'")
         # Agent-submitted business extras
