@@ -277,7 +277,7 @@ button{font-family:var(--font);}
     </button>
 
     <div class="side-foot">
-      <div class="side-user">Signed in as Jordan</div>
+      <div class="side-user">Signed in as {{ current_user.name if current_user else 'you' }}</div>
       <a class="side-signout" href="/logout">Sign out</a>
     </div>
   </aside>
@@ -469,41 +469,57 @@ button{font-family:var(--font);}
 
       <div class="label">Deploy events</div>
       <div class="activity" style="margin-bottom:28px;">
-        <!-- PLACEHOLDER — real deploy events need a deploy_events table +
-             logging calls added to /deploy, /generate-site, and Daisy's
-             create-business route. Not wired yet, frontend only for now. -->
-        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>mybootcamp</b> deployed successfully</span><span class="act-time">2h ago</span></div>
-        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>DermaBloom</b> custom domain connected</span><span class="act-time">1d ago</span></div>
-        <div class="activity-row"><span class="act-dot warn"></span><span class="act-text"><b>Kampala Eats</b> deploy failed — Daisy timed out</span><span class="act-time">2d ago</span></div>
-        <div class="activity-row"><span class="act-dot ok"></span><span class="act-text"><b>mybootcamp</b> redeployed via GitHub push</span><span class="act-time">4d ago</span></div>
+        {% if deploy_events %}
+          {% for e in deploy_events %}
+          <div class="activity-row">
+            <span class="act-dot {{ 'ok' if e.status=='ok' else ('bad' if e.status=='error' else 'warn') }}"></span>
+            <span class="act-text"><b>{{ e.biz_name or 'Account' }}</b> — {{ e.message }}</span>
+            <span class="act-time">{{ e.created_at[:16]|replace('T',' ') if e.created_at else '' }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="activity-row"><span class="act-text">No deploys yet — build a site with Daisy or deploy your own HTML to see activity here.</span></div>
+        {% endif %}
       </div>
 
       <div class="label">Domains &amp; SSL</div>
       <div style="margin-bottom:24px;">
+        {% if businesses %}
+        {% for b in businesses %}
         <div class="domain-row">
-          <span class="domain-name">mybootcamp.trustedbiz.co.ug</span>
-          <span class="site-status live">SSL active</span>
+          <span class="domain-name">{{ b.slug }}.trustedbiz.co.ug</span>
+          <span class="site-status {{ 'live' if b.status=='approved' else 'building' }}">{{ 'SSL active' if b.status=='approved' else b.status|capitalize }}</span>
           <span class="site-plan">Default subdomain</span>
         </div>
+        {% if b.custom_domain %}
         <div class="domain-row">
-          <span class="domain-name">mybootcamp.co.ug</span>
-          <span class="site-status live">SSL active</span>
+          <span class="domain-name">{{ b.custom_domain }}</span>
+          <span class="site-status {{ 'live' if b.domain_status=='active' else 'building' }}">{{ 'SSL active' if b.domain_status=='active' else 'Awaiting DNS' }}</span>
           <span class="site-plan">Custom</span>
-          <a class="btn" href="#">Manage DNS</a>
+          {% if b.domain_status != 'active' %}
+          <form method="POST" action="/hosting/verify-domain/{{ b.id }}"><button class="btn" type="submit">Verify DNS</button></form>
+          {% endif %}
         </div>
-        <div class="domain-row">
-          <span class="domain-name">dermabloom.trustedbiz.co.ug</span>
-          <span class="site-status live">SSL active</span>
-          <span class="site-plan">Default subdomain</span>
-        </div>
+        {% endif %}
+        {% endfor %}
+        {% else %}
+        <div class="domain-row"><span class="domain-name">No sites yet</span></div>
+        {% endif %}
       </div>
 
       <div class="label">Connect a custom domain</div>
-      <p style="font-size:12.5px;color:var(--dim);margin-bottom:12px;">Available on Pro Max. Point your domain's A record at TrustedBiz, then connect it here.</p>
+      <p style="font-size:12.5px;color:var(--dim);margin-bottom:12px;">Available on Pro Max. Point your domain's CNAME at trustedbiz.co.ug, then connect it here and verify.</p>
+      {% if businesses %}
       <form class="dns-form" method="POST" action="/trusthost/request-domain">
+        <select name="biz_id" required style="border:1.5px solid var(--border);border-radius:4px;padding:0 10px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;">
+          {% for b in businesses %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        </select>
         <input class="dns-input" name="domain" type="text" placeholder="yourbusiness.co.ug" required />
         <button class="btn btn-solid" type="submit">Connect</button>
       </form>
+      {% else %}
+      <p style="font-size:12.5px;color:var(--dim);">Build or deploy a site first, then come back to connect a domain.</p>
+      {% endif %}
     </div>
 
     <!-- SECURITY -->
@@ -513,7 +529,7 @@ button{font-family:var(--font);}
       </div>
 
       <div class="scan-overlay" id="scanOverlay" hidden>
-        <span class="scan-label" id="scanLabel">Scanning mybootcamp.trustedbiz.co.ug…</span>
+        <span class="scan-label" id="scanLabel">Scanning your sites…</span>
         <div class="scan-bar-track"><div class="scan-bar-fill" id="scanFill"></div></div>
       </div>
 
@@ -521,48 +537,61 @@ button{font-family:var(--font);}
         <div class="score-ring">
           <svg viewBox="0 0 96 96">
             <circle class="bg-ring" cx="48" cy="48" r="40"></circle>
-            <circle class="fg-ring" id="scoreRing" cx="48" cy="48" r="40" stroke-dasharray="251" stroke-dashoffset="35"></circle>
+            <circle class="fg-ring" id="scoreRing" cx="48" cy="48" r="40" stroke-dasharray="251"
+                    stroke-dashoffset="{{ (251 - (251 * security.score / 100))|round|int if security else 251 }}"></circle>
           </svg>
-          <span class="score-num" id="scoreNum">86</span>
+          <span class="score-num" id="scoreNum">{{ security.score if security else '—' }}</span>
         </div>
         <div class="score-text">
-          <h3>Good protection level</h3>
-          <p>Your sites pass most checks. Two items need attention, mainly the SSL renewal on Kampala Eats.</p>
+          <h3 id="scoreHeadline">
+            {% if not security %}No scan yet
+            {% elif security.score >= 85 %}Good protection level
+            {% elif security.score >= 60 %}Some items need attention
+            {% else %}Action needed{% endif %}
+          </h3>
+          <p id="scoreSub">
+            {% if not security %}Click "Run new scan" to check SSL, content safety, backups, and account security across your sites — this is a live check, not a demo.
+            {% else %}{{ security.passes }} of {{ security.total }} checks passed{% if security.scanned_at %} · last scanned {{ security.scanned_at[:16]|replace('T',' ') }}{% endif %}
+            {% endif %}
+          </p>
         </div>
         <div class="score-actions"><button class="btn btn-solid" id="rescanBtn">Run new scan</button></div>
       </div>
 
       <div class="label">Checks</div>
+      <div class="check-list" id="checkList">
+        {% if security and security.checks %}
+          {% for c in security.checks %}
+          <div class="check-row">
+            <span class="check-icon {{ 'pass' if c.status=='pass' else 'warn' }}">
+              {% if c.status=='pass' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg>
+              {% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v5M12 16h.01"/></svg>{% endif %}
+            </span>
+            <div class="check-main"><h4>{{ c.label }}</h4><p>{{ c.target }} — {{ c.detail }}</p></div>
+            <span class="check-status {{ 'pass' if c.status=='pass' else 'warn' }}">{{ 'Passed' if c.status=='pass' else 'Needs attention' }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="check-row"><div class="check-main"><h4>Nothing checked yet</h4><p>Run a scan to see real results for your sites.</p></div></div>
+        {% endif %}
+      </div>
+
+      <div class="label" style="margin-top:26px;">Account</div>
       <div class="check-list">
         <div class="check-row">
-          <span class="check-icon pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg></span>
-          <div class="check-main"><h4>SSL certificate</h4><p>mybootcamp, DermaBloom — valid and active</p></div>
-          <span class="check-status pass">Passed</span>
-        </div>
-        <div class="check-row">
-          <span class="check-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v5M12 16h.01"/></svg></span>
-          <div class="check-main"><h4>SSL certificate</h4><p>Kampala Eats — expires in 14 days</p></div>
-          <span class="check-status warn">Needs renewal</span>
-        </div>
-        <div class="check-row">
-          <span class="check-icon pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg></span>
-          <div class="check-main"><h4>Malware scan</h4><p>No malicious code found across any site</p></div>
-          <span class="check-status pass">Clean</span>
-        </div>
-        <div class="check-row">
-          <span class="check-icon pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg></span>
-          <div class="check-main"><h4>Automatic backups</h4><p>Daily backups enabled on all sites</p></div>
-          <span class="check-status pass">Enabled</span>
-        </div>
-        <div class="check-row">
-          <span class="check-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v5M12 16h.01"/></svg></span>
-          <div class="check-main"><h4>Two-factor login</h4><p>Not yet enabled on your account</p></div>
-          <span class="check-status warn">Recommended</span>
-        </div>
-        <div class="check-row">
-          <span class="check-icon pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg></span>
-          <div class="check-main"><h4>Firewall</h4><p>Active on all live sites</p></div>
-          <span class="check-status pass">Active</span>
+          <span class="check-icon {{ 'pass' if current_user and current_user.two_factor_enabled else 'warn' }}">
+            {% if current_user and current_user.two_factor_enabled %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg>
+            {% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v5M12 16h.01"/></svg>{% endif %}
+          </span>
+          <div class="check-main">
+            <h4>Two-factor login</h4>
+            <p>{{ 'Enabled — a code from your authenticator app is required at sign-in.' if current_user and current_user.two_factor_enabled else 'Adds a 6-digit authenticator code at login, on top of your password.' }}</p>
+          </div>
+          {% if current_user and current_user.two_factor_enabled %}
+          <form method="POST" action="/account/2fa/disable"><button class="btn" type="submit">Turn off</button></form>
+          {% else %}
+          <a class="btn btn-solid" href="/account/2fa/setup">Turn on</a>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -675,17 +704,73 @@ button{font-family:var(--font);}
     showPanel(initial, false);
   }
 
-  // Security scan demo animation
-  const rescanBtn = document.getElementById('rescanBtn');
-  const overlay = document.getElementById('scanOverlay');
-  const fill = document.getElementById('scanFill');
-  if(rescanBtn){
-    rescanBtn.addEventListener('click', function(){
-      overlay.hidden = false;
-      fill.style.width = '0%';
-      requestAnimationFrame(function(){ fill.style.width = '100%'; });
-      setTimeout(function(){ overlay.hidden = true; }, 2000);
+  // ── SECURITY SCAN — real call to /security/scan (live SSL check, content
+  // scan of stored HTML, backup freshness, 2FA status). The progress bar is
+  // just visual feedback while the actual network/TLS checks run; it doesn't
+  // control when the panel updates — the fetch response does.
+  const rescanBtn    = document.getElementById('rescanBtn');
+  const scanOverlay  = document.getElementById('scanOverlay');
+  const scanFill     = document.getElementById('scanFill');
+  const scoreNum     = document.getElementById('scoreNum');
+  const scoreRing    = document.getElementById('scoreRing');
+  const scoreHeadline= document.getElementById('scoreHeadline');
+  const scoreSub     = document.getElementById('scoreSub');
+  const checkList    = document.getElementById('checkList');
+
+  function renderChecks(result){
+    scoreNum.textContent = result.score;
+    const circumference = 251;
+    scoreRing.setAttribute('stroke-dashoffset', Math.round(circumference - (circumference * result.score / 100)));
+    scoreHeadline.textContent = result.score >= 85 ? 'Good protection level'
+                               : result.score >= 60 ? 'Some items need attention'
+                               : 'Action needed';
+    scoreSub.textContent = result.passes + ' of ' + result.total + ' checks passed · just now';
+
+    checkList.innerHTML = '';
+    (result.checks || []).forEach(function(c){
+      const pass = c.status === 'pass';
+      const row = document.createElement('div');
+      row.className = 'check-row';
+      row.innerHTML =
+        '<span class="check-icon ' + (pass ? 'pass' : 'warn') + '">' +
+          (pass
+            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12l4 4 10-10"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v5M12 16h.01"/></svg>') +
+        '</span>' +
+        '<div class="check-main"><h4></h4><p></p></div>' +
+        '<span class="check-status ' + (pass ? 'pass' : 'warn') + '">' + (pass ? 'Passed' : 'Needs attention') + '</span>';
+      row.querySelector('h4').textContent = c.label;
+      row.querySelector('p').textContent  = c.target + ' — ' + c.detail;
+      checkList.appendChild(row);
     });
+  }
+
+  async function runSecurityScan(){
+    if(!rescanBtn) return;
+    scanOverlay.hidden = false;
+    scanFill.style.width = '0%';
+    requestAnimationFrame(function(){ scanFill.style.width = '92%'; });
+    rescanBtn.disabled = true;
+    try{
+      const res = await fetch('/security/scan', { method: 'POST' });
+      const data = await res.json();
+      scanFill.style.transition = 'width .25s linear';
+      scanFill.style.width = '100%';
+      renderChecks(data);
+    }catch(e){
+      scoreSub.textContent = "Couldn't reach the scanner — try again.";
+    }finally{
+      setTimeout(function(){ scanOverlay.hidden = true; scanFill.style.transition = 'width 1.8s linear'; }, 300);
+      rescanBtn.disabled = false;
+    }
+  }
+
+  if(rescanBtn){
+    rescanBtn.addEventListener('click', runSecurityScan);
+    // Auto-run once on first visit if no scan has ever been stored.
+    if(scoreNum && scoreNum.textContent.trim() === '—'){
+      runSecurityScan();
+    }
   }
 
   // ── DAISY BUILDER — real calls to /daisy/chat, /daisy/upload-photo, and
