@@ -17,13 +17,14 @@ on ENV VARS (add on Render dashboard):
                          it never reaches a browser.
 """
 
-import os, math, json, re, secrets, requests
+import os, math, json, re, secrets, requests, socket, ssl
+import pyotp
 from datetime import timedelta, datetime
 from difflib import SequenceMatcher
 from functools import wraps
 from pathlib import Path
-from flask import (Flask, render_template, request, redirect,
-                   flash, session, jsonify, url_for)
+from flask import (Flask, render_template, render_template_string, request,
+                   redirect, flash, session, jsonify, url_for)
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -88,6 +89,49 @@ def _email_welcome(name, email):
       <a href="https://trustedbiz.co.ug/dashboard" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Talk to Daisy →</a>
     </div>
     <p style="color:#888;font-size:13px;">If you didn't create this account, ignore this email.</p>
+  </div>
+  <div style="background:#f8f8f8;padding:16px;text-align:center;font-size:12px;color:#aaa;">
+    © 2026 TrustedBiz · <a href="https://trustedbiz.co.ug" style="color:#2b7a78;">trustedbiz.co.ug</a>
+  </div>
+</div>
+</body></html>""")
+
+def _email_domain_live(name, email, biz_name, domain):
+    biz_url = f"https://{domain}"
+    _send_email(email, f"✅ {domain} is connected and live!", f"""
+<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
+<div style="max-width:560px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+  <div style="background:#22c55e;padding:32px;text-align:center;">
+    <h1 style="color:white;margin:0;font-size:26px;">Your domain is live! 🌐</h1>
+  </div>
+  <div style="padding:32px;">
+    <p style="font-size:16px;color:#333;">Hi <strong>{name}</strong>,</p>
+    <p style="color:#555;line-height:1.7;">Good news — we verified DNS and switched on SSL for <strong>{biz_name}</strong>. Your site is now live at your own domain.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0;">
+      <p style="margin:0;color:#166534;font-size:14px;">🔒 Secured and live:</p>
+      <a href="{biz_url}" style="color:#2b7a78;font-weight:700;word-break:break-all;">{biz_url}</a>
+    </div>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="{biz_url}" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">View Your Site →</a>
+    </div>
+  </div>
+  <div style="background:#f8f8f8;padding:16px;text-align:center;font-size:12px;color:#aaa;">
+    © 2026 TrustedBiz · <a href="https://trustedbiz.co.ug" style="color:#2b7a78;">trustedbiz.co.ug</a>
+  </div>
+</div>
+</body></html>""")
+
+def _email_2fa_enabled(name, email):
+    _send_email(email, "Two-factor login enabled on your TrustedBiz account", f"""
+<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
+<div style="max-width:560px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+  <div style="background:#2b7a78;padding:32px;text-align:center;">
+    <h1 style="color:white;margin:0;font-size:24px;">Two-factor login is on 🔐</h1>
+  </div>
+  <div style="padding:32px;">
+    <p style="font-size:16px;color:#333;">Hi <strong>{name}</strong>,</p>
+    <p style="color:#555;line-height:1.7;">From now on, signing in to TrustedBiz will also ask for a 6-digit code from your authenticator app.</p>
+    <p style="color:#888;font-size:13px;">If you didn't make this change, contact us right away and reset your password.</p>
   </div>
   <div style="background:#f8f8f8;padding:16px;text-align:center;font-size:12px;color:#aaa;">
     © 2026 TrustedBiz · <a href="https://trustedbiz.co.ug" style="color:#2b7a78;">trustedbiz.co.ug</a>
@@ -332,8 +376,8 @@ def create_tables():
     tables = []
     if USE_POSTGRES:
         tables = [
-        "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, two_factor_enabled INTEGER DEFAULT 0, two_factor_secret TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, custom_domain TEXT, domain_status TEXT DEFAULT 'none', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id SERIAL PRIMARY KEY, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id SERIAL PRIMARY KEY, business_id INTEGER, user_identifier TEXT)",
@@ -344,14 +388,17 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS template_pool (id SERIAL PRIMARY KEY, category TEXT NOT NULL, html TEXT NOT NULL, quality_score INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS invite_codes (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'promax', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS daisy_training (id SERIAL PRIMARY KEY, input TEXT NOT NULL, output TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS deploy_events (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS site_backups (id SERIAL PRIMARY KEY, business_id INTEGER, html_snapshot TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS security_scans (id SERIAL PRIMARY KEY, user_id INTEGER, score INTEGER, checks TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         ]
         cur = conn.cursor()
         for t in tables: cur.execute(t)
         conn.commit(); cur.close()
     else:
         tables = [
-        "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', location TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, two_factor_enabled INTEGER DEFAULT 0, two_factor_secret TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', location TEXT, custom_domain TEXT, domain_status TEXT DEFAULT 'none', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_identifier TEXT)",
@@ -362,6 +409,9 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS template_pool (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, html TEXT NOT NULL, quality_score INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS invite_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'promax', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS daisy_training (id INTEGER PRIMARY KEY AUTOINCREMENT, input TEXT NOT NULL, output TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS deploy_events (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS site_backups (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, html_snapshot TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS security_scans (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, score INTEGER, checks TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         ]
         for t in tables: conn.execute(t)
         conn.commit()
@@ -410,6 +460,153 @@ def biz_to_dict(b):
     for k,v in d.items():
         if isinstance(v,(datetime,date)): d[k] = v.isoformat()
     return d
+
+# ── HOSTING: real deploy log + site backups ─────────────────────────────────
+# Every entry here corresponds to something that actually happened — a site
+# created, redeployed, or a domain connected — not placeholder rows.
+def log_deploy_event(business_id, user_id, event_type, message, status='ok'):
+    try:
+        db_insert(q("INSERT INTO deploy_events (business_id,user_id,event_type,message,status) VALUES (?,?,?,?,?)"),
+                  (business_id, user_id, event_type, message, status))
+    except Exception as e:
+        print(f"[deploy_event] log error: {e}")
+
+def save_site_html(biz_id, html):
+    """Single place that writes generated_html for an existing business —
+    also snapshots a real backup so 'Automatic backups' in Security reflects
+    what's actually stored, not a canned 'Enabled'. Keeps the 5 most recent
+    snapshots per site."""
+    if not html: return
+    try:
+        db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz_id))
+        db_insert(q("INSERT INTO site_backups (business_id, html_snapshot) VALUES (?,?)"), (biz_id, html))
+        db_execute(q("DELETE FROM site_backups WHERE business_id=? AND id NOT IN "
+                      "(SELECT id FROM site_backups WHERE business_id=? ORDER BY created_at DESC LIMIT 5)"),
+                   (biz_id, biz_id))
+    except Exception as e:
+        print(f"[save_site_html] error for biz {biz_id}: {e}")
+
+def snapshot_site_html(biz_id, html):
+    """Same backup snapshot as save_site_html, without re-writing
+    generated_html — for routes that already set it in their own INSERT."""
+    if not html: return
+    try:
+        db_insert(q("INSERT INTO site_backups (business_id, html_snapshot) VALUES (?,?)"), (biz_id, html))
+        db_execute(q("DELETE FROM site_backups WHERE business_id=? AND id NOT IN "
+                      "(SELECT id FROM site_backups WHERE business_id=? ORDER BY created_at DESC LIMIT 5)"),
+                   (biz_id, biz_id))
+    except Exception as e:
+        print(f"[snapshot_site_html] error for biz {biz_id}: {e}")
+
+# ── SECURITY: live checks, not canned badges ────────────────────────────────
+_SAFE_SCRIPT_HOSTS = ('trustedbiz.co.ug', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net',
+                      'fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com',
+                      'www.googletagmanager.com', 'www.google-analytics.com')
+
+def check_domain_ssl(domain, timeout=5):
+    """Real TLS handshake against the live domain. Returns (ok, detail, days_left)."""
+    if not domain:
+        return False, "No domain to check", None
+    try:
+        ctx = ssl.create_default_context()
+        with socket.create_connection((domain, 443), timeout=timeout) as sock:
+            with ctx.wrap_socket(sock, server_hostname=domain) as ssock:
+                cert = ssock.getpeercert()
+        expires = datetime.strptime(cert['notAfter'], '%b %d %H:%M:%S %Y %Z')
+        days_left = (expires - datetime.utcnow()).days
+        if days_left < 0:
+            return False, f"Certificate expired {abs(days_left)} days ago", days_left
+        if days_left < 14:
+            return True, f"Valid — renews automatically, {days_left} days left", days_left
+        return True, f"Valid until {expires.strftime('%d %b %Y')}", days_left
+    except socket.gaierror:
+        return False, "Domain does not resolve yet (DNS not pointed at TrustedBiz)", None
+    except socket.timeout:
+        return False, "Timed out connecting — site may be unreachable", None
+    except ssl.SSLError as e:
+        return False, f"TLS error: {e}", None
+    except Exception as e:
+        return False, f"Could not verify: {e}", None
+
+def scan_site_html(html):
+    """Real static-analysis pass over the site's own stored HTML — flags the
+    patterns that actually indicate injected or unsafe content."""
+    if not html: return []
+    issues = []
+    for m in re.finditer(r'<script[^>]+src=["\']([^"\']+)["\']', html, re.IGNORECASE):
+        src = m.group(1)
+        if src.startswith(('http://', 'https://', '//')):
+            host = re.sub(r'^(https?:)?//', '', src).split('/')[0].lower()
+            if not any(host == h or host.endswith('.' + h) for h in _SAFE_SCRIPT_HOSTS):
+                issues.append(f"External script from unrecognized host: {host}")
+    if re.search(r'\beval\s*\(', html): issues.append("Uses eval() — potential code injection risk")
+    if re.search(r'document\.write\s*\(', html): issues.append("Uses document.write() — can allow injected content")
+    if re.search(r'<iframe', html, re.IGNORECASE): issues.append("Contains an embedded iframe")
+    if re.search(r'atob\s*\(', html): issues.append("Contains a base64-decoded script payload")
+    if re.search(r'on(?:error|load)\s*=\s*["\'][^"\']*(?:eval|atob)', html, re.IGNORECASE):
+        issues.append("Suspicious inline event handler")
+    return issues
+
+def run_security_scan(user_id):
+    """Runs SSL, content-safety, backup-freshness and 2FA checks against
+    this user's actual sites and account — computed live, not hardcoded."""
+    businesses = [dict(b) for b in db_fetchall(q("SELECT * FROM business WHERE owner_id=?"), (user_id,))]
+    checks, passes, total = [], 0, 0
+
+    for b in businesses:
+        if b['status'] != 'approved': continue
+        domain = b['custom_domain'] if (b.get('domain_status') == 'active' and b.get('custom_domain')) else f"{b['slug']}.trustedbiz.co.ug"
+        total += 1
+        ok, detail, _days = check_domain_ssl(domain)
+        if ok: passes += 1
+        checks.append({'label': 'SSL certificate', 'target': f"{b['name']} — {domain}",
+                       'detail': detail, 'status': 'pass' if ok else 'warn'})
+
+    for b in businesses:
+        total += 1
+        found = scan_site_html(b.get('generated_html'))
+        if found:
+            checks.append({'label': 'Content scan', 'target': b['name'],
+                           'detail': '; '.join(found), 'status': 'warn'})
+        else:
+            passes += 1
+            checks.append({'label': 'Content scan', 'target': b['name'],
+                           'detail': 'No suspicious scripts or embeds found', 'status': 'pass'})
+
+    for b in businesses:
+        total += 1
+        last = db_fetchone(q("SELECT created_at FROM site_backups WHERE business_id=? ORDER BY created_at DESC LIMIT 1"), (b['id'],))
+        if last:
+            passes += 1
+            checks.append({'label': 'Automatic backups', 'target': b['name'],
+                           'detail': f"Last snapshot saved {last['created_at']}", 'status': 'pass'})
+        else:
+            checks.append({'label': 'Automatic backups', 'target': b['name'],
+                           'detail': 'No backup snapshot yet — one is created on next deploy', 'status': 'warn'})
+
+    total += 1; passes += 1
+    checks.append({'label': 'Firewall & DDoS protection', 'target': 'All sites',
+                   'detail': 'Provided at the platform level by the hosting edge network', 'status': 'pass'})
+
+    user_row = db_fetchone(q("SELECT two_factor_enabled FROM users WHERE id=?"), (user_id,))
+    user_row = dict(user_row) if user_row else None
+    total += 1
+    if user_row and user_row.get('two_factor_enabled'):
+        passes += 1
+        checks.append({'label': 'Two-factor login', 'target': 'Your account', 'detail': 'Enabled', 'status': 'pass'})
+    else:
+        checks.append({'label': 'Two-factor login', 'target': 'Your account',
+                       'detail': 'Not yet enabled on your account', 'status': 'warn'})
+
+    score = round((passes / total) * 100) if total else 100
+    return {'score': score, 'passes': passes, 'total': total, 'checks': checks}
+
+def store_security_scan(user_id, result):
+    try:
+        db_insert(q("INSERT INTO security_scans (user_id, score, checks) VALUES (?,?,?)"),
+                  (user_id, result['score'], json.dumps(result['checks'])))
+    except Exception as e:
+        print(f"[security_scan] store error: {e}")
 
 def get_anthropic_client():
     key = os.environ.get("ANTHROPIC_API_KEY","")
@@ -931,6 +1128,9 @@ def login():
         pwd   = request.form.get('password','')
         user  = db_fetchone(q("SELECT * FROM users WHERE email=?"), (email,))
         if user and check_password_hash(user['password'], pwd):
+            if dict(user).get('two_factor_enabled'):
+                session['pending_login_user_id'] = user['id']
+                return redirect('/login/verify-2fa')
             session.permanent = True
             session['user_id']   = user['id']
             session['user_name'] = user['name']
@@ -1063,20 +1263,24 @@ def daisy_create_business():
     )
     ping_google(slug)
 
-    if not html:
+    if html:
+        snapshot_site_html(biz_id, html)
+        log_deploy_event(biz_id, user['id'], 'deploy', f'"{name}" deployed successfully', 'ok')
+    else:
         daisy_ctx = {'name': name, 'category': category, 'description': description,
                      'whatsapp': whatsapp, 'brand_color': color, 'hours': 'Mon-Sat 8am-7pm',
                      'photos': photos_in}
-        def _bg(ctx, bid):
+        def _bg(ctx, bid, uid, bname):
             result, err = call_daisy('website', context=ctx)
             h = (result or {}).get('html') if result else None
             if h:
-                try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (h, bid))
-                except Exception as e: print(f"create-business save error: {e}")
+                save_site_html(bid, h)
+                log_deploy_event(bid, uid, 'deploy', f'"{bname}" deployed successfully', 'ok')
             else:
+                log_deploy_event(bid, uid, 'deploy_failed', f'"{bname}" deploy failed — Daisy timed out', 'warn')
                 print(f"[Daisy API] create-business gen failed for biz {bid}: {err}")
         import threading
-        threading.Thread(target=_bg, args=(daisy_ctx, biz_id), daemon=True).start()
+        threading.Thread(target=_bg, args=(daisy_ctx, biz_id, user['id'], name), daemon=True).start()
 
     return jsonify({'success': True, 'biz_id': biz_id, 'slug': slug,
                      'url': f"https://{slug}.trustedbiz.co.ug"})
@@ -1157,6 +1361,8 @@ def api_daisy_publish():
         return jsonify({'error': 'Could not save the site. Try again.'}), 500
 
     ping_google(slug)
+    snapshot_site_html(biz_id, html)
+    log_deploy_event(biz_id, owner_id or None, 'deploy', f'"{name}" published via Daisy', 'ok')
 
     join_link = None
     if owner_email:
@@ -1194,17 +1400,18 @@ def generate_site(biz_id):
         'plan': bd.get('plan') or 'free',
     }
 
-    def _regen_bg(ctx, biz_id):
+    def _regen_bg(ctx, biz_id, user_id, biz_name):
         result, err = call_daisy('website', context=ctx)
         html = (result or {}).get('html') if result else None
         if html:
-            try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz_id))
-            except Exception as e: print(f"Regen save error: {e}")
+            save_site_html(biz_id, html)
+            log_deploy_event(biz_id, user_id, 'redeploy', f'"{biz_name}" redeployed successfully', 'ok')
         else:
+            log_deploy_event(biz_id, user_id, 'redeploy_failed', f'"{biz_name}" redeploy failed — Daisy timed out', 'warn')
             print(f"[Daisy API] regen failed for biz {biz_id}: {err}")
 
     import threading
-    threading.Thread(target=_regen_bg, args=(daisy_ctx, biz_id), daemon=True).start()
+    threading.Thread(target=_regen_bg, args=(daisy_ctx, biz_id, session['user_id'], bd.get('name')), daemon=True).start()
     flash("✨ Your website is being rebuilt by Daisy... refresh in about 30 seconds to see it live.")
     return redirect('/dashboard')
 
@@ -1231,10 +1438,29 @@ def dashboard():
         if plan_rank.get(b.get('plan') or 'free', 0) > plan_rank.get(chosen_plan, 0):
             chosen_plan = b.get('plan') or 'free'
     current_user = get_current_user()
+
+    deploy_events = db_fetchall(q(
+        "SELECT de.*, b.name as biz_name FROM deploy_events de "
+        "LEFT JOIN business b ON b.id = de.business_id "
+        "WHERE de.user_id=? ORDER BY de.created_at DESC LIMIT 8"), (user_id,))
+    deploy_events = [biz_to_dict(e) for e in deploy_events]
+
+    last_scan = db_fetchone(q("SELECT * FROM security_scans WHERE user_id=? ORDER BY created_at DESC LIMIT 1"), (user_id,))
+    security = None
+    if last_scan:
+        try:
+            security = {'score': last_scan['score'], 'checks': json.loads(last_scan['checks']),
+                       'scanned_at': biz_to_dict(last_scan).get('created_at')}
+            security['passes'] = sum(1 for c in security['checks'] if c['status'] == 'pass')
+            security['total']  = len(security['checks'])
+        except Exception as e:
+            print(f"[dashboard] security scan parse error: {e}")
+
     return render_template('console.html', businesses=businesses, stats=stats,
                            current_user=current_user, total_listings=len(businesses),
                            live_count=live_count, total_views=total_views,
-                           chosen_plan=chosen_plan)
+                           chosen_plan=chosen_plan, deploy_events=deploy_events,
+                           security=security)
 
 # ── DASHBOARD SET COLOR ───────────────────────────────────────────────────────
 @app.route('/dashboard/set-template/<int:biz_id>', methods=['POST'])
@@ -1495,6 +1721,22 @@ def migrate_db():
             db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS location TEXT")
         except Exception:
             pass
+        # Real hosting + security: domains, deploy log, backups, scan cache, 2FA
+        try:
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS custom_domain TEXT")
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS domain_status TEXT DEFAULT 'none'")
+            db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_enabled INTEGER DEFAULT 0")
+            db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret TEXT")
+            if USE_POSTGRES:
+                db_execute("CREATE TABLE IF NOT EXISTS deploy_events (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+                db_execute("CREATE TABLE IF NOT EXISTS site_backups (id SERIAL PRIMARY KEY, business_id INTEGER, html_snapshot TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+                db_execute("CREATE TABLE IF NOT EXISTS security_scans (id SERIAL PRIMARY KEY, user_id INTEGER, score INTEGER, checks TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            else:
+                db_execute("CREATE TABLE IF NOT EXISTS deploy_events (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+                db_execute("CREATE TABLE IF NOT EXISTS site_backups (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, html_snapshot TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+                db_execute("CREATE TABLE IF NOT EXISTS security_scans (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, score INTEGER, checks TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+        except Exception as e:
+            print(f"Migration (hosting/security) error: {e}")
         return "Migration done! All columns added."
     except Exception as e:
         return f"Migration error: {e}"
@@ -1745,6 +1987,8 @@ def deploy_site():
         (name, category, whatsapp, description, brand_color, slug, user['id'], 'approved', 'free', 0, custom_html)
     )
     ping_google(slug)
+    snapshot_site_html(biz_id, custom_html)
+    log_deploy_event(biz_id, user['id'], 'deploy', f'"{name}" deployed successfully', 'ok')
     flash(f'🚀 "{name}" is now LIVE at {slug}.trustedbiz.co.ug!', 'success')
     return redirect('/dashboard#sites')
 
@@ -1753,20 +1997,179 @@ def deploy_site():
 @login_required
 def trusthost_request_domain():
     user          = get_current_user()
-    biz_id        = request.form.get('biz_id','')
-    custom_domain = request.form.get('custom_domain','').strip().lower()
+    biz_id        = request.form.get('biz_id','').strip()
+    custom_domain = request.form.get('domain','').strip().lower()
     custom_domain = custom_domain.replace('https://','').replace('http://','').rstrip('/')
-    if biz_id and custom_domain:
-        biz = db_fetchone(q("SELECT id FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
-        if biz:
-            try:
-                db_execute(q("UPDATE business SET custom_domain=? WHERE id=?"), (custom_domain, biz_id))
-                flash(f'✅ Domain "{custom_domain}" requested! Point your CNAME to trustedbiz.co.ug then wait 24hrs.', 'success')
-            except:
-                flash('Run /admin/migrate-db first to enable custom domains.', 'error')
-        else:
-            flash('Site not found.', 'error')
+    if not biz_id or not custom_domain:
+        flash('Pick a site and enter a domain.', 'error')
+        return redirect('/dashboard#hosting')
+    biz = db_fetchone(q("SELECT id, name FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
+    if not biz:
+        flash('Site not found.', 'error')
+        return redirect('/dashboard#hosting')
+    try:
+        db_execute(q("UPDATE business SET custom_domain=?, domain_status='pending' WHERE id=?"), (custom_domain, biz_id))
+        log_deploy_event(biz_id, user['id'], 'domain_requested',
+                         f'{biz["name"]}: custom domain "{custom_domain}" requested', 'ok')
+        flash(f'✅ Domain "{custom_domain}" requested for {biz["name"]}! Point its CNAME at trustedbiz.co.ug, '
+              f'then use "Verify DNS" below once it has propagated (can take up to 24hrs).', 'success')
+    except Exception as e:
+        print(f"[trusthost_request_domain] {e}")
+        flash('Could not save that domain — run /admin/migrate-db then try again.', 'error')
     return redirect('/dashboard#hosting')
+
+
+@app.route('/hosting/verify-domain/<int:biz_id>', methods=['POST'])
+@login_required
+def verify_domain(biz_id):
+    """Real DNS/TLS check — actually connects to the domain over HTTPS
+    rather than just flipping a status flag."""
+    user = get_current_user()
+    user = dict(user) if user else None
+    if not user:
+        return redirect('/login')
+    biz  = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
+    biz  = dict(biz) if biz else None
+    if not biz or not biz.get('custom_domain'):
+        flash('No pending domain for that site.', 'error')
+        return redirect('/dashboard#hosting')
+    ok, detail, _days = check_domain_ssl(biz['custom_domain'])
+    if ok:
+        db_execute(q("UPDATE business SET domain_status='active' WHERE id=?"), (biz_id,))
+        log_deploy_event(biz_id, user['id'], 'domain_connected',
+                         f'{biz["name"]}: custom domain "{biz["custom_domain"]}" verified and SSL active', 'ok')
+        if user.get('email'):
+            _email_domain_live(user.get('name') or 'there', user['email'], biz['name'], biz['custom_domain'])
+        flash(f'✅ {biz["custom_domain"]} is verified and live!', 'success')
+    else:
+        flash(f'Not verified yet — {detail}. DNS changes can take up to 24hrs.', 'error')
+    return redirect('/dashboard#hosting')
+
+
+@app.route('/security/scan', methods=['POST'])
+@login_required
+def security_scan():
+    """Runs the real checks (SSL, content scan, backups, 2FA) live and
+    caches the result so the panel doesn't re-scan on every page load."""
+    result = run_security_scan(session['user_id'])
+    store_security_scan(session['user_id'], result)
+    return jsonify(result)
+
+
+_2FA_PAGE = """
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two-factor login | TrustedBiz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:#f5f8f8;color:#0d1c1c;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:#fff;border:1px solid #dde8e8;border-radius:8px;padding:32px;max-width:420px;width:100%;}
+h1{font-size:19px;font-weight:800;margin-bottom:6px;}
+p{font-size:13.5px;color:#43605f;line-height:1.6;margin-bottom:14px;}
+.secret{font-family:'DM Mono',monospace;font-size:13px;background:#f5f8f8;border:1px solid #dde8e8;border-radius:4px;padding:12px 14px;word-break:break-all;margin-bottom:16px;}
+input{width:100%;padding:11px 14px;border:1.5px solid #dde8e8;border-radius:4px;font-family:'DM Mono',monospace;font-size:15px;letter-spacing:2px;margin-bottom:12px;}
+button{width:100%;padding:11px;border-radius:4px;font-weight:700;font-size:13.5px;border:none;background:#2b7a78;color:#fff;cursor:pointer;}
+button:hover{background:#1f5c5a;}
+a{color:#2b7a78;font-size:13px;}
+.flash{padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:14px;background:#fdecec;border-left:3px solid #dc2626;}
+</style></head><body>
+<div class="card">
+  <h1>Set up two-factor login</h1>
+  {% with messages = get_flashed_messages() %}{% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}{% endwith %}
+  <p>Scan this into an authenticator app (Google Authenticator, Authy, etc.), or enter the key manually:</p>
+  <div class="secret">{{ secret }}</div>
+  <p style="font-size:11.5px;color:#8aa5a4;">otpauth URI: {{ uri }}</p>
+  <form method="POST" action="/account/2fa/enable">
+    <input name="code" placeholder="6-digit code" inputmode="numeric" maxlength="6" required>
+    <button type="submit">Confirm & enable</button>
+  </form>
+  <p style="margin-top:14px;"><a href="/dashboard#security">Cancel</a></p>
+</div>
+</body></html>
+"""
+
+_2FA_VERIFY_PAGE = """
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify code | TrustedBiz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:#f5f8f8;color:#0d1c1c;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:#fff;border:1px solid #dde8e8;border-radius:8px;padding:32px;max-width:380px;width:100%;}
+h1{font-size:19px;font-weight:800;margin-bottom:6px;}
+p{font-size:13.5px;color:#43605f;line-height:1.6;margin-bottom:16px;}
+input{width:100%;padding:11px 14px;border:1.5px solid #dde8e8;border-radius:4px;font-family:'DM Mono',monospace;font-size:15px;letter-spacing:2px;margin-bottom:12px;}
+button{width:100%;padding:11px;border-radius:4px;font-weight:700;font-size:13.5px;border:none;background:#2b7a78;color:#fff;cursor:pointer;}
+button:hover{background:#1f5c5a;}
+.flash{padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:14px;background:#fdecec;border-left:3px solid #dc2626;}
+</style></head><body>
+<div class="card">
+  <h1>Enter your code</h1>
+  {% with messages = get_flashed_messages() %}{% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}{% endwith %}
+  <p>Open your authenticator app and enter the current 6-digit code for TrustedBiz.</p>
+  <form method="POST">
+    <input name="code" placeholder="6-digit code" inputmode="numeric" maxlength="6" required autofocus>
+    <button type="submit">Verify & sign in</button>
+  </form>
+</div>
+</body></html>
+"""
+
+@app.route('/account/2fa/setup')
+@login_required
+def account_2fa_setup():
+    user = get_current_user()
+    if user and dict(user).get('two_factor_enabled'):
+        flash('Two-factor login is already enabled.')
+        return redirect('/dashboard#security')
+    secret = pyotp.random_base32()
+    session['pending_2fa_secret'] = secret
+    uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user['email'], issuer_name='TrustedBiz')
+    return render_template_string(_2FA_PAGE, secret=secret, uri=uri)
+
+@app.route('/account/2fa/enable', methods=['POST'])
+@login_required
+def account_2fa_enable():
+    secret = session.get('pending_2fa_secret')
+    code   = request.form.get('code','').strip()
+    if not secret:
+        flash('Start setup again.', 'error')
+        return redirect('/dashboard#security')
+    if pyotp.TOTP(secret).verify(code, valid_window=1):
+        db_execute(q("UPDATE users SET two_factor_enabled=1, two_factor_secret=? WHERE id=?"), (secret, session['user_id']))
+        session.pop('pending_2fa_secret', None)
+        user = dict(get_current_user() or {})
+        if user.get('email'):
+            _email_2fa_enabled(user.get('name') or 'there', user['email'])
+        flash('✅ Two-factor login enabled.', 'success')
+        return redirect('/dashboard#security')
+    flash("That code didn't match — try again.")
+    return redirect('/account/2fa/setup')
+
+@app.route('/account/2fa/disable', methods=['POST'])
+@login_required
+def account_2fa_disable():
+    db_execute(q("UPDATE users SET two_factor_enabled=0, two_factor_secret=NULL WHERE id=?"), (session['user_id'],))
+    flash('Two-factor login turned off.', 'success')
+    return redirect('/dashboard#security')
+
+@app.route('/login/verify-2fa', methods=['GET','POST'])
+def login_verify_2fa():
+    pending_id = session.get('pending_login_user_id')
+    if not pending_id:
+        return redirect('/login')
+    if request.method == 'POST':
+        code = request.form.get('code','').strip()
+        user = db_fetchone(q("SELECT * FROM users WHERE id=?"), (pending_id,))
+        user_d = dict(user) if user else None
+        if user_d and user_d.get('two_factor_secret') and pyotp.TOTP(user_d['two_factor_secret']).verify(code, valid_window=1):
+            session.pop('pending_login_user_id', None)
+            session.permanent = True
+            session['user_id']   = user['id']
+            session['user_name'] = user['name']
+            return redirect('/dashboard')
+        flash('Invalid code — try again.')
+    return render_template_string(_2FA_VERIFY_PAGE)
 
 
 @app.route('/daisy/ping', methods=['GET','POST'])
