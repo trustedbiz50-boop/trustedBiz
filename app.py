@@ -17,7 +17,7 @@ on ENV VARS (add on Render dashboard):
                          it never reaches a browser.
 """
 
-import os, math, json, re, secrets, requests, socket, ssl
+import os, math, json, re, secrets, requests, socket, ssl, hashlib, base64
 import pyotp
 from datetime import timedelta, datetime
 from difflib import SequenceMatcher
@@ -30,9 +30,6 @@ from werkzeug.utils import secure_filename
 
 # ── EMAIL ─────────────────────────────────────────────────────────────────────
 import threading, urllib.request
-from plan_power import get_website_power, get_artifact_power, artifact_allowed
-from image_generator import generate_business_images, generate_single_image
-from daisy_builders import build_artifact, ARTIFACT_MODES, register_template_saver
 
 _BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 _MAIL_FROM     = os.environ.get("MAIL_FROM", "TrustedBiz <hello@trustedbiz.co.ug>")
@@ -391,6 +388,7 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS deploy_events (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS site_backups (id SERIAL PRIMARY KEY, business_id INTEGER, html_snapshot TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS security_scans (id SERIAL PRIMARY KEY, user_id INTEGER, score INTEGER, checks TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS artifacts (id SERIAL PRIMARY KEY, user_id INTEGER, business_id INTEGER, mode TEXT, html TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         ]
         cur = conn.cursor()
         for t in tables: cur.execute(t)
@@ -412,6 +410,7 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS deploy_events (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS site_backups (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, html_snapshot TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS security_scans (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, score INTEGER, checks TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS artifacts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, business_id INTEGER, mode TEXT, html TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         ]
         for t in tables: conn.execute(t)
         conn.commit()
@@ -616,6 +615,469 @@ def get_anthropic_client():
         return anthropic.Anthropic(api_key=key)
     except ImportError:
         return None
+
+# ── PLAN POWER (was plan_power.py) ──────────────────────────────────────────
+# Single source of truth for what each plan actually gets when Daisy builds
+# something — model, token budget, image count. Read by call_daisy() and the
+# artifact builders below so free/basic/pro_max produce visibly different
+# results instead of all hitting the same code path.
+WEBSITE_POWER = {
+    "free":     {"model": "claude-sonnet-5", "max_tokens": 8000,  "passes": 1, "images": 0, "label": "Free"},
+    "basic":    {"model": "claude-sonnet-5", "max_tokens": 14000, "passes": 1, "images": 2, "label": "Basic"},
+    "pro_max":  {"model": "claude-sonnet-5", "max_tokens": 24000, "passes": 2, "images": 6, "label": "Pro Max"},
+}
+_PLAN_ALIASES = {"promax": "pro_max"}
+
+def get_website_power(plan):
+    plan = _PLAN_ALIASES.get((plan or "free").strip().lower(), (plan or "free").strip().lower())
+    return WEBSITE_POWER.get(plan, WEBSITE_POWER["free"])
+
+ARTIFACT_TYPES = ["logo", "catalog", "flyer", "cards", "cv", "presentation", "exam"]
+ARTIFACT_POWER = {
+    "free":    {"allowed": ["logo", "catalog"], "monthly_limit": 3,    "max_tokens": 8000},
+    "basic":   {"allowed": ["logo", "catalog", "flyer", "cards", "cv"], "monthly_limit": 20, "max_tokens": 9000},
+    "pro_max": {"allowed": ARTIFACT_TYPES, "monthly_limit": None, "max_tokens": 12000},
+}
+
+def get_artifact_power(plan):
+    plan = _PLAN_ALIASES.get((plan or "free").strip().lower(), (plan or "free").strip().lower())
+    return ARTIFACT_POWER.get(plan, ARTIFACT_POWER["free"])
+
+def artifact_allowed(plan, artifact_type):
+    return artifact_type in get_artifact_power(plan)["allowed"]
+
+
+# ── AI IMAGE GENERATION (was image_generator.py) ────────────────────────────
+# Custom on-brand images for a business that hasn't uploaded its own photos.
+# Gated by plan via WEBSITE_POWER['images'] / ARTIFACT_POWER above. Uses
+# Together AI's image endpoint (FLUX.1-schnell) — cheap, fast, one env var.
+# Returns [] / None (never raises) if TOGETHER_API_KEY isn't set — callers
+# treat that as "no AI photos this time", not an error.
+TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY", "")
+TOGETHER_URL = "https://api.together.xyz/v1/images/generations"
+IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell-Free"
+IMG_SAVE_DIR = os.path.join(os.path.dirname(__file__), "static", "ai-images")
+
+def _img_save_dir():
+    os.makedirs(IMG_SAVE_DIR, exist_ok=True)
+    return IMG_SAVE_DIR
+
+def _img_prompt_for(business_ctx, purpose):
+    name = business_ctx.get("name", "a local business")
+    category = business_ctx.get("category", "business")
+    color = business_ctx.get("brand_color", "#2b7a78")
+    return (f"Professional, realistic photograph-style image for a {category} business "
+            f"called {name} in Uganda. {purpose}. Warm, authentic, natural lighting — "
+            f"not a stock-photo cliché, not a cartoon or illustration, not text or "
+            f"logos in the image. Accent color mood: {color}.")
+
+def _call_together(prompt, width=1024, height=576):
+    if not TOGETHER_API_KEY:
+        return None
+    try:
+        resp = requests.post(
+            TOGETHER_URL,
+            headers={"Authorization": f"Bearer {TOGETHER_API_KEY}"},
+            json={"model": IMAGE_MODEL, "prompt": prompt, "width": width, "height": height,
+                  "steps": 4, "n": 1, "response_format": "b64_json"},
+            timeout=45,
+        )
+        resp.raise_for_status()
+        b64 = resp.json()["data"][0]["b64_json"]
+        return base64.b64decode(b64)
+    except Exception as e:
+        print(f"[ImageGen/Together] {e}")
+        return None
+
+def generate_business_images(business_ctx, count=2):
+    if not TOGETHER_API_KEY or count <= 0:
+        return []
+    purposes = [
+        "A welcoming shot of the storefront or workspace",
+        "A close-up of the product or service in use",
+        "A candid shot of the space or setting customers would see",
+        "A detail shot that shows the quality of the work",
+        "A wide shot showing the atmosphere of the place",
+        "A shot highlighting what makes this business distinctive",
+    ]
+    urls = []
+    name_key = business_ctx.get("name", "biz")
+    for i in range(min(count, len(purposes))):
+        prompt = _img_prompt_for(business_ctx, purposes[i])
+        img_bytes = _call_together(prompt)
+        if not img_bytes:
+            continue
+        fname = hashlib.md5(f"{name_key}{i}{prompt}".encode()).hexdigest()[:16] + ".jpg"
+        path = os.path.join(_img_save_dir(), fname)
+        try:
+            with open(path, "wb") as f:
+                f.write(img_bytes)
+            urls.append(f"/static/ai-images/{fname}")
+        except Exception as e:
+            print(f"[ImageGen/Save] {e}")
+    return urls
+
+def generate_single_image(prompt, width=1024, height=1024, filename_seed=None):
+    if not TOGETHER_API_KEY:
+        return None
+    img_bytes = _call_together(prompt, width=width, height=height)
+    if not img_bytes:
+        return None
+    fname = hashlib.md5((filename_seed or prompt).encode()).hexdigest()[:16] + ".jpg"
+    path = os.path.join(_img_save_dir(), fname)
+    try:
+        with open(path, "wb") as f:
+            f.write(img_bytes)
+        return f"/static/ai-images/{fname}"
+    except Exception as e:
+        print(f"[ImageGen/Save] {e}")
+        return None
+
+
+# ── DAISY ARTIFACT BUILDER (was daisy_builders.py) ──────────────────────────
+# Logo / flyer / cards / CV / exam / presentation / WhatsApp catalog — Daisy's
+# non-website outputs. build_artifact() is the one function the rest of the
+# app calls; everything else here is internal to how each artifact is made.
+def _artifact_uid(name, seed):
+    return hashlib.md5(f"{name}{seed}".encode()).hexdigest()[:8]
+
+_artifact_save_fn = None
+
+def register_template_saver(fn):
+    global _artifact_save_fn
+    _artifact_save_fn = fn
+
+def _save_artifact_template(mode, html):
+    if _artifact_save_fn and html and len(html) > 300:
+        try:
+            _artifact_save_fn(mode, html)
+        except Exception as e:
+            print(f"[Daisy/SaveTemplate] {e}")
+
+def _artifact_claude(prompt, max_tokens=8000):
+    """Call Claude for an artifact. Handles truncation. Returns text or None."""
+    client = get_anthropic_client()
+    if client is None:
+        print("[Daisy/Claude] No API key")
+        return None
+    try:
+        messages = [{"role": "user", "content": prompt}]
+        full_text = ""
+        for rnd in range(3):
+            msg = client.messages.create(model="claude-haiku-4-5", max_tokens=max_tokens, messages=messages)
+            chunk = msg.content[0].text if msg.content else ""
+            full_text += chunk
+            print(f"[Daisy/Claude] round={rnd+1} stop={msg.stop_reason} len={len(full_text)}")
+            if msg.stop_reason != "max_tokens":
+                break
+            messages.append({"role": "assistant", "content": chunk})
+            messages.append({"role": "user", "content": "Continue exactly where you stopped."})
+        text = full_text.strip()
+        text = re.sub(r'^```[a-z]*\s*', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\s*```$', '', text)
+        return text if len(text) > 200 else None
+    except Exception as e:
+        print(f"[Daisy/Claude] {e}")
+        return None
+
+def _daisy_logo(name, color, style, uid, ctx=None):
+    full_req = (ctx or {}).get('full_request') or (ctx or {}).get('description') or ''
+    design_brief = f"The user specifically asked for: {full_req}" if full_req else ""
+    prompt = f"""Create a professional standalone SVG logo for a business called "{name}".
+
+Brand color: {color}
+Style: {style}
+{design_brief}
+Size: 400x400 viewBox
+
+RULES — follow exactly:
+1. Output ONLY the SVG. Start with <svg and end with </svg>. Nothing else.
+2. No HTML wrapper. No markdown. No explanation. Just the SVG.
+3. Design a REAL logo mark — geometric shapes, abstract icon, or letterform with design intent. Not clip art.
+4. Include the business name "{name}" as text inside the SVG using a clean sans-serif font
+5. Use {color} as the primary color. Can use lighter/darker shades of it.
+6. Clean white or transparent background
+7. Professional enough to print on a business card, signboard or shirt
+8. The design must be unique and specific to "{name}" — not generic
+9. No external fonts or images — embed everything in the SVG
+10. Make it look like it was designed by a professional logo designer, not generated
+
+Output the SVG now:"""
+    result = _artifact_claude(prompt, max_tokens=4000)
+    if result and '<svg' in result:
+        svg_start = result.find('<svg')
+        svg_end = result.rfind('</svg>') + 6
+        if svg_start > 0:
+            result = result[svg_start:svg_end]
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>{name} Logo</title>
+<style>
+* {{ margin:0;padding:0;box-sizing:border-box; }}
+body {{ background:#f8f8f8;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif; }}
+.card {{ background:#fff;border-radius:16px;padding:48px;box-shadow:0 4px 32px rgba(0,0,0,.1);text-align:center; }}
+.card svg {{ width:280px;height:280px; }}
+.on-dark {{ background:#111;border-radius:12px;padding:32px;margin-top:24px;display:inline-block; }}
+.on-dark svg {{ width:160px;height:160px; }}
+p {{ margin-top:16px;font-size:12px;color:#999;letter-spacing:1px;text-transform:uppercase; }}
+</style>
+</head>
+<body>
+<div class="card">
+{result}
+<p>{name} · TrustedBiz Uganda</p>
+<div class="on-dark">{result}</div>
+</div>
+</body>
+</html>"""
+        _save_artifact_template('logo', html)
+        return html
+    return None
+
+def _daisy_flyer(name, color, style, description, uid):
+    prompt = f"""Design a professional promotional flyer as a complete standalone HTML page.
+
+Business: {name}
+Color: {color}
+Style: {style}
+Description: {description}
+
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Single A5 flyer card (420×594px) centered on a neutral background
+3. The flyer must look like it was designed by a professional agency in Uganda
+4. Use {color} powerfully — bold gradient backgrounds, strong typography
+5. Large impactful headline using the business name
+6. Short punchy tagline from the description (max 8 words)
+7. One clear call to action
+8. "TrustedBiz Verified" small badge
+9. Google Fonts via @import: Syne for headings, DM Sans for body
+10. NO lorem ipsum. NO placeholder text. Real content only.
+11. Design must be striking — someone should want to share it on WhatsApp
+12. No external images. CSS only for decoration.
+
+Output the HTML now:"""
+    html = _artifact_claude(prompt, max_tokens=5000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
+        _save_artifact_template('flyer', html)
+        return html
+    return None
+
+def _daisy_cards(name, color, style, whatsapp, description, uid):
+    prompt = f"""Design professional double-sided business cards as a complete standalone HTML page.
+
+Business: {name}
+Color: {color}
+Style: {style}
+Role/tagline: {description}
+WhatsApp: +{whatsapp}
+
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Show FRONT card and BACK card side by side (stacked on mobile)
+3. Card dimensions: 350×200px each
+4. FRONT: {color} gradient background, business name in large bold Syne font, role/tagline, small geometric mark in SVG, "TrustedBiz ✓" badge
+5. BACK: Clean white, business name in {color}, WhatsApp number prominently, "trustedbiz.co.ug", thin {color} left border accent
+6. Each card must look premium — like a Moo.com or Canva premium card
+7. Google Fonts: Syne + DM Sans via @import
+8. Crisp typography, tight spacing, no clutter
+9. No lorem ipsum. Real content only.
+10. Cards must be practical — someone prints this and hands it out
+
+Output the HTML now:"""
+    html = _artifact_claude(prompt, max_tokens=4000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
+        _save_artifact_template('cards', html)
+        return html
+    return None
+
+def _daisy_cv(ctx, uid):
+    name   = str(ctx.get('fullname') or ctx.get('name') or 'Your Name')
+    role   = str(ctx.get('role') or ctx.get('title') or ctx.get('description') or 'Professional')
+    email  = str(ctx.get('email') or '')
+    phone  = str(ctx.get('phone') or ctx.get('whatsapp') or '')
+    color  = str(ctx.get('color') or '#2b7a78')
+    skills = str(ctx.get('skills') or '')
+    prompt = f"""Design a professional CV/resume as a complete standalone HTML page.
+
+Name: {name}
+Role: {role}
+Email: {email}
+Phone: {phone}
+Color: {color}
+Skills hint: {skills or 'infer from role'}
+
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Single page layout, max-width 780px, centered, print-ready
+3. Top header band in {color} — name, role, contact details in white
+4. Sections: Profile Summary, Key Skills (tag pills), Experience, Education
+5. Write REAL professional content for a {role} working in Uganda — no placeholders
+6. Skills: 6 relevant skills as colored pill badges using {color}
+7. Google Fonts: DM Sans body, Syne for name
+8. Design quality: looks like a premium Canva Pro template
+9. {color} for headings, skill tags, section dividers
+10. This CV must be ready to send to an employer TODAY
+
+Output the HTML now:"""
+    html = _artifact_claude(prompt, max_tokens=6000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
+        _save_artifact_template('cv', html)
+        return html
+    return None
+
+def _daisy_exam(ctx, uid):
+    subject = str(ctx.get('subject') or ctx.get('topic') or 'General Knowledge')
+    level   = str(ctx.get('level') or 'O-Level')
+    prompt = f"""Create a complete, authentic Uganda curriculum exam paper as a standalone HTML page.
+
+Subject: {subject}
+Level: {level}
+Year: 2026
+Paper ID: {uid.upper()}
+
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Looks exactly like a real Uganda National Examinations Board paper
+3. Header: REPUBLIC OF UGANDA, subject, level, time (2hrs 30min), paper ID
+4. Instructions box with proper UNEB style instructions
+5. Section A — 10 SHORT ANSWER questions. Real {subject} questions for {level}. 2 marks each. 2 answer lines per question.
+6. Section B — 4 ESSAY questions. Real {subject} questions for {level}. 20 marks each. 8 answer lines per question.
+7. Questions MUST be real, specific, curriculum-accurate — not vague
+8. Georgia serif font, proper academic typography
+9. Print-ready — a teacher could photocopy this tomorrow
+10. Total marks: 80
+
+Output the HTML now:"""
+    html = _artifact_claude(prompt, max_tokens=8000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
+        _save_artifact_template('exam', html)
+        return html
+    return None
+
+def _daisy_presentation(ctx, uid):
+    topic = str(ctx.get('description') or ctx.get('topic') or ctx.get('name') or 'Presentation')
+    color = str(ctx.get('color') or '#2b7a78')
+    style = str(ctx.get('style') or 'modern')
+    prompt = f"""Create a professional multi-slide presentation as a complete standalone HTML page.
+
+Topic: {topic}
+Color: {color}
+Style: {style}
+
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. 7 slides minimum: Title, Agenda, 4 content slides, Call to Action
+3. Each slide fills 100vh, clean full-screen design
+4. Navigation: ← → arrow buttons + "2 / 7" counter, fixed bottom center
+5. Left/right keyboard arrows also work
+6. CSS transitions between slides (fade or slide)
+7. {color} used boldly — full color slide backgrounds, large typography
+8. Real, useful content about "{topic}" — no lorem ipsum
+9. Google Fonts: Syne headings, DM Sans body via @import
+10. Mobile responsive
+11. Looks like a premium PowerPoint template
+12. "TrustedBiz Uganda" small footer on each slide
+
+Output the HTML now:"""
+    html = _artifact_claude(prompt, max_tokens=8000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
+        _save_artifact_template('presentation', html)
+        return html
+    return None
+
+def _daisy_catalog(ctx, uid):
+    name  = str(ctx.get('name') or 'Business')
+    desc  = str(ctx.get('description') or '')
+    color = str(ctx.get('color') or '#2b7a78')
+    wa    = str(ctx.get('whatsapp') or '')
+    items = ctx.get('items') or []
+    items_text = '\n'.join([f"- {i}" for i in items]) if items else 'infer 6 products/services from the business'
+    prompt = f"""Create a professional WhatsApp product catalog as a complete standalone HTML page.
+
+Business: {name}
+Description: {desc}
+WhatsApp: {wa}
+Color: {color}
+Products/Services:
+{items_text}
+
+RULES — follow exactly:
+1. Output complete HTML from <!DOCTYPE html> to </html>
+2. Header: business name, colorful logo mark, "Order on WhatsApp" button → wa.me/{wa}
+3. Product grid: 2 columns mobile, 3 columns desktop
+4. Each product card: emoji icon, product name, 1-line description, price (UGX), "Order" button → WhatsApp
+5. {color} for header, buttons, card accents
+6. Clean mobile-first design — this gets shared on WhatsApp
+7. Google Fonts: DM Sans via @import
+8. "TrustedBiz Verified ✓" badge in header
+9. Real product names and descriptions — no placeholders
+10. Someone should be able to share this link and get orders TODAY
+
+Output the HTML now:"""
+    html = _artifact_claude(prompt, max_tokens=5000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
+        _save_artifact_template('catalog', html)
+        return html
+    return None
+
+def _daisy_generic(name, mode, color, uid):
+    prompt = f"""Create a professional {mode} as a complete standalone HTML page.
+
+Name: {name}
+Color: {color}
+
+Output complete, professional HTML. Google Fonts (DM Sans + Syne). {color} used throughout.
+Real content — no placeholders. Ready to use TODAY.
+Start with <!DOCTYPE html>:"""
+    html = _artifact_claude(prompt, max_tokens=5000)
+    if html and '<!DOCTYPE' in html:
+        if '</html>' not in html[-100:]:
+            html = html.rstrip() + "\n</body>\n</html>"
+        _save_artifact_template(mode, html)
+        return html
+    return None
+
+ARTIFACT_MODES = {"logo", "catalog", "flyer", "cards", "cv", "presentation", "exam"}
+
+def build_artifact(mode, ctx):
+    """The one function the rest of the app calls to build a non-website
+    Daisy output. Returns HTML (or SVG-in-HTML for logo), or None on failure."""
+    ctx = ctx or {}
+    name  = str(ctx.get('name') or 'Business')
+    color = str(ctx.get('color') or ctx.get('brand_color') or '#2b7a78')
+    style = str(ctx.get('style') or 'modern')
+    uid   = _artifact_uid(name, mode)
+    if mode == "logo":
+        return _daisy_logo(name, color, style, uid, ctx=ctx)
+    if mode == "flyer":
+        return _daisy_flyer(name, color, style, str(ctx.get('description') or ''), uid)
+    if mode == "cards":
+        return _daisy_cards(name, color, style, str(ctx.get('whatsapp') or ''), str(ctx.get('description') or ''), uid)
+    if mode == "cv":
+        return _daisy_cv(ctx, uid)
+    if mode == "exam":
+        return _daisy_exam(ctx, uid)
+    if mode == "presentation":
+        return _daisy_presentation(ctx, uid)
+    if mode == "catalog":
+        return _daisy_catalog(ctx, uid)
+    return _daisy_generic(name, mode, color, uid)
+
 
 # ── DAISY — runs directly on the Anthropic API ─────────────────────────────────
 # Daisy used to be a separate Render deployment that TrustedBiz called over
@@ -1731,10 +2193,12 @@ def migrate_db():
                 db_execute("CREATE TABLE IF NOT EXISTS deploy_events (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS site_backups (id SERIAL PRIMARY KEY, business_id INTEGER, html_snapshot TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS security_scans (id SERIAL PRIMARY KEY, user_id INTEGER, score INTEGER, checks TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+                db_execute("CREATE TABLE IF NOT EXISTS artifacts (id SERIAL PRIMARY KEY, user_id INTEGER, business_id INTEGER, mode TEXT, html TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             else:
                 db_execute("CREATE TABLE IF NOT EXISTS deploy_events (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS site_backups (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, html_snapshot TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS security_scans (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, score INTEGER, checks TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+                db_execute("CREATE TABLE IF NOT EXISTS artifacts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, business_id INTEGER, mode TEXT, html TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
         except Exception as e:
             print(f"Migration (hosting/security) error: {e}")
         return "Migration done! All columns added."
@@ -2277,6 +2741,7 @@ def daisy_chat():
         user = get_current_user()
         if user:
             biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
+            biz = dict(biz) if biz else None
             if biz:
                 existing_business = {
                     'name':        biz.get('name'),
@@ -2297,11 +2762,76 @@ def daisy_chat():
         return jsonify({'reply': err or "I'm having a small moment — try again!", 'done': False})
 
     return jsonify({
-        'reply':    result.get('reply', ''),
-        'done':     bool(result.get('mode')),
-        'mode':     result.get('mode'),
-        'business': result.get('business'),
+        'reply':         result.get('reply', ''),
+        'done':          bool(result.get('mode')),
+        'mode':          result.get('mode'),
+        'artifact_type': result.get('artifact_type'),
+        'business':      result.get('business'),
     })
+
+
+@app.route('/daisy/create-artifact', methods=['POST'])
+@login_required
+def daisy_create_artifact():
+    """Actually builds what Daisy's chat could only ever talk about before —
+    logo, flyer, cards, CV, exam, presentation, or WhatsApp catalog. This is
+    the missing link between call_daisy() recognizing an artifact request
+    and build_artifact() actually running."""
+    user = get_current_user()
+    data = request.get_json() or {}
+    mode = (data.get('artifact_type') or data.get('mode') or '').strip().lower()
+    if mode not in ARTIFACT_MODES:
+        return jsonify({'error': 'Unknown artifact type.'}), 400
+
+    biz_id = data.get('biz_id')
+    # Plan gate — the same rule the Billing panel already promises: free
+    # only gets logo/catalog, basic adds flyer/cards/cv, pro_max gets all.
+    plan = 'free'
+    if biz_id:
+        biz_row = db_fetchone(q("SELECT plan FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
+        if biz_row: plan = dict(biz_row).get('plan') or 'free'
+    else:
+        plan_rank = {'free': 0, 'basic': 1, 'pro_max': 2}
+        for b in db_fetchall(q("SELECT plan FROM business WHERE owner_id=?"), (user['id'],)):
+            p = dict(b).get('plan') or 'free'
+            if plan_rank.get(p, 0) > plan_rank.get(plan, 0): plan = p
+
+    if not artifact_allowed(plan, mode):
+        return jsonify({'error': f'{mode.capitalize()} isn\'t included on your current plan — upgrade to unlock it.'}), 403
+
+    ctx = {
+        'name':        data.get('name') or '',
+        'color':       data.get('brand_color') or data.get('color') or '#2b7a78',
+        'brand_color': data.get('brand_color') or data.get('color') or '#2b7a78',
+        'style':       data.get('style') or 'modern',
+        'description': data.get('description') or '',
+        'whatsapp':    data.get('whatsapp') or '',
+        'items':       data.get('items') or [],
+        'fullname':    data.get('fullname'), 'role': data.get('role'),
+        'email':       data.get('email'),    'phone': data.get('phone'),
+        'skills':      data.get('skills'),   'subject': data.get('subject'),
+        'level':       data.get('level'),    'topic': data.get('topic'),
+    }
+
+    html = build_artifact(mode, ctx)
+    if not html:
+        return jsonify({'error': "Couldn't generate that just now — try again in a moment."}), 502
+
+    artifact_id = db_insert(q("INSERT INTO artifacts (user_id, business_id, mode, html) VALUES (?,?,?,?)"),
+                            (user['id'], biz_id or None, mode, html))
+    log_deploy_event(biz_id, user['id'], 'artifact',
+                     f'{mode.capitalize()} generated' + (f' for "{ctx["name"]}"' if ctx['name'] else ''), 'ok')
+
+    return jsonify({'success': True, 'artifact_id': artifact_id, 'mode': mode})
+
+
+@app.route('/artifact/<int:artifact_id>')
+@login_required
+def view_artifact(artifact_id):
+    row = db_fetchone(q("SELECT * FROM artifacts WHERE id=? AND user_id=?"), (artifact_id, session['user_id']))
+    if not row:
+        return "Not found", 404
+    return dict(row)['html']
 
 
 @app.route('/daisy/upload-photo', methods=['POST'])
