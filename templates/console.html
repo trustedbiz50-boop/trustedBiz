@@ -448,6 +448,12 @@ button{font-family:var(--font);}
           <p id="goLiveStatus" style="font-size:12px;color:#c3c1d4;margin-top:8px;"></p>
         </div>
 
+        <div id="artifactBox" style="display:none;padding:16px 18px;border-top:1px solid var(--daisy-border);">
+          <p style="color:#c3c1d4;font-size:13px;margin-bottom:10px;">Ready to generate your <b id="artifactTypeLabel" style="color:var(--daisy-violet);"></b>?</p>
+          <button id="artifactBtn" class="daisy-send" style="width:100%;padding:11px;">Generate</button>
+          <p id="artifactStatus" style="font-size:12px;color:#c3c1d4;margin-top:8px;"></p>
+        </div>
+
         <form class="daisy-form" id="daisyChatForm">
           <input type="file" id="photoInput" accept="image/*" multiple hidden>
           <button type="button" id="photoBtn" class="daisy-send" title="Add photos"
@@ -784,6 +790,12 @@ button{font-family:var(--font);}
   const goLiveBox       = document.getElementById('goLiveBox');
   const goLiveBtn       = document.getElementById('goLiveBtn');
   const goLiveStatus    = document.getElementById('goLiveStatus');
+  const artifactBox     = document.getElementById('artifactBox');
+  const artifactBtn     = document.getElementById('artifactBtn');
+  const artifactStatus  = document.getElementById('artifactStatus');
+  const artifactTypeLabel = document.getElementById('artifactTypeLabel');
+  let pendingArtifactType = null;
+  let pendingArtifactCtx  = {};
   const photoInput      = document.getElementById('photoInput');
   const photoBtn        = document.getElementById('photoBtn');
   const photoStrip      = document.getElementById('photoStrip');
@@ -858,6 +870,12 @@ button{font-family:var(--font);}
       }
       if(data.done && data.mode === 'website'){
         goLiveBox.style.display = 'block';
+      }
+      if(data.done && data.mode === 'artifact' && data.artifact_type){
+        pendingArtifactType = data.artifact_type;
+        pendingArtifactCtx = data.business || {};
+        artifactTypeLabel.textContent = data.artifact_type;
+        artifactBox.style.display = 'block';
       }
     }catch(e){
       hideDaisyStatus();
@@ -972,6 +990,39 @@ button{font-family:var(--font);}
       }catch(e){
         goLiveStatus.textContent = 'Could not reach TrustedBiz — try again.';
         goLiveBtn.disabled = false;
+      }
+    });
+  }
+
+  // ── ARTIFACT BUILDER — real call to /daisy/create-artifact once Daisy's
+  // chat recognizes a logo/flyer/cards/CV/exam/presentation/catalog request.
+  // Opens the finished piece in a new tab via /artifact/<id>.
+  if(artifactBtn){
+    artifactBtn.addEventListener('click', async function(){
+      if(!pendingArtifactType) return;
+      artifactStatus.textContent = 'Generating…';
+      artifactBtn.disabled = true;
+      try{
+        const res = await fetch('/daisy/create-artifact', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(Object.assign(
+            {artifact_type: pendingArtifactType, biz_id: daisyEditBizId},
+            pendingArtifactCtx
+          ))
+        });
+        const data = await res.json();
+        if(data.success){
+          artifactStatus.textContent = 'Done! Opening in a new tab…';
+          window.open('/artifact/' + data.artifact_id, '_blank');
+          artifactBtn.textContent = 'Generated ✓';
+        }else{
+          artifactStatus.textContent = data.error || 'Something went wrong — try again.';
+          artifactBtn.disabled = false;
+        }
+      }catch(e){
+        artifactStatus.textContent = 'Could not reach TrustedBiz — try again.';
+        artifactBtn.disabled = false;
       }
     });
   }
