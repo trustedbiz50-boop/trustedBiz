@@ -400,12 +400,58 @@ button{font-family:var(--font);}
           <a class="btn" href="//{{ b.slug }}.trustedbiz.co.ug" target="_blank">View</a>
           {% endif %}
           <button class="btn" data-target="daisy" onclick="startDaisyEdit({{ b.id }}, {{ b.name|tojson }});">Edit with Daisy</button>
-          <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;">
+          {% if b.generated_html %}
+          <a class="btn" href="/dashboard/edit-code/{{ b.id }}">View/Edit Code</a>
+          {% endif %}
+          <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;" class="regen-form" data-biz-id="{{ b.id }}">
             <button type="submit" class="btn">Redeploy</button>
           </form>
         </div>
+        {% if b.generated_html %}
+        <div class="build-progress" data-biz-id="{{ b.id }}" style="display:{{ 'block' if b.build_status == 'building' else 'none' }};width:100%;margin-top:8px;">
+          <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div class="build-progress-bar" style="height:100%;width:{{ b.build_progress or 0 }}%;background:var(--accent, #2b7a78);transition:width .6s;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--dim);margin-top:3px;">Daisy is building — keeps going even if you leave <span class="build-progress-pct">{{ b.build_progress or 0 }}%</span></div>
+        </div>
+        {% endif %}
       </div>
       {% endfor %}
+      <script>
+      (function(){
+        var bars = document.querySelectorAll('.build-progress');
+        if (!bars.length) return;
+        function poll(){
+          bars.forEach(function(bar){
+            var id = bar.getAttribute('data-biz-id');
+            fetch('/api/build-status/' + id).then(function(r){ return r.json(); }).then(function(d){
+              if (!d || d.error) return;
+              if (d.status === 'building') {
+                bar.style.display = 'block';
+                bar.querySelector('.build-progress-bar').style.width = d.progress + '%';
+                bar.querySelector('.build-progress-pct').textContent = d.progress + '%';
+              } else if (d.status === 'done') {
+                bar.querySelector('.build-progress-bar').style.width = '100%';
+                bar.querySelector('.build-progress-pct').textContent = 'Done — refresh to view';
+                setTimeout(function(){ bar.style.display = 'none'; }, 5000);
+              } else if (d.status === 'failed') {
+                bar.querySelector('.build-progress-pct').textContent = 'Build failed — try Redeploy again';
+              } else {
+                bar.style.display = 'none';
+              }
+            }).catch(function(){});
+          });
+        }
+        document.querySelectorAll('.regen-form').forEach(function(f){
+          f.addEventListener('submit', function(){
+            var bar = document.querySelector('.build-progress[data-biz-id="' + f.getAttribute('data-biz-id') + '"]');
+            if (bar) bar.style.display = 'block';
+          });
+        });
+        poll();
+        setInterval(poll, 3000);
+      })();
+      </script>
       {% else %}
       <div class="site-row"><div class="site-main"><div class="site-name">No sites yet</div><div class="site-url">Deploy your own HTML above, or build with Daisy</div></div></div>
       {% endif %}
