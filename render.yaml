@@ -3,7 +3,7 @@ services:
     name: trustedbiz
     env: python
     buildCommand: apt-get install -y ffmpeg && pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --workers 2 --timeout 300 --keep-alive 5
     envVars:
       - key: SECRET_KEY
         generateValue: true

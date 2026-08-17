@@ -2275,18 +2275,17 @@ def site(slug=None, page=None):
         'document_notes': bd.get('document_notes') or '',
         'documents': [p.strip() for p in str(bd.get('documents') or '').split(',') if p.strip()],
     }
-    result, err = call_daisy('website', context=daisy_ctx)
-    html = (result or {}).get('html') if result else None
-
-    if html:
-        try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz['id']))
-        except: pass
-        page_html = _site_page_html(html, page)
-        return page_html or html
-
-    # Daisy unavailable or still not connected — serve the fallback, don't
-    # leave the visitor with nothing, but don't cache it as the final site.
-    print(f"[Daisy API] site() fallback used for biz {biz['id']}: {err}")
+    # THE FIX: a multi-page build is several sequential Claude calls (site
+    # plan, design brief, home page, art-director rewrite, then every other
+    # page) — it can genuinely take minutes. Running that inline here would
+    # block this request until it finished, at the mercy of whatever the
+    # web server's worker timeout happens to be. Instead: serve the
+    # fallback immediately, kick the real build off in the background (the
+    # same start_daisy_build() used everywhere else on TrustedBiz), and let
+    # the visitor's next refresh (or the owner's dashboard progress bar)
+    # pick up the finished site.
+    start_daisy_build(biz['id'], daisy_ctx, event_label=bd.get('name'))
+    print(f"[Daisy API] site() had no site yet for biz {biz['id']} — background build started, serving fallback")
     return fallback_html
 
 
@@ -2866,14 +2865,10 @@ def admin_preview(biz_id):
         'document_notes': bd.get('document_notes') or '',
         'documents': [p.strip() for p in str(bd.get('documents') or '').split(',') if p.strip()],
     }
-    result, err = call_daisy('website', context=daisy_ctx)
-    html = (result or {}).get('html') if result else None
-    if html:
-        try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz_id))
-        except: pass
-        page_html = _site_page_html(html, request.args.get('page'))
-        return page_html or html
-    print(f"[Daisy API] admin_preview fallback used for biz {biz_id}: {err}")
+    # Same fix as site() — never run a multi-page build inline inside a
+    # request. Background it and serve the fallback now.
+    start_daisy_build(biz_id, daisy_ctx, event_label=bd.get('name'))
+    print(f"[Daisy API] admin_preview had no site yet for biz {biz_id} — background build started, serving fallback")
     return fallback_html
 
 
