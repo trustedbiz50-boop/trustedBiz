@@ -219,9 +219,14 @@ def handle_subdomain():
     if host.endswith('.trustedbiz.co.ug'):
         slug = host.replace('.trustedbiz.co.ug', '')
         if slug and slug not in ('www', 'admin', 'api'):
-            if request.path == '/':
-                # Serve the business page without changing the URL
-                return site(slug)
+            # Any path on a business's own subdomain is a page of THAT
+            # site, not a route on the main app — "/" is Home, "/about" is
+            # the About page, etc. Nav links inside generated pages are
+            # relative slugs (see DAISY_WEBSITE_SYSTEM), so they resolve
+            # correctly here without ever needing the main app's routes.
+            page = request.path.strip('/') or 'index'
+            if '/' not in page and '.' not in page:  # skip static-asset-looking paths
+                return site(slug, page=page)
 ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "trustedbiz2026")
 ADMIN_WHATSAPP  = os.environ.get("ADMIN_WHATSAPP", "256753187966")
 
@@ -320,6 +325,59 @@ def photo_url(ref):
 
 app.jinja_env.globals['photo_url'] = photo_url
 
+LOCAL_DOCS = Path("static/documents")
+LOCAL_DOCS.mkdir(parents=True, exist_ok=True)
+MAX_DOCUMENTS_PER_BUSINESS = 5
+MAX_DOCUMENT_TEXT_CHARS    = 12000  # per document, fed into Daisy's context — real company facts, not a full reprint
+
+def _extract_pdf_text(raw_bytes):
+    """Real text out of an uploaded PDF (company profile, brochure, annual
+    report, etc.) so Daisy can write pages from the business's ACTUAL
+    content instead of guessing. Best-effort — a scanned/image-only PDF
+    yields nothing and the doc still gets stored as a downloadable file."""
+    try:
+        from pypdf import PdfReader
+        import io
+        reader = PdfReader(io.BytesIO(raw_bytes))
+        text = "\n".join((page.extract_text() or "") for page in reader.pages[:40])
+        return text.strip()[:MAX_DOCUMENT_TEXT_CHARS]
+    except Exception as e:
+        print(f"[PDF extract] {e}")
+        return ""
+
+def save_documents_b64(items):
+    """Save uploaded company documents (PDF company profiles, brochures,
+    certificates) and extract real text from PDFs for Daisy to build pages
+    from. items: list of {"data": "data:application/pdf;base64,...", "name": "..."}.
+    Returns list of {"url": ..., "name": ..., "text": ...}."""
+    import base64, re
+    results = []
+    for item in items[:MAX_DOCUMENTS_PER_BUSINESS]:
+        b64  = (item or {}).get("data") or ""
+        name = ((item or {}).get("name") or "document").strip()[:120]
+        try:
+            match = re.match(r'data:application/([\w.\-]+);base64,(.+)', b64, re.DOTALL)
+            if not match:
+                continue
+            subtype, data = match.group(1), match.group(2)
+            ext = 'pdf' if 'pdf' in subtype else subtype.split('.')[-1][:6]
+            raw = base64.b64decode(data)
+            if not raw or len(raw) < 100 or len(raw) > 15 * 1024 * 1024:  # 15 MB cap
+                continue
+            text = _extract_pdf_text(raw) if ext == 'pdf' else ""
+            if USE_CLOUDINARY:
+                up = cloudinary.uploader.upload(raw, folder="trustedbiz/documents",
+                     resource_type="raw", public_id=f"{secrets.token_hex(8)}_{name}")
+                url = up["secure_url"]
+            else:
+                fname = f"{secrets.token_hex(8)}.{ext}"
+                (LOCAL_DOCS/fname).write_bytes(raw)
+                url = f"/static/documents/{fname}"
+            results.append({"url": url, "name": name, "text": text})
+        except Exception as e:
+            print(f"[Document upload] {e}")
+    return results
+
 # ── DB HELPERS ────────────────────────────────────────────────────────────────
 def db_fetchall(sql, params=()):
     conn = get_db()
@@ -374,7 +432,7 @@ def create_tables():
     if USE_POSTGRES:
         tables = [
         "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, two_factor_enabled INTEGER DEFAULT 0, two_factor_secret TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, custom_domain TEXT, domain_status TEXT DEFAULT 'none', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, custom_domain TEXT, domain_status TEXT DEFAULT 'none', documents TEXT, document_notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id SERIAL PRIMARY KEY, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id SERIAL PRIMARY KEY, business_id INTEGER, user_identifier TEXT)",
@@ -396,7 +454,7 @@ def create_tables():
     else:
         tables = [
         "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, two_factor_enabled INTEGER DEFAULT 0, two_factor_secret TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', location TEXT, custom_domain TEXT, domain_status TEXT DEFAULT 'none', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', location TEXT, custom_domain TEXT, domain_status TEXT DEFAULT 'none', documents TEXT, document_notes TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_identifier TEXT)",
@@ -497,7 +555,51 @@ def snapshot_site_html(biz_id, html):
     except Exception as e:
         print(f"[snapshot_site_html] error for biz {biz_id}: {e}")
 
-# ── SECURITY: live checks, not canned badges ────────────────────────────────
+# ── MULTI-PAGE SITES ─────────────────────────────────────────────────────────
+# A site is no longer one HTML blob — it's several real pages (Home, About,
+# Services, Contact, ...) that share one design system and link to each
+# other. `generated_html` still stores one TEXT value (no schema change
+# needed) but it now holds a small JSON envelope:
+#   {"trustedbiz_pages": true, "pages": {"index": "<html>", "about": "<html>", ...},
+#    "order": ["index","about",...], "labels": {"index":"Home","about":"About",...}}
+# Every OLD business still has a plain HTML string in that column (from
+# before this change) — _decode_site() treats that as a single "index" page
+# automatically, so nothing old breaks.
+def _encode_site(pages, order, labels):
+    return json.dumps({"trustedbiz_pages": True, "pages": pages, "order": order, "labels": labels},
+                       ensure_ascii=False)
+
+def _decode_site(raw):
+    """Returns (pages_dict, order_list, labels_dict) for any generated_html
+    value — new multi-page JSON or an old single-HTML-string site."""
+    if not raw:
+        return {}, [], {}
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict) and data.get("trustedbiz_pages"):
+            pages  = data.get("pages") or {}
+            order  = data.get("order") or list(pages.keys())
+            labels = data.get("labels") or {}
+            return pages, order, labels
+    except Exception:
+        pass
+    # Legacy: a plain HTML document was stored directly.
+    return {"index": raw}, ["index"], {"index": "Home"}
+
+def _site_page_html(raw, page=None):
+    """The one page a visitor/preview actually wants, with graceful
+    fallbacks: exact slug -> index -> first available page -> None."""
+    pages, order, _ = _decode_site(raw)
+    if not pages:
+        return None
+    page = (page or "index").strip().strip("/").lower() or "index"
+    if page in pages:
+        return pages[page]
+    if "index" in pages:
+        return pages["index"]
+    return pages[order[0]] if order else next(iter(pages.values()))
+
+
 _SAFE_SCRIPT_HOSTS = ('trustedbiz.co.ug', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net',
                       'fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com',
                       'www.googletagmanager.com', 'www.google-analytics.com')
@@ -617,34 +719,52 @@ def get_anthropic_client():
         return None
 
 # ── PLAN POWER (was plan_power.py) ──────────────────────────────────────────
-# Single source of truth for what each plan actually gets when Daisy builds
-# something — model, token budget, image count. Read by call_daisy() and the
-# artifact builders below so free/basic/pro_max produce visibly different
-# results instead of all hitting the same code path.
-WEBSITE_POWER = {
-    "free":     {"model": "claude-sonnet-5", "max_tokens": 8000,  "passes": 1, "images": 0, "label": "Free"},
-    "basic":    {"model": "claude-sonnet-5", "max_tokens": 14000, "passes": 1, "images": 2, "label": "Basic"},
-    "pro_max":  {"model": "claude-sonnet-5", "max_tokens": 24000, "passes": 2, "images": 6, "label": "Pro Max"},
-}
+# CHANGE (Aug 2026): building with Daisy is now free and full-power for
+# every user — there is no more free/basic/pro_max quality gate. Every site
+# gets the 2-pass art-director build (design-research brief -> draft ->
+# senior-art-director rewrite), the full token budget, and AI photography
+# when the owner hasn't supplied their own. A weak free tier was a
+# liability: every free site is a public shopfront for TrustedBiz itself,
+# and it has to be good enough that a company or NGO would actually use it.
+#
+# `plan` is still accepted by these functions (every call site still passes
+# it) but is deliberately ignored now — it survives on the `business` row
+# purely as a HOSTING/billing label, not a generation-power lever. See
+# HOSTING_* below for the thing TrustedBiz actually charges for.
+FULL_WEBSITE_POWER = {"model": "claude-sonnet-5", "max_tokens": 24000, "passes": 2, "images": 6, "label": "TrustedBiz"}
 _PLAN_ALIASES = {"promax": "pro_max"}
 
-def get_website_power(plan):
-    plan = _PLAN_ALIASES.get((plan or "free").strip().lower(), (plan or "free").strip().lower())
-    return WEBSITE_POWER.get(plan, WEBSITE_POWER["free"])
+def get_website_power(plan=None):
+    return FULL_WEBSITE_POWER
 
 ARTIFACT_TYPES = ["logo", "catalog", "flyer", "cards", "cv", "presentation", "exam"]
-ARTIFACT_POWER = {
-    "free":    {"allowed": ["logo", "catalog"], "monthly_limit": 3,    "max_tokens": 8000},
-    "basic":   {"allowed": ["logo", "catalog", "flyer", "cards", "cv"], "monthly_limit": 20, "max_tokens": 9000},
-    "pro_max": {"allowed": ARTIFACT_TYPES, "monthly_limit": None, "max_tokens": 12000},
-}
+# Every artifact type, for everyone. monthly_limit is a spend guard against
+# abuse now that nothing is plan-gated — not a paywall. Raise it if it's
+# too tight in practice.
+FULL_ARTIFACT_POWER = {"allowed": ARTIFACT_TYPES, "monthly_limit": 30, "max_tokens": 12000}
 
-def get_artifact_power(plan):
-    plan = _PLAN_ALIASES.get((plan or "free").strip().lower(), (plan or "free").strip().lower())
-    return ARTIFACT_POWER.get(plan, ARTIFACT_POWER["free"])
+def get_artifact_power(plan=None):
+    return FULL_ARTIFACT_POWER
 
 def artifact_allowed(plan, artifact_type):
-    return artifact_type in get_artifact_power(plan)["allowed"]
+    return artifact_type in get_artifact_power()["allowed"]
+
+# ── HOSTING — the only thing TrustedBiz charges for ─────────────────────────
+# Building/previewing/editing is free and unlimited. Going live (reachable
+# on the internet at *.trustedbiz.co.ug or a connected custom domain)
+# requires an active hosting subscription. Every business gets
+# HOSTING_TRIAL_DAYS free the first time it goes live; after that it needs
+# a payment on file or it gets suspended (see check_payments()).
+#
+# HOSTING_FEE_* are placeholders — update once you've run the real cost
+# math (server + Claude API + Cloudinary spend per site, plus margin).
+# Nothing else needs to change when you update these; every place that
+# shows a price should read from here, not have its own hardcoded number.
+HOSTING_FEE_MONTHLY = 30000   # UGX — placeholder, change after cost calculations
+HOSTING_FEE_YEARLY  = 300000  # UGX — placeholder (~2 months free vs monthly x12)
+HOSTING_CURRENCY    = "UGX"
+HOSTING_TRIAL_DAYS  = 30
+HOSTING_GRACE_DAYS  = 14      # days after trial/payment lapses before suspension
 
 
 # ── AI IMAGE GENERATION (was image_generator.py) ────────────────────────────
@@ -1138,8 +1258,18 @@ trust and contact this business. That means:
   they actually do. Never generic filler like "Welcome to our website, we
   provide quality services to all our esteemed customers."
 - Use only the real details you're given — name, category, description,
-  hours, WhatsApp, photos, branches, testimonials. Never invent facts,
-  awards, stats, years in business, or reviews you weren't given.
+  hours, WhatsApp, photos, branches, testimonials, and any text pulled
+  from documents the owner uploaded (a company profile, brochure, annual
+  report). Never invent facts, awards, stats, years in business, or
+  reviews you weren't given — but DO use everything genuinely present in
+  an uploaded document's text ("document_notes" in the business details)
+  as real content: history, mission, services, leadership, certifications,
+  clients — this is usually the richest, most specific material you'll
+  get, especially for companies and NGOs. If a document URL is given
+  alongside its text, add a clear "Download our Company Profile" (or
+  similar, named for what it actually is) link/button somewhere sensible
+  (About or Contact page) — real documents like this are exactly the kind
+  of thing that makes a site credible to a company or NGO partner.
 - If no photos are provided, don't fake it with stock-photo-style images,
   cartoon illustrations, or AI-mascot graphics — lean on clean typography,
   color, and layout instead.
@@ -1157,6 +1287,26 @@ trust and contact this business. That means:
   /description, what they offer (services or menu, inferred sensibly from
   category), photo gallery if photos exist, hours, location/branches if
   given, testimonials if given, and one clear WhatsApp call-to-action.
+
+CONTACT PAGE — A REAL FORM, NOT JUST WHATSAPP
+WhatsApp is the default and should stay the fastest option on every page.
+But any Contact page (or a contact section on the home page for a
+WhatsApp-only-feeling small site) should ALSO include a real HTML form —
+name, email, message — for people who'd rather email or who are on desktop
+at an office (a company or NGO contact often prefers this). The form MUST
+use exactly this markup pattern, with the business's real slug filled in:
+<form method="POST" action="https://trustedbiz.co.ug/contact-submit/{slug}">
+  <input type="text" name="name" placeholder="Your name" required>
+  <input type="email" name="email" placeholder="Your email" required>
+  <textarea name="message" placeholder="Message" required></textarea>
+  <button type="submit">Send</button>
+</form>
+Style it to match the site, but keep those exact field names (name,
+email, message) and that exact action URL (always the trustedbiz.co.ug
+domain, never a relative path — the form must work correctly even when
+this page is viewed at the business's own subdomain). If the business
+details include "contact_sent" as true, show a friendly "Thanks — we got
+your message" confirmation instead of the empty form.
 """
 
 DAISY_CHAT_SYSTEM = """You are Daisy, TrustedBiz's friendly AI assistant, \
@@ -1180,6 +1330,15 @@ ask once, plainly: don't nag if they say they don't have any or don't
 reply to it — you can still build a good site with none. If it's already
 above 0, don't ask again, just acknowledge it in passing if it comes up
 naturally.
+
+For a company, NGO, or anything bigger than a small shop — ask once
+whether they have a company profile, brochure, or any document (PDF) they
+already use to describe the business (the widget has a document upload
+button for this too). The context includes "document_count". If it's 0
+and the business sounds like a company/NGO/consultancy rather than a
+simple shop, ask once; don't push if they say no or don't have one. This
+is often the richest source of real content you'll get — use it heavily
+once uploaded (see DAISY_KNOWLEDGE above on document_notes).
 
 Don't interrogate — ask for one or two things at a time, warmly and
 conversationally, like a helpful local assistant, not a form. Once you
@@ -1253,21 +1412,55 @@ website gets built from this widget, only explained and pointed toward.
 """
 
 DAISY_WEBSITE_SYSTEM = """You are Daisy, TrustedBiz's website builder. You \
-are about to generate the real, live, public website for one specific \
-business, from the details TrustedBiz sends you.
+are about to generate the HOME PAGE of a real, live, public, MULTI-PAGE \
+website for one specific business, from the details TrustedBiz sends you. \
+This is one page of several real pages (Home, About, Services/Menu, \
+Gallery, Contact, etc. — whichever fit this business) that a visitor \
+clicks between, the way any real company or NGO website works. It is NOT \
+a single long scrolling page pretending to be a whole site.
 
 """ + DAISY_KNOWLEDGE + """
 OUTPUT FORMAT — CRITICAL
-Respond with ONLY the complete HTML document — starting with <!DOCTYPE
-html> and ending with </html>. No markdown code fences, no explanation
-before or after, no commentary. Everything (CSS, and minimal JS only if
-truly needed) must be inline in this one file — no external stylesheets or
-scripts, though Google Fonts is fine. Write a real <title> and meta
-description built from the business's actual name and description. Use the
-business's brand_color as the primary accent color throughout. If a
-WhatsApp number is given, the primary contact button must be a wa.me link
-built from it. Include a small, unobtrusive "Built with TrustedBiz" footer
-credit.
+Respond with ONLY the complete HTML document for the home page — starting
+with <!DOCTYPE html> and ending with </html>. No markdown code fences, no
+explanation before or after, no commentary. Everything (CSS, and minimal JS
+only if truly needed) must be inline in this one file — no external
+stylesheets or scripts, though Google Fonts is fine. Write a real <title>
+and meta description built from the business's actual name and
+description. Use the business's brand_color as the primary accent color
+throughout. If a WhatsApp number is given, the primary contact button must
+be a wa.me link built from it. Include a small, unobtrusive "Built with
+TrustedBiz" footer credit.
+
+MULTI-PAGE STRUCTURE — CRITICAL
+You'll be told which other pages exist on this site (their slugs and
+labels). This home page must include a real <header> with a <nav> that
+links to every one of those pages, plus this page itself. Nav links MUST
+be plain relative hrefs equal to the page's slug — e.g. href="about",
+href="services", href="contact", and href="index" for the home page's own
+link — never a leading slash, never the business name, never a full URL.
+This is what makes the same generated pages work correctly whether they're
+being previewed or live on the real domain.
+
+Wrap the header (including the nav) in HTML comments exactly like this,
+so it can be reused verbatim on every other page of this site:
+<!-- TB_NAV_START -->
+...header/nav markup...
+<!-- TB_NAV_END -->
+Do the same for the footer:
+<!-- TB_FOOTER_START -->
+...footer markup...
+<!-- TB_FOOTER_END -->
+Everything between those markers must be fully self-contained (no
+page-specific content inside them) since it gets reused byte-for-byte on
+every other page.
+
+The home page itself should be a real, focused landing page — a strong
+hero (name + one clear line on what they do), a short about/intro, a
+highlight of what they offer, and a clear path to WhatsApp — not every
+possible section crammed onto one page. Content that belongs to a
+specific other page (the full service list, the full gallery, the contact
+form) lives on that page instead, not duplicated here.
 
 PHOTOS — REAL CONTENT, NOT DECORATION
 If the business details include photo URLs, use every one of them as an
@@ -1288,6 +1481,76 @@ business — use them exactly like real photos: genuine content in the page
 full-bleed background behind text. Don't mention anywhere in the page that
 they're AI-generated.
 """
+
+DAISY_PAGE_SYSTEM = """You are Daisy, TrustedBiz's website builder. The \
+home page of this business's real, live, multi-page website has already \
+been built and its design system is locked in. You are now building ONE \
+more page of that same site — a different page, not a variation of the \
+home page.
+
+""" + DAISY_KNOWLEDGE + """
+OUTPUT FORMAT — CRITICAL
+Respond with ONLY the complete HTML document for this one page — starting
+with <!DOCTYPE html> and ending with </html>. No markdown fences, no
+explanation before or after. Everything inline (CSS, minimal JS only if
+truly needed), same as any page on this site.
+
+REUSE THE SITE'S DESIGN SYSTEM — DO NOT INVENT A NEW ONE
+You'll be given the exact <header>/<nav> markup and <footer> markup from
+the home page, plus a short design brief describing the site's visual
+direction. Reuse the given header and footer markup byte-for-byte,
+unchanged, at the top and bottom of this page (only add an "active"/
+current-page visual state to this page's own nav link if the markup
+supports it simply — don't restructure the nav to do that). Match the same
+fonts, color palette, spacing rhythm, and overall visual language the
+brief describes, so this page is unmistakably part of the same site, not
+a different one glued on. Nav hrefs must stay exactly as given (plain
+slugs, no leading slash — e.g. href="about", href="index").
+
+THIS PAGE'S JOB
+Write real, specific content for what THIS page is for (you're told its
+slug/label and what a page like that should contain for this business's
+category) — using only the real business details you're given, never
+invented facts. Don't repeat the home page's hero or duplicate content
+that belongs on another page; go deeper on this page's specific purpose
+instead. Use any photos given the same way the home page would — real
+content in the page, never a full-bleed background.
+"""
+
+DAISY_SITE_PLAN_SYSTEM = """You plan the page structure for a real \
+Ugandan website before Daisy builds it — everything from a one-person \
+shop to a company or NGO that needs to look credible to a serious \
+partner. Given a business's category and details, decide which real \
+pages this specific site needs — not a generic set, one that actually \
+fits this business's size and kind.
+
+Small business / shop / restaurant / salon / clinic: usually 3-5 pages —
+Home (always), About, Services or Menu (rename to fit — a restaurant gets
+"Menu", a shop gets "Products", a clinic gets "Services"), Gallery (only
+if photos exist or the business is visually driven), Contact.
+
+Company, NGO, consultancy, or any business with a company profile
+document, multiple staff, or a formal structure: can go up to 7 pages —
+Home, About/Company Profile, Services, Team or Leadership (if staff/
+leadership details are given), Case Studies or Projects (if past work is
+described), News or Careers (only if there's real content for them —
+never an empty placeholder page), Contact. Use the business's actual
+details — including any uploaded document content — to judge which of
+these genuinely apply; don't add a page just because it exists on this
+list.
+
+Don't add a page with nothing real to say. Pick 3 to 7 pages total
+including Home.
+
+Respond with ONLY a JSON object, no markdown fences, no commentary:
+{"pages": [{"slug": "index", "label": "Home"}, {"slug": "...", "label": "..."}, ...]}
+"slug" must be a single lowercase word, url-safe, no spaces (use
+"services", "menu", "gallery", "contact", "about", "team", "careers",
+"news", "projects", etc.). The first entry must always be
+{"slug": "index", "label": "Home"}.
+"""
+
+
 
 def _daisy_extract_json(text):
     """Pull a JSON object out of a Claude response that should be pure JSON
@@ -1321,6 +1584,34 @@ def _daisy_extract_html(text):
     if idx > 0:
         text = text[idx:]
     return text
+
+def _daisy_generate_html(client, model, max_tokens, system, prompt, call_timeout, label="Daisy/Page"):
+    """One HTML-document generation, with the same max_tokens continuation
+    retry every website/page call needs. Shared so the multi-page builder
+    below doesn't repeat this loop for the home page, the art-director
+    rewrite, and every other page separately."""
+    messages = [{"role": "user", "content": prompt}]
+    raw = ""
+    for rnd in range(3):
+        resp = client.messages.create(
+            model=model, max_tokens=max_tokens, system=system,
+            messages=messages, timeout=call_timeout,
+        )
+        chunk = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+        raw += chunk
+        print(f"[{label}] round={rnd+1} stop={resp.stop_reason} len={len(raw)}")
+        if resp.stop_reason != "max_tokens":
+            break
+        messages.append({"role": "assistant", "content": chunk})
+        messages.append({"role": "user", "content": "Continue exactly where you stopped. Do not repeat anything already written."})
+    return _daisy_extract_html(raw)
+
+def _extract_marked(html, start_marker, end_marker):
+    """Pull the exact text between two HTML-comment markers Daisy was told
+    to emit (TB_NAV_START/END, TB_FOOTER_START/END). Returns '' if the
+    model didn't include them so callers can fall back gracefully."""
+    m = re.search(re.escape(start_marker) + r'(.*?)' + re.escape(end_marker), html, re.DOTALL)
+    return m.group(1).strip() if m else ""
 
 def call_daisy(mode, context=None, history=None, message=None, timeout=55):
     """
@@ -1398,18 +1689,15 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
             power = get_website_power(ctx.get('plan'))
             model = power['model']
             max_tokens = power['max_tokens']
-            # Paid tiers get real thinking time, not the same clock as free.
-            # A 1-pass free build only ever needs one short round-trip; a
-            # 2-pass Pro Max build (draft + art-director rewrite, each with
-            # up to 3 continuation rounds) needs real room per call.
-            call_timeout = 180 if power['passes'] >= 2 else (90 if timeout == 55 else timeout)
-            if timeout != 55:
-                call_timeout = timeout
+            # Multi-page builds do several real generation calls (plan,
+            # home page, art-director rewrite, N other pages) — give the
+            # whole build real room, same generous timeout every time now
+            # that every build gets full power.
+            call_timeout = 180 if timeout == 55 else timeout
 
-            # Give Daisy custom AI-generated imagery to work with on paid
-            # plans when the business hasn't supplied its own photos —
-            # otherwise a paid site with no photos looks identical to a
-            # free one.
+            # Give Daisy custom AI-generated imagery to work with when the
+            # business hasn't supplied its own photos — otherwise a site
+            # with no photos looks bare next to one with real ones.
             if power['images'] and not ctx.get('photos'):
                 try:
                     ai_photos = generate_business_images(ctx, count=power['images'])
@@ -1418,119 +1706,154 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                 except Exception as e:
                     print(f"[Daisy/Images] {e}")
 
-            # DESIGN RESEARCH PASS — paid tiers only. Before writing any
-            # HTML, Daisy first thinks like a designer researching this
-            # specific brief: what references fit this category, what the
-            # signature layout idea should be, what to deliberately avoid.
-            # That plan is then fed into the real build so the first line
-            # of code written is already aimed at something specific,
-            # instead of drifting into the same generic template every
-            # category tends to produce under time pressure.
-            design_brief = ""
-            if power['passes'] >= 2:
-                try:
-                    brief_prompt = (
-                        "You are about to design a real website for this Uganda "
-                        "business. Before writing any code, think like a designer "
-                        "researching the brief. Business details (JSON):\n" +
-                        json.dumps(ctx, ensure_ascii=False, indent=2) +
-                        "\n\nIn under 200 words, write a short design brief: the "
-                        "specific visual direction for this business's category "
-                        "(not a generic SaaS look), one signature layout idea that "
-                        "makes this site distinctive, and one or two things to "
-                        "deliberately avoid because they'd make it feel templated. "
-                        "Plain text only, no headings, no markdown."
-                    )
-                    brief_resp = client.messages.create(
-                        model=model, max_tokens=500,
-                        messages=[{"role": "user", "content": brief_prompt}],
-                        timeout=60,
-                    )
-                    design_brief = "".join(
-                        b.text for b in brief_resp.content if getattr(b, "type", "") == "text"
-                    ).strip()
-                except Exception as e:
-                    print(f"[Daisy/DesignBrief] {e}")
+            ctx_json = json.dumps(ctx, ensure_ascii=False, indent=2)
 
-            prompt = ("Build the real, live website for this business now. "
-                       "Business details (JSON):\n" +
-                       json.dumps(ctx, ensure_ascii=False, indent=2) +
-                       (f"\n\nYOUR OWN DESIGN BRIEF (from researching this business "
-                        f"before building — follow it):\n{design_brief}" if design_brief else "") +
-                       "\n\nRespond with the complete HTML document only.")
-            messages = [{"role": "user", "content": prompt}]
-            raw = ""
-            for rnd in range(3):
-                resp = client.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    system=DAISY_WEBSITE_SYSTEM,
-                    messages=messages,
-                    timeout=call_timeout,
+            # STEP 1 — SITE PLAN. Which real pages does this specific
+            # business need? Runs on every build now, not just when info is
+            # thin — a business's category alone is enough to plan a
+            # sensible page set, and this is what turns "one long page"
+            # into "a real website."
+            page_plan = [{"slug": "index", "label": "Home"}]
+            try:
+                plan_resp = client.messages.create(
+                    model=model, max_tokens=400,
+                    system=DAISY_SITE_PLAN_SYSTEM,
+                    messages=[{"role": "user", "content": "Business details (JSON):\n" + ctx_json}],
+                    timeout=60,
                 )
-                chunk = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
-                raw += chunk
-                print(f"[Daisy/Website] round={rnd+1} stop={resp.stop_reason} len={len(raw)}")
-                if resp.stop_reason != "max_tokens":
-                    break
-                # Got cut off mid-page — ask Claude to continue exactly where
-                # it stopped instead of shipping a broken half-built site.
-                messages.append({"role": "assistant", "content": chunk})
-                messages.append({"role": "user", "content": "Continue exactly where you stopped. Do not repeat anything already written."})
-            html = _daisy_extract_html(raw)
-            if not html or len(html) < 200:
+                plan_raw = "".join(b.text for b in plan_resp.content if getattr(b, "type", "") == "text")
+                plan_data = _daisy_extract_json(plan_raw)
+                pages_out = (plan_data or {}).get("pages") or []
+                cleaned = []
+                seen = set()
+                for p in pages_out:
+                    slug = re.sub(r'[^a-z0-9]', '', (p.get("slug") or "").strip().lower())[:24]
+                    label = (p.get("label") or slug.capitalize() or "").strip()[:40]
+                    if slug and slug not in seen:
+                        cleaned.append({"slug": slug, "label": label or slug.capitalize()})
+                        seen.add(slug)
+                if cleaned and cleaned[0]["slug"] == "index":
+                    page_plan = cleaned[:7]
+                elif cleaned:
+                    page_plan = [{"slug": "index", "label": "Home"}] + [p for p in cleaned if p["slug"] != "index"][:6]
+            except Exception as e:
+                print(f"[Daisy/SitePlan] {e} — falling back to Home + Contact only")
+                page_plan = [{"slug": "index", "label": "Home"}, {"slug": "contact", "label": "Contact"}]
+
+            # STEP 2 — DESIGN BRIEF. Before writing any code, Daisy thinks
+            # like a designer researching this specific brief: what
+            # references fit this category, what the signature layout idea
+            # should be, what to deliberately avoid. Runs on every build,
+            # not gated by plan.
+            design_brief = ""
+            try:
+                brief_prompt = (
+                    "You are about to design a real, multi-page website for this "
+                    "Uganda business. The site will have these pages: " +
+                    ", ".join(p["label"] for p in page_plan) +
+                    ". Before writing any code, think like a designer researching "
+                    "the brief. Business details (JSON):\n" + ctx_json +
+                    "\n\nIn under 200 words, write a short design brief: the "
+                    "specific visual direction for this business's category (not "
+                    "a generic SaaS look), one signature layout idea that makes "
+                    "this site distinctive, and one or two things to deliberately "
+                    "avoid because they'd make it feel templated. Plain text only, "
+                    "no headings, no markdown."
+                )
+                brief_resp = client.messages.create(
+                    model=model, max_tokens=500,
+                    messages=[{"role": "user", "content": brief_prompt}],
+                    timeout=60,
+                )
+                design_brief = "".join(
+                    b.text for b in brief_resp.content if getattr(b, "type", "") == "text"
+                ).strip()
+            except Exception as e:
+                print(f"[Daisy/DesignBrief] {e}")
+
+            nav_list = "\n".join(f'- slug="{p["slug"]}", label="{p["label"]}"' for p in page_plan)
+            brief_block = f"\n\nYOUR OWN DESIGN BRIEF (from researching this business before building — follow it):\n{design_brief}" if design_brief else ""
+
+            # STEP 3 — HOME PAGE. This is the flagship page: it establishes
+            # the whole design system (fonts, palette, header/nav, footer)
+            # that every other page will reuse.
+            home_prompt = (
+                "Build the HOME PAGE of this business's real, multi-page website "
+                "now. This site's full page set (build the nav to link to all of "
+                "them, plus this Home page):\n" + nav_list +
+                "\n\nBusiness details (JSON):\n" + ctx_json + brief_block +
+                "\n\nRespond with the complete HTML document only."
+            )
+            home_html = _daisy_generate_html(client, model, max_tokens, DAISY_WEBSITE_SYSTEM,
+                                              home_prompt, call_timeout, label="Daisy/Home")
+            if not home_html or len(home_html) < 200:
                 return None, "Daisy is thinking hard on this one. Please try again in a moment."
 
-            # Pro Max gets a second pass: Daisy reviews her own first draft
-            # as a senior art director and rewrites it. This is the real
-            # difference between plans — not just a bigger token budget —
-            # and is what should make a Pro Max site look like it came from
-            # an agency, not a fast first draft.
+            # STEP 4 — ART-DIRECTOR PASS on the home page. Every build gets
+            # this now (see get_website_power()) — it's what elevates the
+            # design once, and every other page inherits that elevation by
+            # reusing the header/nav/footer this rewrite produces.
             if power['passes'] >= 2:
                 try:
                     review_prompt = (
-                        "Here is the first draft of this Pro Max client's website — "
-                        "the full HTML document:\n\n" + html + "\n\n"
+                        "Here is the first draft of this client's home page — the "
+                        "full HTML document:\n\n" + home_html + "\n\n"
                         "You are now the senior art director reviewing a junior "
-                        "designer's first draft before it ships to a paying Pro Max "
-                        "client who is paying for noticeably more premium, more "
-                        "distinctive work than a standard site. Rewrite the ENTIRE "
-                        "document, keeping every real business fact exactly as given "
-                        "(never invent new facts), but elevating the design: more "
-                        "confident typography, better spacing and rhythm, a stronger "
-                        "sense of visual hierarchy and a signature layout idea "
-                        "specific to this business — the kind of detail that makes a "
-                        "client feel like this was designed *for them*, not generated. "
-                        "Fix anything that reads as generic, templated, or unfinished. "
-                        "Respond with the complete rewritten HTML document only."
+                        "designer's first draft before it ships to a client who "
+                        "needs work good enough that a company or NGO would use "
+                        "it — not an AI demo. Rewrite the ENTIRE document, keeping "
+                        "every real business fact exactly as given (never invent "
+                        "new facts) and keeping the TB_NAV_START/END and "
+                        "TB_FOOTER_START/END comment markers around the header and "
+                        "footer, but elevating the design: more confident "
+                        "typography, better spacing and rhythm, a stronger sense of "
+                        "visual hierarchy and a signature layout idea specific to "
+                        "this business. Fix anything that reads as generic, "
+                        "templated, or unfinished. Respond with the complete "
+                        "rewritten HTML document only."
                     )
-                    messages2 = [{"role": "user", "content": review_prompt}]
-                    raw2 = ""
-                    for rnd in range(3):
-                        resp2 = client.messages.create(
-                            model=model,
-                            max_tokens=max_tokens,
-                            system=DAISY_WEBSITE_SYSTEM,
-                            messages=messages2,
-                            timeout=call_timeout,
-                        )
-                        chunk2 = "".join(b.text for b in resp2.content if getattr(b, "type", "") == "text")
-                        raw2 += chunk2
-                        print(f"[Daisy/Website/Pass2] round={rnd+1} stop={resp2.stop_reason} len={len(raw2)}")
-                        if resp2.stop_reason != "max_tokens":
-                            break
-                        messages2.append({"role": "assistant", "content": chunk2})
-                        messages2.append({"role": "user", "content": "Continue exactly where you stopped. Do not repeat anything already written."})
-                    html2 = _daisy_extract_html(raw2)
-                    if html2 and len(html2) > 200:
-                        html = html2
-                    # If the art-director rewrite came back truncated even
-                    # after retries, keep the good first draft rather than
-                    # shipping a broken "premium" rewrite.
+                    rewritten = _daisy_generate_html(client, model, max_tokens, DAISY_WEBSITE_SYSTEM,
+                                                      review_prompt, call_timeout, label="Daisy/Home/Pass2")
+                    if rewritten and len(rewritten) > 200:
+                        home_html = rewritten
                 except Exception as e:
                     print(f"[Daisy/Pass2] {e}")
 
-            return {"html": html, "mode": mode}, None
+            nav_html    = _extract_marked(home_html, "<!-- TB_NAV_START -->", "<!-- TB_NAV_END -->")
+            footer_html = _extract_marked(home_html, "<!-- TB_FOOTER_START -->", "<!-- TB_FOOTER_END -->")
+
+            pages  = {"index": home_html}
+            order  = ["index"]
+            labels = {"index": page_plan[0]["label"] if page_plan else "Home"}
+
+            # STEP 5 — every other planned page, reusing the home page's
+            # design system so the site feels like one real place, not
+            # several stitched together.
+            for p in page_plan[1:]:
+                slug, label = p["slug"], p["label"]
+                shared_block = (
+                    f"\n\nEXACT HEADER/NAV MARKUP TO REUSE VERBATIM:\n{nav_html}" if nav_html else ""
+                ) + (
+                    f"\n\nEXACT FOOTER MARKUP TO REUSE VERBATIM:\n{footer_html}" if footer_html else ""
+                )
+                page_prompt = (
+                    f"Build the \"{label}\" page (slug: {slug}) of this business's "
+                    "real, multi-page website now. Full page set on this site:\n" +
+                    nav_list + "\n\nBusiness details (JSON):\n" + ctx_json +
+                    brief_block + shared_block +
+                    "\n\nRespond with the complete HTML document only."
+                )
+                page_html = _daisy_generate_html(client, model, max_tokens, DAISY_PAGE_SYSTEM,
+                                                  page_prompt, call_timeout, label=f"Daisy/Page/{slug}")
+                if page_html and len(page_html) > 200:
+                    pages[slug] = page_html
+                    order.append(slug)
+                    labels[slug] = label
+                else:
+                    print(f"[Daisy/Page/{slug}] generation failed or too short — skipping this page")
+
+            html = _encode_site(pages, order, labels)
+            return {"html": html, "mode": mode, "pages": order}, None
 
     except Exception as e:
         msg = str(e).lower()
@@ -1640,9 +1963,11 @@ EDIT_CODE_PAGE = """<!DOCTYPE html>
 body { margin:0; font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:#0d1117; color:#e6edf3; }
 .bar { display:flex; align-items:center; gap:12px; padding:10px 16px; background:#161b22; border-bottom:1px solid #30363d; flex-wrap:wrap; }
 .bar a { color:#8b949e; text-decoration:none; font-size:14px; }
-.bar h1 { font-size:15px; margin:0; flex:1; color:#e6edf3; }
+.bar h1 { font-size:15px; margin:0; color:#e6edf3; }
+.bar select { background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:6px 10px; font-size:13px; }
 .bar button { background:#238636; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; font-size:13px; }
 .bar button.secondary { background:#21262d; border:1px solid #30363d; }
+.spacer { flex:1; }
 .wrap { display:flex; height:calc(100vh - 52px); }
 textarea { width:50%; height:100%; background:#0d1117; color:#c9d1d9; border:none; border-right:1px solid #30363d;
   font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; padding:14px; resize:none; outline:none; line-height:1.5; }
@@ -1654,26 +1979,35 @@ iframe { width:50%; height:100%; border:none; background:#fff; }
 <div class="bar">
   <a href="/dashboard">← Dashboard</a>
   <h1>{{ biz.name }} — Code</h1>
+  <select id="pageSel" onchange="switchPage()">
+    {% for p in page_order %}<option value="{{ p }}" {{ 'selected' if p==current_page else '' }}>{{ page_labels.get(p, p) }}</option>{% endfor %}
+  </select>
+  <div class="spacer"></div>
   <span class="msg" id="msg"></span>
   <button class="secondary" type="button" onclick="preview()">▶ Preview</button>
-  <button type="button" onclick="save()">💾 Save & Publish</button>
+  <button type="button" onclick="save()">💾 Save this page</button>
 </div>
 <div class="wrap">
   <textarea id="code" spellcheck="false">{{ html_escaped }}</textarea>
   <iframe id="frame"></iframe>
 </div>
 <script>
+function switchPage(){
+  var p = document.getElementById('pageSel').value;
+  window.location = '/dashboard/edit-code/{{ biz.id }}?page=' + encodeURIComponent(p);
+}
 function preview(){
   var html = document.getElementById('code').value;
   document.getElementById('frame').srcdoc = html;
 }
 function save(){
   var html = document.getElementById('code').value;
+  var page = document.getElementById('pageSel').value;
   var msg = document.getElementById('msg');
   msg.textContent = 'Saving…';
   fetch('/dashboard/edit-code/{{ biz.id }}', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({html: html})
+    body: JSON.stringify({html: html, page: page})
   }).then(r=>r.json()).then(d=>{
     msg.textContent = d.success ? '✅ Saved & live' : ('Error: '+(d.error||'unknown'));
   }).catch(e=>{ msg.textContent = 'Error saving.'; });
@@ -1686,29 +2020,46 @@ preview();
 @login_required
 def dashboard_edit_code(biz_id):
     """The 'room where she can see the code' — a direct view/edit surface
-    on top of whatever Daisy generated. Regenerating with Daisy always
-    overwrites this (she doesn't know about manual edits), so this is for
-    small fixes between rebuilds, not a permanent fork."""
+    on top of whatever Daisy generated. A site is several pages now, so
+    this edits ONE page at a time (picked from the dropdown / ?page=) and
+    saves it back into that page's slot without touching the others.
+    Regenerating with Daisy always overwrites this (she doesn't know about
+    manual edits), so this is for small fixes between rebuilds, not a
+    permanent fork."""
     biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, session['user_id']))
     if not biz:
         if request.method == 'POST':
             return jsonify({'error': 'not found'}), 404
         flash("Not found."); return redirect('/dashboard')
 
+    pages, order, labels = _decode_site(biz.get('generated_html'))
+
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
         html = data.get('html') or ''
+        page = (data.get('page') or 'index').strip() or 'index'
         if len(html) < 50:
             return jsonify({'error': 'That looks too short to be a real page.'}), 400
         if len(html) > 500_000:
             return jsonify({'error': 'That file is too large.'}), 400
-        save_site_html(biz_id, html)
-        log_deploy_event(biz_id, session['user_id'], 'manual_edit', f'"{biz["name"]}" edited directly in code view', 'ok')
+        if not pages:
+            pages, order, labels = {}, [], {}
+        pages[page] = html
+        if page not in order:
+            order.append(page)
+        labels.setdefault(page, page.capitalize())
+        save_site_html(biz_id, _encode_site(pages, order, labels))
+        log_deploy_event(biz_id, session['user_id'], 'manual_edit',
+                          f'"{biz["name"]}" — {labels.get(page, page)} page edited directly in code view', 'ok')
         return jsonify({'success': True})
 
-    html_escaped = (biz.get('generated_html') or '<!-- Daisy hasn\'t built this site yet. Click Regenerate on your dashboard first. -->').replace('</textarea>', '<\\/textarea>')
+    current_page = (request.args.get('page') or (order[0] if order else 'index')).strip() or 'index'
+    page_html = pages.get(current_page, '')
+    html_escaped = (page_html or '<!-- Daisy hasn\'t built this page yet. Click Regenerate on your dashboard first. -->').replace('</textarea>', '<\\/textarea>')
     from markupsafe import Markup
-    return render_template_string(EDIT_CODE_PAGE, biz=biz_to_dict(biz), html_escaped=Markup.escape(html_escaped))
+    return render_template_string(EDIT_CODE_PAGE, biz=biz_to_dict(biz), html_escaped=Markup.escape(html_escaped),
+                                   page_order=order or ['index'], page_labels=labels or {'index': 'Home'},
+                                   current_page=current_page)
 
 
 @app.route('/api/build-status/<int:biz_id>')
@@ -1860,21 +2211,27 @@ def logout():
 
 # ── AI WEBSITE VIEW ───────────────────────────────────────────────────────────
 @app.route('/site/<slug>')
-def site(slug=None):
-    # Also handle subdomain requests e.g. cyber-tech.trustedbiz.co.ug
+@app.route('/site/<slug>/<page>')
+def site(slug=None, page=None):
     if slug is None:
-        from flask import g
-        slug = getattr(g, 'subdomain_slug', None)
-        if not slug:
-            return render_template('404.html', current_user=get_current_user()), 404
-    biz = db_fetchone(q("SELECT * FROM business WHERE slug=? AND status='approved'"), (slug,))
+        return render_template('404.html', current_user=get_current_user()), 404
+    biz = db_fetchone(q("SELECT * FROM business WHERE slug=?"), (slug,))
     if not biz:
-        try: biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND status='approved'"), (int(slug),))
+        try: biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (int(slug),))
         except: pass
     if not biz: return render_template('404.html', current_user=get_current_user()), 404
-
-    db_execute(q("UPDATE business SET views=views+1 WHERE id=?"), (biz['id'],))
     bd = biz_to_dict(biz)
+
+    # A site that isn't live yet (still being previewed, or not hosted)
+    # is only visible to its own owner or an admin — everyone else gets a
+    # normal 404, same as any URL that doesn't exist for them.
+    is_owner = bool(session.get('user_id')) and bd.get('owner_id') == session.get('user_id')
+    is_admin = bool(session.get('admin_auth'))
+    if bd.get('status') != 'approved' and not (is_owner or is_admin):
+        return render_template('404.html', current_user=get_current_user()), 404
+
+    if bd.get('status') == 'approved':
+        db_execute(q("UPDATE business SET views=views+1 WHERE id=?"), (biz['id'],))
 
     # Get ads for this business
     ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 ORDER BY updated_at DESC LIMIT 2"), (biz['id'],))
@@ -1895,15 +2252,15 @@ def site(slug=None):
     bd['total_reviews'] = rv_avg['c'] if rv_avg else 0
 
     if bd.get('generated_html'):
-        return bd['generated_html']
+        page_html = _site_page_html(bd['generated_html'], page)
+        if page_html:
+            return page_html
 
-    # Generate the site via Daisy's API instead of generating locally.
-    # A simple, real-data fallback (using the business's actual name, category,
-    # description, photos, hours, branches) is saved and served immediately so
-    # the visitor never sees a blank page. Daisy's real build then runs and
-    # replaces it — currently synchronous (page waits up to ~55s on first
-    # visit); move this to a background thread once Daisy's API is live and
-    # you know her real response time.
+    # No site built yet (or the requested page genuinely doesn't exist and
+    # there was nothing to fall back to). A simple, real-data fallback
+    # (using the business's actual name, category, description, photos,
+    # hours, branches) is served immediately so the visitor never sees a
+    # blank page, while Daisy's real multi-page build runs and replaces it.
     wa_link = f"https://wa.me/{bd.get('whatsapp','')}"
     fallback_html = _basic_fallback_site(bd, wa_link)
 
@@ -1914,7 +2271,9 @@ def site(slug=None):
         'brand_color': bd.get('brand_color') or '#2b7a78',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
-        'plan': bd.get('plan') or 'free',
+        'slug': bd.get('slug'),
+        'document_notes': bd.get('document_notes') or '',
+        'documents': [p.strip() for p in str(bd.get('documents') or '').split(',') if p.strip()],
     }
     result, err = call_daisy('website', context=daisy_ctx)
     html = (result or {}).get('html') if result else None
@@ -1922,7 +2281,8 @@ def site(slug=None):
     if html:
         try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz['id']))
         except: pass
-        return html
+        page_html = _site_page_html(html, page)
+        return page_html or html
 
     # Daisy unavailable or still not connected — serve the fallback, don't
     # leave the visitor with nothing, but don't cache it as the final site.
@@ -1969,52 +2329,76 @@ def daisy_create_business():
         photos_in = [p.strip() for p in photos_in.split(',') if p.strip()]
     photos_str  = ','.join(p for p in photos_in if p)[:2000]
 
+    # Company documents uploaded mid-conversation via /daisy/upload-document
+    # — frontend sends back {url, name, has_text} for each; the real
+    # extracted text was kept client-side in the chat history / sent here
+    # separately as document_text so it isn't round-tripped twice.
+    documents_in = data.get('documents') or []
+    if isinstance(documents_in, dict):
+        documents_in = [documents_in]
+    documents_str = ','.join(d.get('url','') for d in documents_in if isinstance(d, dict) and d.get('url'))[:2000]
+    document_notes = "\n\n".join(
+        f"[{d.get('name','document')}]\n{d.get('text','')}" for d in documents_in
+        if isinstance(d, dict) and d.get('text')
+    )[:MAX_DOCUMENT_TEXT_CHARS]
+
     if not name:
         return jsonify({'error': 'A business name is required.'}), 400
 
     slug = make_slug(name)
 
-    # THE BUG: this used to hardcode plan='free' here no matter what plan
-    # the account is actually on, and never told the generator what plan
-    # to build for — so a Pro Max customer building through Daisy's chat
-    # panel silently got a Free-tier build (1 pass, no images, small token
-    # budget) every time. Use the account's real current plan instead —
-    # same "highest plan across their businesses" logic the dashboard
-    # already uses to show it in the stat card.
-    plan_rank = {'free': 0, 'basic': 1, 'pro_max': 2}
-    _PLAN_ALIASES_LOCAL = {'promax': 'pro_max'}
-    existing_bizzes = db_fetchall(q("SELECT plan FROM business WHERE owner_id=?"), (user['id'],))
-    account_plan = 'free'
-    for b in existing_bizzes:
-        p = _PLAN_ALIASES_LOCAL.get((b.get('plan') or 'free'), b.get('plan') or 'free')
-        if plan_rank.get(p, 0) > plan_rank.get(account_plan, 0):
-            account_plan = p
-    # Frontend may also pass an explicit plan (e.g. a plan picker on the
-    # go-live step) — trust that over the inferred account plan if given.
-    requested_plan = (data.get('plan') or '').strip().lower()
-    requested_plan = _PLAN_ALIASES_LOCAL.get(requested_plan, requested_plan)
-    if requested_plan in ('free', 'basic', 'pro_max'):
-        account_plan = requested_plan
-    is_premium = 1 if account_plan != 'free' else 0
-
+    # CHANGE (Aug 2026): "Daisy builds it -> you preview/edit -> you click
+    # Host -> you're live" — a business built here is a DRAFT: saved, fully
+    # previewable by its owner (see site()'s owner/admin bypass), but not
+    # publicly reachable and not in the public directory until the owner
+    # clicks Go Live on the dashboard (see /dashboard/go-live/<id>). The
+    # free hosting trial starts at that click, not at build time.
     biz_id = db_insert(
-        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html, photos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"),
-        (name, category, whatsapp, description, color, slug, user['id'], 'approved', account_plan, is_premium, html, photos_str)
+        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html, photos, documents, document_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
+        (name, category, whatsapp, description, color, slug, user['id'], 'draft', 'free', 0, html, photos_str, documents_str, document_notes)
     )
-    ping_google(slug)
 
     if html:
         snapshot_site_html(biz_id, html)
-        log_deploy_event(biz_id, user['id'], 'deploy', f'"{name}" deployed successfully', 'ok')
+        log_deploy_event(biz_id, user['id'], 'build', f'"{name}" built — preview it, then click Go Live to publish', 'ok')
     else:
         daisy_ctx = {'name': name, 'category': category, 'description': description,
                      'whatsapp': whatsapp, 'brand_color': color, 'hours': 'Mon-Sat 8am-7pm',
-                     'photos': photos_in, 'plan': account_plan}
+                     'photos': photos_in, 'slug': slug, 'document_notes': document_notes,
+                     'documents': [d.get('url') for d in documents_in if isinstance(d, dict) and d.get('url')]}
         start_daisy_build(biz_id, daisy_ctx, event_user_id=user['id'], event_label=name)
 
-    return jsonify({'success': True, 'biz_id': biz_id, 'slug': slug,
-                     'plan': account_plan,
+    return jsonify({'success': True, 'biz_id': biz_id, 'slug': slug, 'status': 'draft',
+                     'hosting_trial_days': HOSTING_TRIAL_DAYS,
+                     'preview_url': f"/site/{slug}",
                      'url': f"https://{slug}.trustedbiz.co.ug"})
+
+
+@app.route('/dashboard/go-live/<int:biz_id>', methods=['POST'])
+@login_required
+def dashboard_go_live(biz_id):
+    """The 'click Host' step. Free to build and preview up to here — this
+    is the one action that actually publishes the site and starts its free
+    hosting trial. Idempotent: re-clicking on an already-live site is a
+    harmless no-op."""
+    biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, session['user_id']))
+    if not biz:
+        return jsonify({'error': 'Not found.'}), 404
+    bd = biz_to_dict(biz)
+    if not bd.get('generated_html'):
+        return jsonify({'error': "Daisy hasn't finished building this site yet — try again in a moment."}), 400
+
+    from datetime import date, timedelta
+    if bd.get('status') != 'approved':
+        trial_end = (date.today() + timedelta(days=HOSTING_TRIAL_DAYS)).isoformat()
+        db_execute(q("UPDATE business SET status='approved', free_trial_end=? WHERE id=?"), (trial_end, biz_id))
+        ping_google(bd.get('slug'))
+        log_deploy_event(biz_id, session['user_id'], 'deploy', f'"{bd.get("name")}" went live — {HOSTING_TRIAL_DAYS}-day free hosting trial started', 'ok')
+
+    return jsonify({'success': True, 'url': f"https://{bd.get('slug')}.trustedbiz.co.ug",
+                     'hosting_trial_days': HOSTING_TRIAL_DAYS})
+
+
 
 
 # ── DAISY PUBLISH (server-to-server) ────────────────────────────────────────
@@ -2128,11 +2512,13 @@ def generate_site(biz_id):
         'brand_color': bd.get('brand_color') or '#2b7a78',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
-        'plan': bd.get('plan') or 'free',
+        'slug': bd.get('slug'),
+        'document_notes': bd.get('document_notes') or '',
+        'documents': [p.strip() for p in str(bd.get('documents') or '').split(',') if p.strip()],
     }
 
     start_daisy_build(biz_id, daisy_ctx, event_user_id=session['user_id'], event_label=bd.get('name'))
-    flash(f"✨ Daisy is rebuilding \"{bd.get('name')}\" on the {(bd.get('plan') or 'free').replace('_',' ').title()} plan — watch progress on this page, it'll keep building even if you leave.")
+    flash(f"✨ Daisy is rebuilding \"{bd.get('name')}\" — watch progress on this page, it'll keep building even if you leave.")
     return redirect('/dashboard')
 
 # ── ADD BUSINESS ──────────────────────────────────────────────────────────────
@@ -2148,15 +2534,9 @@ def dashboard():
     businesses   = [biz_to_dict(b) for b in businesses]
     total_views  = sum(b.get('views',0) or 0 for b in businesses)
     live_count   = sum(1 for b in businesses if b.get('status')=='approved')
-    # Plan is tracked per-business (see admin's Set Basic/Set Pro Max). For the
-    # account-level billing view, use the highest plan among the user's
-    # businesses as "chosen_plan" — reasonable for the common single-business
-    # case; worth revisiting once multi-business accounts are common.
-    plan_rank = {'free': 0, 'basic': 1, 'pro_max': 2}
-    chosen_plan = 'free'
-    for b in businesses:
-        if plan_rank.get(b.get('plan') or 'free', 0) > plan_rank.get(chosen_plan, 0):
-            chosen_plan = b.get('plan') or 'free'
+    # Building is free/unplanned now — the only thing left to track per
+    # account is how many businesses have paid, active hosting.
+    hosted_count = sum(1 for b in businesses if b.get('is_premium'))
     current_user = get_current_user()
 
     deploy_events = db_fetchall(q(
@@ -2179,8 +2559,9 @@ def dashboard():
     return render_template('console.html', businesses=businesses, stats=stats,
                            current_user=current_user, total_listings=len(businesses),
                            live_count=live_count, total_views=total_views,
-                           chosen_plan=chosen_plan, deploy_events=deploy_events,
-                           security=security)
+                           hosted_count=hosted_count, deploy_events=deploy_events,
+                           security=security, hosting_fee_monthly=HOSTING_FEE_MONTHLY,
+                           hosting_fee_yearly=HOSTING_FEE_YEARLY)
 
 # ── DASHBOARD SET COLOR ───────────────────────────────────────────────────────
 @app.route('/dashboard/set-template/<int:biz_id>', methods=['POST'])
@@ -2275,31 +2656,23 @@ def admin():
             db_execute(q("UPDATE business SET verified=1 WHERE id=?"), (biz_id,))
         elif action == 'unverify':
             db_execute(q("UPDATE business SET verified=0 WHERE id=?"), (biz_id,))
-        elif action in ('set_basic', 'set_pro_max', 'set_free'):
-            new_plan = {'set_basic': 'basic', 'set_pro_max': 'pro_max', 'set_free': 'free'}[action]
-            is_paid  = 1 if new_plan != 'free' else 0
-            prior = db_fetchone(q("SELECT plan, generated_html, owner_id FROM business WHERE id=?"), (biz_id,))
-            db_execute(q("UPDATE business SET plan=?, is_premium=?, last_payment_date=CURRENT_DATE, payment_months_late=0 WHERE id=?"),
-                       (new_plan, is_paid, biz_id))
+        elif action in ('mark_hosting_paid', 'mark_hosting_unpaid'):
+            # CHANGE (Aug 2026): building/quality is no longer plan-gated —
+            # every site already gets full power (see get_website_power()).
+            # `plan`/`is_premium` now mean exactly one thing: is hosting
+            # paid for. Marking paid never touches or rebuilds the site —
+            # there's nothing quality-related left for it to change.
+            is_paid = 1 if action == 'mark_hosting_paid' else 0
+            if is_paid:
+                db_execute(q("UPDATE business SET plan='hosted', is_premium=1, last_payment_date=CURRENT_DATE, payment_months_late=0 WHERE id=?"),
+                           (biz_id,))
+            else:
+                db_execute(q("UPDATE business SET plan='free', is_premium=0 WHERE id=?"), (biz_id,))
             owner = db_fetchone(q("SELECT owner_id FROM business WHERE id=?"), (biz_id,))
             if owner and owner.get('owner_id'):
-                label = {'basic': 'Basic', 'pro_max': 'Pro Max', 'free': 'Free'}[new_plan]
-                db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
-                          (owner['owner_id'], f"Your plan is now {label}."))
-            # THE ACTUAL FIX: changing a business's plan used to only touch
-            # the `plan`/`is_premium` columns — the already-generated site
-            # stayed exactly as it was built on the old plan. A business
-            # upgraded from Free to Pro Max would show the plan change on
-            # their invoice but keep serving the Free-tier build forever,
-            # unless someone remembered to also click "Regenerate" as a
-            # separate step. Now an upgrade/downgrade always rebuilds the
-            # live site with the new plan's model power immediately.
-            if prior and new_plan != (prior.get('plan') or 'free') and prior.get('generated_html'):
-                ctx, bd = build_daisy_ctx(biz_id)
-                if ctx:
-                    start_daisy_build(biz_id, ctx, event_user_id=prior.get('owner_id'),
-                                       event_label=bd.get('name') if bd else None)
-                    flash(f"✅ Plan set to {label} — Daisy is rebuilding the live site now with the new plan's power.", 'success')
+                msg = "Your hosting payment is confirmed — your site stays live." if is_paid \
+                      else "Your hosting is marked unpaid. Pay before the grace period ends to keep your site live."
+                db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"), (owner['owner_id'], msg))
         elif action == 'mark_late':
             db_execute(q("UPDATE business SET payment_months_late=payment_months_late+1 WHERE id=?"), (biz_id,))
         elif action == 'block':
@@ -2441,16 +2814,23 @@ def migrate_db():
             db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS domain_status TEXT DEFAULT 'none'")
             db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_enabled INTEGER DEFAULT 0")
             db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret TEXT")
+            # Company documents (profiles, brochures, certificates) and a
+            # real contact-form inbox, for businesses that need more than
+            # a WhatsApp button — see save_documents_b64() and /contact-submit.
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS documents TEXT")
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS document_notes TEXT")
             if USE_POSTGRES:
                 db_execute("CREATE TABLE IF NOT EXISTS deploy_events (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS site_backups (id SERIAL PRIMARY KEY, business_id INTEGER, html_snapshot TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS security_scans (id SERIAL PRIMARY KEY, user_id INTEGER, score INTEGER, checks TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS artifacts (id SERIAL PRIMARY KEY, user_id INTEGER, business_id INTEGER, mode TEXT, html TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+                db_execute("CREATE TABLE IF NOT EXISTS contact_messages (id SERIAL PRIMARY KEY, business_id INTEGER, name TEXT, email TEXT, message TEXT, seen INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
             else:
                 db_execute("CREATE TABLE IF NOT EXISTS deploy_events (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS site_backups (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, html_snapshot TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS security_scans (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, score INTEGER, checks TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS artifacts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, business_id INTEGER, mode TEXT, html TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+                db_execute("CREATE TABLE IF NOT EXISTS contact_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, name TEXT, email TEXT, message TEXT, seen INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
         except Exception as e:
             print(f"Migration (hosting/security) error: {e}")
         return "Migration done! All columns added."
@@ -2470,7 +2850,9 @@ def admin_preview(biz_id):
     ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
     bd['ads'] = [dict(a) for a in ads]
     if bd.get('generated_html'):
-        return bd['generated_html']
+        page_html = _site_page_html(bd['generated_html'], request.args.get('page'))
+        if page_html:
+            return page_html
     wa_link = f"https://wa.me/{bd.get('whatsapp','')}"
     fallback_html = _basic_fallback_site(bd, wa_link)
     daisy_ctx = {
@@ -2480,14 +2862,17 @@ def admin_preview(biz_id):
         'brand_color': bd.get('brand_color') or '#2b7a78',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
-        'plan': bd.get('plan') or 'free',
+        'slug': bd.get('slug'),
+        'document_notes': bd.get('document_notes') or '',
+        'documents': [p.strip() for p in str(bd.get('documents') or '').split(',') if p.strip()],
     }
     result, err = call_daisy('website', context=daisy_ctx)
     html = (result or {}).get('html') if result else None
     if html:
         try: db_execute(q("UPDATE business SET generated_html=? WHERE id=?"), (html, biz_id))
         except: pass
-        return html
+        page_html = _site_page_html(html, request.args.get('page'))
+        return page_html or html
     print(f"[Daisy API] admin_preview fallback used for biz {biz_id}: {err}")
     return fallback_html
 
@@ -2532,7 +2917,8 @@ def about():
 @app.route('/pricing')
 def pricing():
     # Public — no login required, so people can see prices before committing.
-    return render_template('pricing.html')
+    return render_template('pricing.html', hosting_fee_monthly=HOSTING_FEE_MONTHLY,
+                            hosting_fee_yearly=HOSTING_FEE_YEARLY, hosting_trial_days=HOSTING_TRIAL_DAYS)
 
 @app.route('/daisy')
 def daisy_page():
@@ -2974,13 +3360,14 @@ def export_training():
 @app.route('/daisy/chat', methods=['POST'])
 def daisy_chat():
     """Thin proxy to Daisy's own API for the conversational flow."""
-    data        = request.get_json() or {}
-    msg         = (data.get('message') or data.get('user_input') or '').strip()
-    history     = data.get('history', [])
-    has_img     = data.get('has_image', False)
-    photo_count = data.get('photo_count', 0)  # photos already uploaded this session, if any
-    surface     = data.get('surface') or 'builder'  # 'home' = homepage widget, 'builder' = dashboard
-    biz_id      = data.get('biz_id')  # set when the user picked "Edit with Daisy" on an existing site
+    data           = request.get_json() or {}
+    msg            = (data.get('message') or data.get('user_input') or '').strip()
+    history        = data.get('history', [])
+    has_img        = data.get('has_image', False)
+    photo_count    = data.get('photo_count', 0)      # photos already uploaded this session, if any
+    document_count = data.get('document_count', 0)   # documents already uploaded this session, if any
+    surface        = data.get('surface') or 'builder'  # 'home' = homepage widget, 'builder' = dashboard
+    biz_id         = data.get('biz_id')  # set when the user picked "Edit with Daisy" on an existing site
     if not msg:
         default_reply = ('Hi! Ask me anything about TrustedBiz.' if surface == 'home'
                           else 'What would you like to build today?')
@@ -3004,10 +3391,12 @@ def daisy_chat():
                     'brand_color': biz.get('brand_color'),
                     'live_url':    f"https://{biz['slug']}.trustedbiz.co.ug" if biz.get('slug') else None,
                     'status':      biz.get('status'),
+                    'pages':       _decode_site(biz.get('generated_html'))[1] or None,
                 }
 
     result, err = call_daisy('chat',
                               context={'has_image': has_img, 'photo_count': photo_count,
+                                       'document_count': document_count,
                                        'surface': surface, 'existing_business': existing_business},
                               history=history, message=msg, timeout=20)
     if not result:
@@ -3114,6 +3503,88 @@ def daisy_upload_photo():
             urls.append(request.host_url.rstrip('/') + '/static/images/' + ref)
 
     return jsonify({'urls': urls})
+
+
+@app.route('/daisy/upload-document', methods=['POST'])
+@login_required
+def daisy_upload_document():
+    """Company documents uploaded mid-conversation — profiles, brochures,
+    certificates, annual reports. PDFs get their real text extracted so
+    Daisy writes pages from the business's actual content, not a guess;
+    every document also becomes a downloadable link Daisy can put on the
+    site (e.g. "Download our Company Profile")."""
+    data  = request.get_json() or {}
+    items = data.get('documents') or []
+    if isinstance(items, dict):
+        items = [items]
+    if not items:
+        return jsonify({'documents': [], 'error': 'No documents received.'}), 400
+
+    saved = save_documents_b64(items)
+    if not saved:
+        return jsonify({'documents': [], 'error': "Couldn't save those files — PDF, under 15MB, please."}), 400
+
+    out = []
+    for d in saved:
+        url = d['url'] if d['url'].startswith('http') else request.host_url.rstrip('/') + d['url']
+        out.append({'url': url, 'name': d['name'], 'has_text': bool(d['text'])})
+
+    return jsonify({'documents': out})
+
+
+def _email_new_contact_message(owner_email, owner_name, biz_name, sender_name, sender_email, message):
+    if not owner_email:
+        return
+    _send_email(owner_email, f"New message from your {biz_name} website", f"""
+<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
+<div style="max-width:560px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+  <div style="background:#2b7a78;padding:32px;text-align:center;">
+    <h1 style="color:white;margin:0;font-size:22px;">New website inquiry</h1>
+  </div>
+  <div style="padding:32px;">
+    <p style="font-size:16px;color:#333;">Hi <strong>{owner_name}</strong>,</p>
+    <p style="color:#555;">Someone just contacted <strong>{biz_name}</strong> through your website's contact form:</p>
+    <div style="background:#f8f8f8;border-radius:8px;padding:16px;margin:16px 0;color:#333;">
+      <p style="margin:0 0 6px;"><strong>From:</strong> {sender_name} ({sender_email})</p>
+      <p style="margin:0;white-space:pre-wrap;">{message}</p>
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="https://trustedbiz.co.ug/dashboard" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">View in dashboard →</a>
+    </div>
+  </div>
+</div>
+</body></html>""")
+
+
+@app.route('/contact-submit/<slug>', methods=['POST'])
+def contact_submit(slug):
+    """Where a generated site's contact form actually goes — a real
+    company site needs more than a WhatsApp link. Stores the message,
+    notifies the owner in-dashboard and by email, and sends the visitor
+    back to the site with a thank-you flag."""
+    biz = db_fetchone(q("SELECT * FROM business WHERE slug=? AND status='approved'"), (slug,))
+    if not biz:
+        return render_template('404.html', current_user=get_current_user()), 404
+
+    name    = (request.form.get('name') or '').strip()[:120]
+    email   = (request.form.get('email') or '').strip()[:200]
+    message = (request.form.get('message') or '').strip()[:3000]
+    if not name or not message:
+        return redirect(f"/site/{slug}/contact?sent=0")
+
+    db_insert(q("INSERT INTO contact_messages (business_id, name, email, message) VALUES (?,?,?,?)"),
+              (biz['id'], name, email, message))
+
+    owner = db_fetchone(q("SELECT * FROM users WHERE id=?"), (biz['owner_id'],)) if biz.get('owner_id') else None
+    if owner:
+        db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
+                  (owner['id'], f"New website inquiry from {name} on \"{biz['name']}\"."))
+        try:
+            _email_new_contact_message(owner['email'], owner['name'], biz['name'], name, email, message)
+        except Exception as e:
+            print(f"[contact_submit] email error: {e}")
+
+    return redirect(f"/site/{slug}/contact?sent=1")
 
 
 @app.route('/search')
