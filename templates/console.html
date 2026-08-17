@@ -456,9 +456,24 @@ button{font-family:var(--font);}
       (function(){
         var bars = document.querySelectorAll('.build-progress');
         if (!bars.length) return;
+
+        // Only poll sites that are actually mid-build right now. Polling
+        // (and therefore reload-on-"done") for sites that finished long ago
+        // caused the page to reload itself every few seconds forever, since
+        // build_status stays 'done' in the DB permanently once a build
+        // completes — every poll would see 'done' again and reload again.
+        var activeIds = {};
+        bars.forEach(function(bar){
+          if (bar.style.display === 'block') {
+            activeIds[bar.getAttribute('data-biz-id')] = true;
+          }
+        });
+
         function poll(){
-          bars.forEach(function(bar){
-            var id = bar.getAttribute('data-biz-id');
+          var ids = Object.keys(activeIds);
+          if (!ids.length) { clearInterval(timer); return; }
+          ids.forEach(function(id){
+            var bar = document.querySelector('.build-progress[data-biz-id="' + id + '"]');
             fetch('/api/build-status/' + id).then(function(r){ return r.json(); }).then(function(d){
               if (!d || d.error) return;
               if (d.status === 'building') {
@@ -466,12 +481,15 @@ button{font-family:var(--font);}
                 bar.querySelector('.build-progress-bar').style.width = d.progress + '%';
                 bar.querySelector('.build-progress-pct').textContent = d.progress + '%';
               } else if (d.status === 'done') {
+                delete activeIds[id]; // stop polling this one — reload only once
                 bar.querySelector('.build-progress-bar').style.width = '100%';
                 bar.querySelector('.build-progress-pct').textContent = 'Done! Loading your site…';
                 setTimeout(function(){ window.location.reload(); }, 1200);
               } else if (d.status === 'failed') {
+                delete activeIds[id]; // stop polling — no more reloads for this one
                 bar.querySelector('.build-progress-pct').textContent = 'Build failed — try Redeploy again';
               } else {
+                delete activeIds[id];
                 bar.style.display = 'none';
               }
             }).catch(function(){});
@@ -479,12 +497,15 @@ button{font-family:var(--font);}
         }
         document.querySelectorAll('.regen-form').forEach(function(f){
           f.addEventListener('submit', function(){
-            var bar = document.querySelector('.build-progress[data-biz-id="' + f.getAttribute('data-biz-id') + '"]');
+            var id = f.getAttribute('data-biz-id');
+            var bar = document.querySelector('.build-progress[data-biz-id="' + id + '"]');
             if (bar) bar.style.display = 'block';
+            activeIds[id] = true; // resume polling for this one on redeploy
+            if (!timer) timer = setInterval(poll, 3000);
           });
         });
-        poll();
-        setInterval(poll, 3000);
+        var timer = Object.keys(activeIds).length ? setInterval(poll, 3000) : null;
+        if (timer) poll();
       })();
       </script>
       {% else %}
