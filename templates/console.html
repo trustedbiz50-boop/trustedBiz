@@ -158,7 +158,7 @@ button{font-family:var(--font);}
 .prompt-chip{font-family:var(--mono);font-size:12px;color:#c3c1d4;border:1px solid var(--daisy-border);padding:7px 12px;border-radius:4px;cursor:pointer;background:none;}
 .prompt-chip:hover{border-color:var(--daisy-violet);color:#fff;}
 .daisy-form{display:flex;align-items:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--daisy-border);}
-.daisy-input{flex:1;min-width:0;background:var(--daisy-card);border:1px solid var(--daisy-border);border-radius:22px;padding:11px 16px;color:#f0f0f6;font-family:var(--font);font-size:14px;line-height:1.4;resize:none;max-height:110px;overflow-y:auto;transition:border-color .2s;}
+.daisy-input{flex:1;min-width:0;background:var(--daisy-card);border:1px solid var(--daisy-border);border-radius:22px;padding:11px 16px;color:#f0f0f6;font-family:var(--font);font-size:14px;line-height:1.4;resize:none;max-height:110px;overflow-y:auto;overscroll-behavior-y:contain;transition:border-color .2s;}
 .daisy-input:focus{outline:none;border-color:var(--daisy-violet);}
 .daisy-input::placeholder{color:#6f6d80;}
 .daisy-icon-btn{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1px solid var(--daisy-border);background:var(--daisy-card);color:#c3c1d4;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,transform .1s;padding:0;}
@@ -516,7 +516,7 @@ button{font-family:var(--font);}
           <span class="daisy-progress-chip" data-field="documents">Company docs</span>
         </div>
 
-        <div class="daisy-body" id="daisyMessages" style="max-height:min(58vh,520px);min-height:260px;overflow-y:auto;scroll-behavior:smooth;">
+        <div class="daisy-body" id="daisyMessages" style="max-height:min(58vh,520px);min-height:260px;overflow-y:auto;scroll-behavior:smooth;overscroll-behavior-y:contain;">
           <div class="daisy-row from-daisy"><div class="daisy-avatar-sm">D</div><p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p></div>
           <div class="prompt-chips">
             <button type="button" class="prompt-chip">A hair salon in Kampala</button>
