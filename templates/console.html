@@ -157,8 +157,19 @@ button{font-family:var(--font);}
 .prompt-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
 .prompt-chip{font-family:var(--mono);font-size:12px;color:#c3c1d4;border:1px solid var(--daisy-border);padding:7px 12px;border-radius:4px;cursor:pointer;background:none;}
 .prompt-chip:hover{border-color:var(--daisy-violet);color:#fff;}
-.daisy-form{display:flex;border-top:1px solid var(--daisy-border);}
-.daisy-input{flex:1;background:transparent;border:none;padding:15px 18px;color:#f0f0f6;font-family:var(--font);font-size:14px;}
+.daisy-form{display:flex;align-items:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--daisy-border);}
+.daisy-input{flex:1;min-width:0;background:var(--daisy-card);border:1px solid var(--daisy-border);border-radius:22px;padding:11px 16px;color:#f0f0f6;font-family:var(--font);font-size:14px;line-height:1.4;resize:none;max-height:110px;overflow-y:auto;transition:border-color .2s;}
+.daisy-input:focus{outline:none;border-color:var(--daisy-violet);}
+.daisy-input::placeholder{color:#6f6d80;}
+.daisy-icon-btn{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1px solid var(--daisy-border);background:var(--daisy-card);color:#c3c1d4;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,transform .1s;padding:0;}
+.daisy-icon-btn:hover{background:var(--daisy-border);}
+.daisy-icon-btn:active{transform:scale(.94);}
+.daisy-send-btn{background:var(--daisy-violet);border-color:var(--daisy-violet);color:#14141e;}
+.daisy-send-btn:hover{background:#9575ff;}
+/* Full-width action buttons elsewhere in the panel (Build my site, Generate
+   artifact, Preview link) — distinct from the small round composer icons
+   above, kept under the old class name since those call sites reference it. */
+.daisy-send{background:var(--daisy-violet);color:#14141e;border:none;border-radius:6px;font-weight:700;font-size:12.5px;cursor:pointer;text-transform:uppercase;letter-spacing:.3px;font-family:var(--mono);}
 .daisy-input::placeholder{color:#5f5d6e;}
 .daisy-input:focus{outline:none;}
 .daisy-send{background:var(--daisy-violet);color:#14141e;border:none;padding:0 24px;font-weight:700;font-size:12.5px;cursor:pointer;text-transform:uppercase;letter-spacing:.3px;font-family:var(--mono);}
@@ -410,16 +421,22 @@ button{font-family:var(--font);}
           {% if b.status=='approved' %}
           <a class="btn" href="//{{ b.slug }}.trustedbiz.co.ug" target="_blank">View</a>
           {% elif b.generated_html %}
-          <a class="btn" href="/site/{{ b.slug }}" target="_blank">Preview</a>
+          <a class="btn" href="/site/{{ b.slug }}/index" target="_blank">Preview</a>
           <button class="btn" style="color:#16a34a;border-color:rgba(22,163,74,.35);" onclick="goLive({{ b.id }})">🚀 Go Live</button>
+          {% elif b.build_status == 'building' %}
+          <span class="btn" style="opacity:.6;">Building…</span>
           {% endif %}
           <button class="btn" data-target="daisy" onclick="startDaisyEdit({{ b.id }}, {{ b.name|tojson }});">Edit with Daisy</button>
           {% if b.generated_html %}
           <a class="btn" href="/dashboard/edit-code/{{ b.id }}">View/Edit Code</a>
           {% endif %}
+          {% if b.build_status == 'building' %}
+          <span class="btn" style="opacity:.6;" title="A build is already running for this site">Redeploy (building…)</span>
+          {% else %}
           <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;" class="regen-form" data-biz-id="{{ b.id }}">
             <button type="submit" class="btn">Redeploy</button>
           </form>
+          {% endif %}
           {% if not b.is_premium %}
           <span style="font-size:11px;color:var(--dim);align-self:center;">
             {% if (b.regen_count or 0) < 2 %}{{ 2 - (b.regen_count or 0) }} free rebuild{{ 's' if (2 - (b.regen_count or 0)) != 1 else '' }} left
@@ -427,14 +444,12 @@ button{font-family:var(--font);}
           </span>
           {% endif %}
         </div>
-        {% if b.generated_html %}
         <div class="build-progress" data-biz-id="{{ b.id }}" style="display:{{ 'block' if b.build_status == 'building' else 'none' }};width:100%;margin-top:8px;">
           <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
             <div class="build-progress-bar" style="height:100%;width:{{ b.build_progress or 0 }}%;background:var(--accent, #2b7a78);transition:width .6s;"></div>
           </div>
-          <div style="font-size:11px;color:var(--dim);margin-top:3px;">Daisy is building — keeps going even if you leave <span class="build-progress-pct">{{ b.build_progress or 0 }}%</span></div>
+          <div style="font-size:11px;color:var(--dim);margin-top:3px;">Daisy is building — a full multi-page site can take a few minutes, this keeps going even if you close the app <span class="build-progress-pct">{{ b.build_progress or 0 }}%</span></div>
         </div>
-        {% endif %}
       </div>
       {% endfor %}
       <script>
@@ -452,8 +467,8 @@ button{font-family:var(--font);}
                 bar.querySelector('.build-progress-pct').textContent = d.progress + '%';
               } else if (d.status === 'done') {
                 bar.querySelector('.build-progress-bar').style.width = '100%';
-                bar.querySelector('.build-progress-pct').textContent = 'Done — refresh to view';
-                setTimeout(function(){ bar.style.display = 'none'; }, 5000);
+                bar.querySelector('.build-progress-pct').textContent = 'Done! Loading your site…';
+                setTimeout(function(){ window.location.reload(); }, 1200);
               } else if (d.status === 'failed') {
                 bar.querySelector('.build-progress-pct').textContent = 'Build failed — try Redeploy again';
               } else {
@@ -501,7 +516,7 @@ button{font-family:var(--font);}
           <span class="daisy-progress-chip" data-field="documents">Company docs</span>
         </div>
 
-        <div class="daisy-body" id="daisyMessages" style="max-height:340px;overflow-y:auto;">
+        <div class="daisy-body" id="daisyMessages" style="max-height:min(58vh,520px);min-height:260px;overflow-y:auto;scroll-behavior:smooth;">
           <div class="daisy-row from-daisy"><div class="daisy-avatar-sm">D</div><p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p></div>
           <div class="prompt-chips">
             <button type="button" class="prompt-chip">A hair salon in Kampala</button>
@@ -545,17 +560,17 @@ button{font-family:var(--font);}
 
         <form class="daisy-form" id="daisyChatForm">
           <input type="file" id="photoInput" accept="image/*" multiple hidden>
-          <button type="button" id="photoBtn" class="daisy-send" title="Add photos"
-                  style="background:transparent;color:#c3c1d4;border-right:1px solid var(--daisy-border);padding:0 14px;">
+          <button type="button" id="photoBtn" class="daisy-icon-btn" title="Add photos">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
           </button>
           <input type="file" id="docInput" accept="application/pdf" multiple hidden>
-          <button type="button" id="docBtn" class="daisy-send" title="Add company documents (PDF)"
-                  style="background:transparent;color:#c3c1d4;border-right:1px solid var(--daisy-border);padding:0 14px;">
+          <button type="button" id="docBtn" class="daisy-icon-btn" title="Add company documents (PDF)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
           </button>
-          <input class="daisy-input" id="daisyChatInput" type="text" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" autocomplete="off" />
-          <button class="daisy-send" type="submit">Build</button>
+          <textarea class="daisy-input" id="daisyChatInput" rows="1" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" autocomplete="off"></textarea>
+          <button class="daisy-icon-btn daisy-send-btn" type="submit" title="Send" aria-label="Send">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
         </form>
         <p id="photoStatus" style="font-size:11.5px;color:#8b899c;padding:0 18px 12px;display:none;"></p>
         <p id="docStatus" style="font-size:11.5px;color:#8b899c;padding:0 18px 12px;display:none;"></p>
@@ -835,6 +850,35 @@ button{font-family:var(--font);}
   // /daisy/create-business. If ANTHROPIC_API_KEY isn't set in Render yet,
   // /daisy/chat still responds — just with an honest "not connected" message.
   const daisyMessages  = document.getElementById('daisyMessages');
+
+  // ── SMART AUTO-SCROLL ──────────────────────────────────────────────────
+  // The old behavior force-scrolled to the bottom on every single word
+  // Daisy "wrote," which meant you physically couldn't scroll up to
+  // re-read something while she was still replying — every attempt got
+  // yanked back down mid-drag. This only auto-follows when the user is
+  // already at (or hasn't left) the bottom; the moment they scroll up on
+  // their own, it stops following until they scroll back down themselves.
+  let daisyStickToBottom = true;
+  function daisyAutoScroll(){
+    if(daisyStickToBottom) daisyMessages.scrollTop = daisyMessages.scrollHeight;
+  }
+  let daisyIsTouching = false;
+  const daisyNearBottom = () => (daisyMessages.scrollHeight - daisyMessages.scrollTop - daisyMessages.clientHeight) < 60;
+  daisyMessages.addEventListener('touchstart', () => {
+    daisyIsTouching = true;
+    daisyStickToBottom = false;
+    daisyMessages.scrollTop = daisyMessages.scrollTop; // stop any in-flight scroll animation
+  }, {passive: true});
+  daisyMessages.addEventListener('touchmove', () => { daisyStickToBottom = false; }, {passive: true});
+  daisyMessages.addEventListener('touchend', () => { daisyIsTouching = false; if(daisyNearBottom()) daisyStickToBottom = true; }, {passive: true});
+  daisyMessages.addEventListener('touchcancel', () => { daisyIsTouching = false; if(daisyNearBottom()) daisyStickToBottom = true; }, {passive: true});
+  daisyMessages.addEventListener('wheel', () => { daisyStickToBottom = false; }, {passive: true});
+  let daisyScrollSettle = null;
+  daisyMessages.addEventListener('scroll', () => {
+    if(daisyIsTouching) return;
+    clearTimeout(daisyScrollSettle);
+    daisyScrollSettle = setTimeout(() => { if(!daisyIsTouching && daisyNearBottom()) daisyStickToBottom = true; }, 150);
+  });
   const daisyForm      = document.getElementById('daisyChatForm');
   const daisyInput     = document.getElementById('daisyChatInput');
   const daisyStatusDot = document.getElementById('daisyStatusDot');
@@ -918,7 +962,7 @@ button{font-family:var(--font);}
     p.className = 'daisy-msg';
     row.appendChild(p);
     daisyMessages.appendChild(row);
-    daisyMessages.scrollTop = daisyMessages.scrollHeight;
+    daisyAutoScroll();
 
     if(who === 'user'){
       // The user's own message appears instantly — only Daisy "writes".
@@ -936,7 +980,7 @@ button{font-family:var(--font);}
       if(i >= words.length) return;
       p.textContent += (i === 0 ? '' : ' ') + words[i];
       i++;
-      daisyMessages.scrollTop = daisyMessages.scrollHeight;
+      daisyAutoScroll();
       setTimeout(revealNext, 28);
     })();
   }
@@ -952,7 +996,7 @@ button{font-family:var(--font);}
     daisyStatusRow.innerHTML = '<div class="daisy-avatar-sm">D</div><span class="daisy-status-bubble">' + label +
       ' <span class="typing-dots"><span></span><span></span><span></span></span></span>';
     daisyMessages.appendChild(daisyStatusRow);
-    daisyMessages.scrollTop = daisyMessages.scrollHeight;
+    daisyAutoScroll();
   }
   function hideDaisyStatus(){
     if(daisyStatusDot) daisyStatusDot.classList.remove('busy');
@@ -961,6 +1005,7 @@ button{font-family:var(--font);}
   }
 
   async function sendToDaisy(text){
+    daisyStickToBottom = true; // sending a message should always jump to see it + the reply
     addDaisyMsg(text, 'user');
     daisyHistory.push({role: 'user', content: text});
     showDaisyStatus(daisyEditBizId ? 'Daisy is updating the site' : 'Daisy is thinking');
@@ -1007,6 +1052,17 @@ button{font-family:var(--font);}
       if(!val) return;
       sendToDaisy(val);
       daisyInput.value = '';
+      daisyInput.style.height = 'auto';
+    });
+    daisyInput.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        daisyForm.requestSubmit ? daisyForm.requestSubmit() : daisyForm.dispatchEvent(new Event('submit', {cancelable:true}));
+      }
+    });
+    daisyInput.addEventListener('input', function(){
+      daisyInput.style.height = 'auto';
+      daisyInput.style.height = Math.min(daisyInput.scrollHeight, 110) + 'px';
     });
   }
   document.querySelectorAll('.prompt-chip').forEach(chip => {
