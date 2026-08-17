@@ -113,19 +113,30 @@ button{font-family:var(--font);}
 .site-plan{font-size:11px;color:var(--dim);font-family:var(--mono);border:1px solid var(--border);padding:3px 8px;border-radius:3px;}
 
 /* DAISY BUILDER PANEL */
-.daisy-panel{background:var(--daisy-bg);border-radius:6px;overflow:hidden;border:1px solid var(--daisy-border);}
-.daisy-panel-head{padding:16px 20px;border-bottom:1px solid var(--daisy-border);display:flex;align-items:center;gap:10px;}
-.daisy-dot{width:8px;height:8px;border-radius:50%;background:var(--daisy-violet);}
-.daisy-dot.busy{animation:daisyPulse 1s ease-in-out infinite;}
+.daisy-panel{background:var(--daisy-bg);border-radius:8px;overflow:hidden;border:1px solid var(--daisy-border);box-shadow:0 8px 30px rgba(0,0,0,.25);}
+.daisy-panel-head{padding:16px 20px;border-bottom:1px solid var(--daisy-border);display:flex;align-items:center;gap:12px;}
+.daisy-avatar{position:relative;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--daisy-violet),#7c5cff);color:#14141e;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.daisy-avatar-sm{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--daisy-violet),#7c5cff);color:#14141e;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.daisy-dot{position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--daisy-bg);}
+.daisy-dot.busy{background:var(--daisy-violet);animation:daisyPulse 1s ease-in-out infinite;}
 @keyframes daisyPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
-.daisy-panel-head span{font-family:var(--mono);font-size:12.5px;color:var(--daisy-dim);}
-.daisy-panel-head b{color:var(--daisy-text);font-weight:600;}
+.daisy-panel-head-text{display:flex;flex-direction:column;line-height:1.35;}
+.daisy-panel-head-text b{color:var(--daisy-text);font-weight:700;font-size:14px;}
+.daisy-panel-head-text span{font-family:var(--mono);font-size:11.5px;color:var(--daisy-dim);}
 .daisy-editing-badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--daisy-violet);border:1px solid rgba(167,139,250,.35);background:rgba(167,139,250,.08);padding:4px 10px;border-radius:20px;}
+
+/* Live "what I have so far" checklist — fills in as the conversation
+   gives Daisy real details, so building a site feels like visible
+   progress instead of a black box. */
+.daisy-progress{display:flex;gap:6px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--daisy-border);}
+.daisy-progress-chip{font-family:var(--mono);font-size:10.5px;color:#5f5d6e;border:1px solid var(--daisy-border);padding:4px 9px;border-radius:20px;transition:all .25s ease;}
+.daisy-progress-chip.got{color:#14141e;background:var(--daisy-violet);border-color:var(--daisy-violet);font-weight:700;}
 .daisy-body{padding:22px 20px;}
 
 /* Chat bubbles — user on the right (violet, filled), Daisy on the left
    (dark card, bordered) so the two voices are unmistakably different. */
-.daisy-row{display:flex;margin-bottom:14px;}
+.daisy-row{display:flex;margin-bottom:14px;gap:8px;animation:daisyRowIn .28s ease both;}
+@keyframes daisyRowIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .daisy-row.from-user{justify-content:flex-end;}
 .daisy-row.from-daisy{justify-content:flex-start;}
 .daisy-msg{color:#e9e8f2;font-size:14px;line-height:1.55;max-width:82%;padding:10px 14px;border-radius:12px;white-space:pre-wrap;word-break:break-word;}
@@ -306,7 +317,7 @@ button{font-family:var(--font);}
         <div class="stat-card"><div class="stat-num">{{ live_count }}</div><div class="stat-lbl">live sites</div></div>
         <div class="stat-card"><div class="stat-num">{{ total_views }}</div><div class="stat-lbl">total views</div></div>
         <div class="stat-card"><div class="stat-num">{{ total_listings }}</div><div class="stat-lbl">total listings</div></div>
-        <div class="stat-card"><div class="stat-num">{{ chosen_plan|capitalize }}</div><div class="stat-lbl">current plan</div></div>
+        <div class="stat-card"><div class="stat-num">{{ hosted_count }}</div><div class="stat-lbl">hosting active</div></div>
       </div>
 
       <div class="label">Quick actions</div>
@@ -393,11 +404,14 @@ button{font-family:var(--font);}
           <div class="site-name">{{ b.name }}</div>
           <div class="site-url">{{ b.slug }}.trustedbiz.co.ug</div>
         </div>
-        <span class="site-status {{ 'live' if b.status=='approved' else 'building' }}">{{ 'Live' if b.status=='approved' else b.status|capitalize }}</span>
-        <span class="site-plan">{{ (b.plan or 'free')|replace('_',' ')|capitalize }}</span>
+        <span class="site-status {{ 'live' if b.status=='approved' else 'building' }}">{{ 'Live' if b.status=='approved' else 'Draft — preview it, then go live' if b.status=='draft' else b.status|capitalize }}</span>
+        <span class="site-plan">{{ 'Hosting active' if b.is_premium else 'Free trial' if b.free_trial_end else 'Not hosted' }}</span>
         <div class="site-actions">
           {% if b.status=='approved' %}
           <a class="btn" href="//{{ b.slug }}.trustedbiz.co.ug" target="_blank">View</a>
+          {% elif b.generated_html %}
+          <a class="btn" href="/site/{{ b.slug }}" target="_blank">Preview</a>
+          <button class="btn" style="color:#16a34a;border-color:rgba(22,163,74,.35);" onclick="goLive({{ b.id }})">🚀 Go Live</button>
           {% endif %}
           <button class="btn" data-target="daisy" onclick="startDaisyEdit({{ b.id }}, {{ b.name|tojson }});">Edit with Daisy</button>
           {% if b.generated_html %}
@@ -465,12 +479,24 @@ button{font-family:var(--font);}
 
       <div class="daisy-panel">
         <div class="daisy-panel-head">
-          <span class="daisy-dot" id="daisyStatusDot"></span>
-          <span><b>Daisy</b> — site builder</span>
+          <div class="daisy-avatar"><span class="daisy-dot" id="daisyStatusDot"></span>D</div>
+          <div class="daisy-panel-head-text">
+            <b>Daisy</b>
+            <span id="daisyStatusLabel">online — ready to build</span>
+          </div>
           <span class="daisy-editing-badge" id="daisyEditingBadge" style="display:none;"></span>
         </div>
+
+        <div class="daisy-progress" id="daisyProgress">
+          <span class="daisy-progress-chip" data-field="name">Business name</span>
+          <span class="daisy-progress-chip" data-field="category">Category</span>
+          <span class="daisy-progress-chip" data-field="description">Description</span>
+          <span class="daisy-progress-chip" data-field="photos">Photos</span>
+          <span class="daisy-progress-chip" data-field="documents">Company docs</span>
+        </div>
+
         <div class="daisy-body" id="daisyMessages" style="max-height:340px;overflow-y:auto;">
-          <div class="daisy-row from-daisy"><p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p></div>
+          <div class="daisy-row from-daisy"><div class="daisy-avatar-sm">D</div><p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p></div>
           <div class="prompt-chips">
             <button type="button" class="prompt-chip">A hair salon in Kampala</button>
             <button type="button" class="prompt-chip">A coding bootcamp</button>
@@ -480,6 +506,10 @@ button{font-family:var(--font);}
 
         <div id="photoStrip" style="display:none;padding:12px 18px 0;border-top:1px solid var(--daisy-border);">
           <div id="photoThumbs" style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:12px;"></div>
+        </div>
+
+        <div id="docStrip" style="display:none;padding:12px 18px 0;border-top:1px solid var(--daisy-border);">
+          <div id="docChips" style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:12px;"></div>
         </div>
 
         <div id="goLiveBox" style="display:none;padding:16px 18px;border-top:1px solid var(--daisy-border);">
@@ -503,13 +533,19 @@ button{font-family:var(--font);}
         <form class="daisy-form" id="daisyChatForm">
           <input type="file" id="photoInput" accept="image/*" multiple hidden>
           <button type="button" id="photoBtn" class="daisy-send" title="Add photos"
-                  style="background:transparent;color:#c3c1d4;border-right:1px solid var(--daisy-border);padding:0 16px;">
+                  style="background:transparent;color:#c3c1d4;border-right:1px solid var(--daisy-border);padding:0 14px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+          <input type="file" id="docInput" accept="application/pdf" multiple hidden>
+          <button type="button" id="docBtn" class="daisy-send" title="Add company documents (PDF)"
+                  style="background:transparent;color:#c3c1d4;border-right:1px solid var(--daisy-border);padding:0 14px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
           </button>
           <input class="daisy-input" id="daisyChatInput" type="text" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" autocomplete="off" />
           <button class="daisy-send" type="submit">Build</button>
         </form>
         <p id="photoStatus" style="font-size:11.5px;color:#8b899c;padding:0 18px 12px;display:none;"></p>
+        <p id="docStatus" style="font-size:11.5px;color:#8b899c;padding:0 18px 12px;display:none;"></p>
       </div>
     </div>
 
@@ -560,7 +596,7 @@ button{font-family:var(--font);}
       </div>
 
       <div class="label">Connect a custom domain</div>
-      <p style="font-size:12.5px;color:var(--dim);margin-bottom:12px;">Available on Pro Max. Point your domain's CNAME at trustedbiz.co.ug, then connect it here and verify.</p>
+      <p style="font-size:12.5px;color:var(--dim);margin-bottom:12px;">Available on any hosted site. Point your domain's CNAME at trustedbiz.co.ug, then connect it here and verify.</p>
       {% if businesses %}
       <form class="dns-form" method="POST" action="/trusthost/request-domain">
         <select name="biz_id" required style="border:1.5px solid var(--border);border-radius:4px;padding:0 10px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;">
@@ -654,81 +690,38 @@ button{font-family:var(--font);}
         <div><h1>Billing</h1><p>// your plan, no surprises</p></div>
       </div>
 
-      <div class="label">Choose the plan that fits right now</div>
-      <div class="plan-grid">
+      <p class="plan-reassure" style="margin:0 0 22px;text-align:left;">Building with Daisy is free, always — no plan to pick, no card needed. Hosting a site live is UGX {{ hosting_fee_monthly or 30000 }}/month (or UGX {{ hosting_fee_yearly or 300000 }}/year), and your first month on every business is free automatically.</p>
 
-        <div class="plan-tier {{ 'current' if chosen_plan=='free' }}">
-          <div class="tier-name">Free</div>
-          <div class="tier-price">UGX 0</div>
-          <div class="tier-sub">Get listed and online</div>
-          <ul class="tier-features">
-            <li>✓ 1 business listing</li>
-            <li>✓ Hosted at yourbiz.trustedbiz.co.ug</li>
-            <li>✓ 1 site built with Daisy</li>
-            <li>✓ Reviews &amp; ratings</li>
-            <li>✓ WhatsApp inquiries</li>
-            <li>✓ 100 MB storage</li>
-          </ul>
-          {% if chosen_plan=='free' %}<button class="tier-btn">Your current plan</button>
-          {% else %}<a class="tier-btn" href="https://wa.me/256753187966?text=I+want+to+move+to+the+Free+plan+on+TrustedBiz">Downgrade</a>{% endif %}
+      <div class="label">Your businesses</div>
+
+      {% if not businesses %}
+      <p style="font-size:13px;color:var(--dim);">No businesses yet — build one with Daisy to see its hosting status here.</p>
+      {% endif %}
+
+      {% for b in businesses %}
+      <div class="plan-card">
+        <div>
+          {% if b.is_premium %}
+          <span class="plan-badge" style="background:rgba(34,197,94,.12);color:#16a34a;">Hosting active</span>
+          {% elif b.free_trial_end %}
+          <span class="plan-badge">Free trial</span>
+          {% else %}
+          <span class="plan-badge" style="background:rgba(180,83,9,.1);color:#b45309;">Not hosted yet</span>
+          {% endif %}
+          <h3>{{ b.name }}</h3>
+          {% if b.is_premium %}
+          <p>Live at {{ b.slug }}.trustedbiz.co.ug{% if b.last_payment_date %} · last payment {{ b.last_payment_date[:10] }}{% endif %}</p>
+          {% elif b.free_trial_end %}
+          <p>Free trial — hosted until {{ b.free_trial_end[:10] if b.free_trial_end is string else b.free_trial_end }}. Pay before then to keep it live without interruption.</p>
+          {% else %}
+          <p>Built and ready to preview — go live from the site's Publish button to start your free month of hosting.</p>
+          {% endif %}
         </div>
-
-        <div class="plan-tier {{ 'current' if chosen_plan=='basic' }}">
-          <div class="tier-name">Basic</div>
-          <div class="tier-price">UGX 8,000<span>/month</span></div>
-          <div class="tier-sub">For a growing business</div>
-          <ul class="tier-features">
-            <li>✓ Everything in Free</li>
-            <li>✓ Up to 3 business listings</li>
-            <li>✓ Edit &amp; regenerate with Daisy anytime</li>
-            <li>✓ Logo &amp; flyer generation</li>
-            <li>✓ Priority placement in directory</li>
-            <li>✓ 500 MB storage · 5 GB bandwidth</li>
-          </ul>
-          {% if chosen_plan=='basic' %}<button class="tier-btn">Your current plan</button>
-          {% else %}<a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+to+upgrade+to+Basic+on+TrustedBiz">Switch to Basic</a>{% endif %}
-        </div>
-
-        <div class="plan-tier {{ 'current' if chosen_plan=='pro_max' }}">
-          <div class="tier-name">Pro Max</div>
-          <div class="tier-price">UGX 15,000<span>/month</span></div>
-          <div class="tier-sub">For businesses ready to grow fast</div>
-          <ul class="tier-features">
-            <li>✓ Everything in Basic</li>
-            <li>✓ Up to 5 business listings</li>
-            <li>✓ Your own custom domain</li>
-            <li>✓ Google visibility &amp; search indexing</li>
-            <li>✓ Full Daisy suite — sites, logos, flyers, business cards</li>
-            <li>✓ Security scans &amp; protection dashboard</li>
-            <li>✓ Priority support via WhatsApp</li>
-            <li>✓ 2 GB storage · 25 GB bandwidth</li>
-          </ul>
-          {% if chosen_plan=='pro_max' %}<button class="tier-btn">Your current plan</button>
-          {% else %}<a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+Pro+Max+on+TrustedBiz">Switch to Pro Max</a>{% endif %}
-        </div>
-
+        {% if not b.is_premium %}
+        <a class="tier-btn solid" href="https://wa.me/256753187966?text=I+want+to+pay+for+hosting+on+{{ b.name|urlencode }}">Pay for hosting</a>
+        {% endif %}
       </div>
-
-      <p class="plan-reassure" style="margin-top:0;margin-bottom:26px;">Switch plans anytime. Downgrades apply at your next billing date, no partial charges.</p>
-
-      <div class="label">You're doing fine — here's your room to grow</div>
-
-      <div class="usage-block">
-        <div class="usage-top"><span>Sites hosted</span><span>3 of 5</span></div>
-        <div class="usage-track"><div class="usage-fill" style="width:60%;"></div></div>
-        <div class="usage-note">Plenty of room, add 2 more sites before you'd need to upgrade.</div>
-      </div>
-      <div class="usage-block">
-        <div class="usage-top"><span>Storage</span><span>420 MB of 2 GB</span></div>
-        <div class="usage-track"><div class="usage-fill" style="width:21%;"></div></div>
-        <div class="usage-note">Well within your limit.</div>
-      </div>
-      <div class="usage-block">
-        <div class="usage-top"><span>Bandwidth</span><span>6.1 GB of 25 GB</span></div>
-        <div class="usage-track"><div class="usage-fill" style="width:24%;"></div></div>
-        <div class="usage-note">Nothing to worry about this month.</div>
-      </div>
-      <div class="next-bill"><span>Next billing date</span><span>Sept 4, 2026</span></div>
+      {% endfor %}
 
       <p class="plan-reassure">We'll always email you before any charge. No surprise fees, ever.</p>
     </div>
@@ -832,6 +825,7 @@ button{font-family:var(--font);}
   const daisyForm      = document.getElementById('daisyChatForm');
   const daisyInput     = document.getElementById('daisyChatInput');
   const daisyStatusDot = document.getElementById('daisyStatusDot');
+  const daisyStatusLabel = document.getElementById('daisyStatusLabel');
   const daisyEditBadge = document.getElementById('daisyEditingBadge');
   const goLiveBox       = document.getElementById('goLiveBox');
   const goLiveBtn       = document.getElementById('goLiveBtn');
@@ -847,9 +841,29 @@ button{font-family:var(--font);}
   const photoStrip      = document.getElementById('photoStrip');
   const photoThumbs     = document.getElementById('photoThumbs');
   const photoStatus     = document.getElementById('photoStatus');
+  const docInput        = document.getElementById('docInput');
+  const docBtn          = document.getElementById('docBtn');
+  const docStrip        = document.getElementById('docStrip');
+  const docChips        = document.getElementById('docChips');
+  const docStatus       = document.getElementById('docStatus');
   let daisyHistory = [];
   let uploadedPhotos = []; // real URLs, sent to Daisy's build + saved on go-live
+  let uploadedDocuments = []; // {url, name, has_text}, sent to Daisy's build + saved on go-live
   let daisyEditBizId = null; // set when "Edit with Daisy" is used, so Daisy remembers this client
+  let daisyKnown = {}; // running snapshot of what Daisy has gathered — drives the progress chips
+
+  // Publishes a previewed draft site — the one action that actually
+  // starts its free hosting trial and makes it publicly reachable.
+  function goLive(bizId){
+    if(!confirm('Go live now? Your site becomes public immediately and your free hosting month starts today.')) return;
+    fetch('/dashboard/go-live/' + bizId, {method:'POST'})
+      .then(r=>r.json())
+      .then(d=>{
+        if(d.success){ window.location.reload(); }
+        else { alert(d.error || 'Could not go live — try again.'); }
+      })
+      .catch(()=>alert('Could not go live — try again.'));
+  }
 
   // Called from "Edit with Daisy" on a site row — switches to the Daisy
   // panel already knowing which real, live business this conversation is
@@ -864,9 +878,29 @@ button{font-family:var(--font);}
     daisyInput.focus();
   }
 
+  // Fills in the "what I have so far" chip row as real details come in —
+  // makes building feel like visible progress instead of a black box.
+  function updateDaisyProgress(){
+    const chips = document.querySelectorAll('.daisy-progress-chip');
+    chips.forEach(chip => {
+      const field = chip.dataset.field;
+      let got = false;
+      if(field === 'photos') got = uploadedPhotos.length > 0;
+      else if(field === 'documents') got = uploadedDocuments.length > 0;
+      else got = !!(daisyKnown[field] && String(daisyKnown[field]).trim());
+      chip.classList.toggle('got', got);
+    });
+  }
+
   function addDaisyMsg(text, who){
     const row = document.createElement('div');
     row.className = 'daisy-row ' + (who === 'user' ? 'from-user' : 'from-daisy');
+    if(who !== 'user'){
+      const av = document.createElement('div');
+      av.className = 'daisy-avatar-sm';
+      av.textContent = 'D';
+      row.appendChild(av);
+    }
     const p = document.createElement('p');
     p.className = 'daisy-msg';
     p.textContent = text;
@@ -880,15 +914,17 @@ button{font-family:var(--font);}
   let daisyStatusRow = null;
   function showDaisyStatus(label){
     if(daisyStatusDot) daisyStatusDot.classList.add('busy');
+    if(daisyStatusLabel) daisyStatusLabel.textContent = label + '…';
     daisyStatusRow = document.createElement('div');
     daisyStatusRow.className = 'daisy-status-row';
-    daisyStatusRow.innerHTML = '<span class="daisy-status-bubble">' + label +
+    daisyStatusRow.innerHTML = '<div class="daisy-avatar-sm">D</div><span class="daisy-status-bubble">' + label +
       ' <span class="typing-dots"><span></span><span></span><span></span></span></span>';
     daisyMessages.appendChild(daisyStatusRow);
     daisyMessages.scrollTop = daisyMessages.scrollHeight;
   }
   function hideDaisyStatus(){
     if(daisyStatusDot) daisyStatusDot.classList.remove('busy');
+    if(daisyStatusLabel) daisyStatusLabel.textContent = 'online — ready to build';
     if(daisyStatusRow){ daisyStatusRow.remove(); daisyStatusRow = null; }
   }
 
@@ -902,6 +938,7 @@ button{font-family:var(--font);}
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           message: text, history: daisyHistory, photo_count: uploadedPhotos.length,
+          document_count: uploadedDocuments.length,
           surface: 'builder', biz_id: daisyEditBizId
         })
       });
@@ -910,6 +947,8 @@ button{font-family:var(--font);}
       addDaisyMsg(data.reply || "I'm having a small moment — try again.", 'daisy');
       daisyHistory.push({role: 'assistant', content: data.reply || ''});
       if(data.business){
+        daisyKnown = Object.assign(daisyKnown, data.business);
+        updateDaisyProgress();
         if(data.business.name && !document.getElementById('goLiveName').value) document.getElementById('goLiveName').value = data.business.name;
         if(data.business.category) document.getElementById('goLiveCategory').value = data.business.category;
         if(data.business.whatsapp) document.getElementById('goLiveWhatsapp').value = data.business.whatsapp;
@@ -981,7 +1020,15 @@ button{font-family:var(--font);}
   }
   if(photoInput){
     photoInput.addEventListener('change', async function(){
-      const files = Array.from(photoInput.files || []).slice(0, 6);
+      const MAX_TOTAL_PHOTOS = 12;
+      if(uploadedPhotos.length >= MAX_TOTAL_PHOTOS){
+        photoStatus.style.display = 'block';
+        photoStatus.textContent = 'That\'s enough photos for one site (' + MAX_TOTAL_PHOTOS + ' max) — Daisy has plenty to work with.';
+        photoInput.value = '';
+        return;
+      }
+      const room = MAX_TOTAL_PHOTOS - uploadedPhotos.length;
+      const files = Array.from(photoInput.files || []).slice(0, Math.min(6, room));
       if(!files.length) return;
       photoStatus.style.display = 'block';
       photoStatus.textContent = 'Uploading photos…';
@@ -997,6 +1044,7 @@ button{font-family:var(--font);}
           data.urls.forEach(addPhotoThumb);
           uploadedPhotos = uploadedPhotos.concat(data.urls);
           photoStatus.textContent = uploadedPhotos.length + ' photo' + (uploadedPhotos.length===1?'':'s') + ' added — Daisy will use ' + (uploadedPhotos.length===1?'it':'them') + ' in the site.';
+          updateDaisyProgress();
         }else{
           photoStatus.textContent = data.error || "Couldn't upload those — try again.";
         }
@@ -1004,6 +1052,65 @@ button{font-family:var(--font);}
         photoStatus.textContent = "Couldn't upload those — try again.";
       }
       photoInput.value = '';
+    });
+  }
+
+  function readFileAsDataUrl(file){
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  function addDocChip(name){
+    const chip = document.createElement('div');
+    chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:var(--daisy-card);border:1px solid var(--daisy-border);border-radius:20px;padding:5px 12px;font-size:12px;color:#c3c1d4;';
+    chip.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>' + name + '</span>';
+    docChips.appendChild(chip);
+    docStrip.style.display = 'block';
+  }
+
+  if(docBtn){
+    docBtn.addEventListener('click', () => docInput.click());
+  }
+  if(docInput){
+    docInput.addEventListener('change', async function(){
+      const MAX_TOTAL_DOCS = 5;
+      if(uploadedDocuments.length >= MAX_TOTAL_DOCS){
+        docStatus.style.display = 'block';
+        docStatus.textContent = 'That\'s enough documents (' + MAX_TOTAL_DOCS + ' max) — Daisy has plenty to work with.';
+        docInput.value = '';
+        return;
+      }
+      const room = MAX_TOTAL_DOCS - uploadedDocuments.length;
+      const files = Array.from(docInput.files || []).slice(0, room);
+      if(!files.length) return;
+      docStatus.style.display = 'block';
+      docStatus.textContent = 'Uploading & reading document' + (files.length===1?'':'s') + '…';
+      try{
+        const docsPayload = await Promise.all(files.map(async f => ({
+          data: await readFileAsDataUrl(f), name: f.name
+        })));
+        const res = await fetch('/daisy/upload-document', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({documents: docsPayload})
+        });
+        const data = await res.json();
+        if(data.documents && data.documents.length){
+          data.documents.forEach(d => addDocChip(d.name));
+          uploadedDocuments = uploadedDocuments.concat(data.documents);
+          docStatus.textContent = uploadedDocuments.length + ' document' + (uploadedDocuments.length===1?'':'s') + ' added — Daisy will use the real content in your site.';
+          updateDaisyProgress();
+        }else{
+          docStatus.textContent = data.error || "Couldn't upload that — try a PDF under 15MB.";
+        }
+      }catch(e){
+        docStatus.textContent = "Couldn't upload that — try again.";
+      }
+      docInput.value = '';
     });
   }
 
@@ -1022,13 +1129,14 @@ button{font-family:var(--font);}
             category: document.getElementById('goLiveCategory').value.trim(),
             whatsapp: document.getElementById('goLiveWhatsapp').value.trim(),
             description: daisyHistory.filter(h => h.role === 'user').map(h => h.content).join(' ').slice(0, 500),
-            photos: uploadedPhotos
+            photos: uploadedPhotos,
+            documents: uploadedDocuments
           })
         });
         const data = await res.json();
         if(data.success){
-          goLiveStatus.textContent = 'Live! Your site: ' + data.url + ' — refresh Sites in a moment.';
-          goLiveBtn.textContent = 'Live ✓';
+          goLiveStatus.textContent = 'Built! Open Sites below to preview it, then click Go Live when you\'re happy — your free hosting month starts then.';
+          goLiveBtn.textContent = 'Built ✓';
         }else{
           goLiveStatus.textContent = data.error || 'Something went wrong — try again.';
           goLiveBtn.disabled = false;
