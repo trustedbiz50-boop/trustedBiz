@@ -519,15 +519,22 @@ button{font-family:var(--font);}
         </div>
 
         <div id="goLiveBox" style="display:none;padding:16px 18px;border-top:1px solid var(--daisy-border);">
-          <p style="color:#c3c1d4;font-size:13px;margin-bottom:10px;">Ready to go live? Confirm the details:</p>
+          <p style="color:#c3c1d4;font-size:13px;margin-bottom:10px;">Ready for Daisy to build this? Confirm the details:</p>
           <input id="goLiveName" placeholder="Business name" required
                  style="width:100%;margin-bottom:8px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
           <input id="goLiveCategory" placeholder="Category (e.g. Salon)"
                  style="width:100%;margin-bottom:8px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
           <input id="goLiveWhatsapp" placeholder="WhatsApp number (256...)"
                  style="width:100%;margin-bottom:10px;padding:10px 12px;border:1.5px solid var(--daisy-border);border-radius:4px;background:#0e0e17;color:#f0f0f6;font-family:inherit;font-size:13px;">
-          <button id="goLiveBtn" class="daisy-send" style="width:100%;padding:11px;">Make it live</button>
+          <button id="goLiveBtn" class="daisy-send" style="width:100%;padding:11px;">Build my site</button>
           <p id="goLiveStatus" style="font-size:12px;color:#c3c1d4;margin-top:8px;"></p>
+          <div id="buildProgressWrap" style="display:none;margin-top:10px;">
+            <div style="height:6px;background:#232233;border-radius:3px;overflow:hidden;">
+              <div id="buildProgressBar" style="height:100%;width:4%;background:var(--daisy-violet);transition:width .6s ease;"></div>
+            </div>
+            <p id="buildProgressPct" style="font-size:11px;color:#8b899c;margin-top:6px;">Daisy is building — this keeps going even if you close the app</p>
+          </div>
+          <a id="goLivePreviewLink" href="#" target="_blank" class="daisy-send" style="display:none;width:100%;padding:11px;margin-top:8px;text-align:center;text-decoration:none;box-sizing:border-box;background:transparent;color:var(--daisy-violet);border:1.5px solid var(--daisy-violet);">👁 Preview your site</a>
         </div>
 
         <div id="artifactBox" style="display:none;padding:16px 18px;border-top:1px solid var(--daisy-border);">
@@ -909,10 +916,29 @@ button{font-family:var(--font);}
     }
     const p = document.createElement('p');
     p.className = 'daisy-msg';
-    p.textContent = text;
     row.appendChild(p);
     daisyMessages.appendChild(row);
     daisyMessages.scrollTop = daisyMessages.scrollHeight;
+
+    if(who === 'user'){
+      // The user's own message appears instantly — only Daisy "writes".
+      p.textContent = text;
+      return;
+    }
+
+    // Word-by-word reveal so a reply feels like Daisy is actually writing
+    // it, not a wall of text dumped in one frame — and each new word
+    // keeps the panel scrolled to the bottom, so the conversation visibly
+    // moves up as she goes rather than sitting static.
+    const words = String(text).split(' ');
+    let i = 0;
+    (function revealNext(){
+      if(i >= words.length) return;
+      p.textContent += (i === 0 ? '' : ' ') + words[i];
+      i++;
+      daisyMessages.scrollTop = daisyMessages.scrollHeight;
+      setTimeout(revealNext, 28);
+    })();
   }
 
   // "Daisy is thinking / building" indicator — bouncing-dots bubble shown
@@ -1120,11 +1146,42 @@ button{font-family:var(--font);}
     });
   }
 
+  function pollBuildStatus(bizId, slug){
+    const wrap = document.getElementById('buildProgressWrap');
+    const bar  = document.getElementById('buildProgressBar');
+    const pct  = document.getElementById('buildProgressPct');
+    const previewLink = document.getElementById('goLivePreviewLink');
+    wrap.style.display = 'block';
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries++;
+      try{
+        const res = await fetch('/api/build-status/' + bizId);
+        const data = await res.json();
+        const p = data.progress || 0;
+        bar.style.width = p + '%';
+        if(data.status === 'done'){
+          clearInterval(timer);
+          pct.textContent = 'Done! Your site is ready to preview.';
+          previewLink.href = '/site/' + slug;
+          previewLink.style.display = 'block';
+          goLiveStatus.textContent = 'Built! Preview it below, then click Go Live from your Sites list when you\'re happy — your free hosting month starts then.';
+        }else if(data.status === 'failed'){
+          clearInterval(timer);
+          pct.textContent = 'Something went wrong building this one — try Redeploy from your Sites list.';
+        }else{
+          pct.textContent = 'Daisy is building — ' + p + '%';
+        }
+      }catch(e){ /* keep polling — a single missed poll isn't fatal */ }
+      if(tries > 150){ clearInterval(timer); } // ~7.5 min safety stop
+    }, 3000);
+  }
+
   if(goLiveBtn){
     goLiveBtn.addEventListener('click', async function(){
       const name = document.getElementById('goLiveName').value.trim();
       if(!name){ goLiveStatus.textContent = 'Business name is required.'; return; }
-      goLiveStatus.textContent = 'Creating your listing…';
+      goLiveStatus.textContent = 'Saving your details…';
       goLiveBtn.disabled = true;
       try{
         const res = await fetch('/daisy/create-business', {
@@ -1139,18 +1196,25 @@ button{font-family:var(--font);}
             documents: uploadedDocuments
           })
         });
+        if(!res.ok){
+          goLiveStatus.textContent = 'Server error (' + res.status + ') — try again in a moment.';
+          goLiveBtn.disabled = false;
+          return;
+        }
         const data = await res.json();
         if(data.success){
-          goLiveStatus.textContent = 'Built! Open Sites below to preview it, then click Go Live when you\'re happy — your free hosting month starts then.';
-          goLiveBtn.textContent = 'Built ✓';
+          goLiveStatus.textContent = 'Saved — Daisy is building your site now…';
+          goLiveBtn.textContent = 'Building…';
+          pollBuildStatus(data.biz_id, data.slug);
         }else{
           goLiveStatus.textContent = data.error || 'Something went wrong — try again.';
           goLiveBtn.disabled = false;
         }
       }catch(e){
-        goLiveStatus.textContent = 'Could not reach TrustedBiz — try again.';
+        goLiveStatus.textContent = 'Could not reach TrustedBiz — check your connection and try again.';
         goLiveBtn.disabled = false;
       }
+
     });
   }
 
