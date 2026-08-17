@@ -432,7 +432,7 @@ def create_tables():
     if USE_POSTGRES:
         tables = [
         "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, two_factor_enabled INTEGER DEFAULT 0, two_factor_secret TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, custom_domain TEXT, domain_status TEXT DEFAULT 'none', documents TEXT, document_notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id SERIAL PRIMARY KEY, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, free_trial_end DATE, payment_months_late INTEGER DEFAULT 0, custom_domain TEXT, domain_status TEXT DEFAULT 'none', documents TEXT, document_notes TEXT, regen_count INTEGER DEFAULT 0, last_regen_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id SERIAL PRIMARY KEY, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id SERIAL PRIMARY KEY, business_id INTEGER, user_identifier TEXT)",
@@ -454,7 +454,7 @@ def create_tables():
     else:
         tables = [
         "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', is_premium INTEGER DEFAULT 0, two_factor_enabled INTEGER DEFAULT 0, two_factor_secret TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', location TEXT, custom_domain TEXT, domain_status TEXT DEFAULT 'none', documents TEXT, document_notes TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS business (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, whatsapp TEXT, lat REAL, lng REAL, photos TEXT, description TEXT, hours TEXT, status TEXT DEFAULT 'approved', verified INTEGER DEFAULT 0, reports INTEGER DEFAULT 0, views INTEGER DEFAULT 0, owner_id INTEGER, owner_ip TEXT, is_premium INTEGER DEFAULT 0, brand_color TEXT DEFAULT '#2b7a78', slug TEXT UNIQUE, hero_price REAL, hero_price_label TEXT, generated_html TEXT, last_payment_date DATE, payment_months_late INTEGER DEFAULT 0, plan TEXT DEFAULT 'free', location TEXT, custom_domain TEXT, domain_status TEXT DEFAULT 'none', documents TEXT, document_notes TEXT, regen_count INTEGER DEFAULT 0, last_regen_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS branches (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, name TEXT, address TEXT, whatsapp TEXT, hours TEXT, lat REAL, lng REAL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, rating INTEGER, comment TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_identifier TEXT)",
@@ -765,6 +765,16 @@ HOSTING_FEE_YEARLY  = 300000  # UGX — placeholder (~2 months free vs monthly x
 HOSTING_CURRENCY    = "UGX"
 HOSTING_TRIAL_DAYS  = 30
 HOSTING_GRACE_DAYS  = 14      # days after trial/payment lapses before suspension
+
+# ── REBUILD LIMIT ────────────────────────────────────────────────────────────
+# The first build is always free. But every full rebuild after that (the
+# owner's own Redeploy click — not admin's, not the automatic first-build/
+# fallback paths, and not manual code edits) reruns the entire multi-page
+# generation and costs real Claude API money every time. Two free rebuilds,
+# then it's either active hosting (unlimited) or a 24h wait for the next
+# free one — see generate_site().
+FREE_REGENS_BEFORE_LIMIT = 2
+REGEN_WAIT_HOURS = 24
 
 
 # ── AI IMAGE GENERATION (was image_generator.py) ────────────────────────────
@@ -2500,6 +2510,33 @@ def generate_site(biz_id):
     biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id,session['user_id']))
     if not biz: flash("Not found."); return redirect('/dashboard#sites')
     bd = biz_to_dict(biz)
+
+    # THE LIMIT: the first build (when a business is created) is always
+    # free — that's not touched here. But every click of Redeploy after
+    # that reruns the FULL multi-page generation (site plan, design brief,
+    # home page, art-director pass, every other page) — real Claude API
+    # cost, every time, with no ceiling. Two free rebuilds, then either
+    # active hosting (is_premium) or a 24-hour wait unlocks the next one.
+    # Admin's own "Regen site" button and the automatic first-build/
+    # fallback paths are untouched by this — this only gates the button
+    # the business owner clicks themselves.
+    regen_count = bd.get('regen_count') or 0
+    if regen_count >= FREE_REGENS_BEFORE_LIMIT and not bd.get('is_premium'):
+        last_regen_at = bd.get('last_regen_at')
+        if last_regen_at:
+            from datetime import datetime, timedelta
+            try:
+                last_dt = last_regen_at if isinstance(last_regen_at, datetime) else datetime.fromisoformat(str(last_regen_at).replace('Z',''))
+                elapsed = datetime.now() - last_dt
+                if elapsed < timedelta(hours=REGEN_WAIT_HOURS):
+                    wait_left = timedelta(hours=REGEN_WAIT_HOURS) - elapsed
+                    hrs_left = max(1, int(wait_left.total_seconds() // 3600) + 1)
+                    flash(f"You've used your {FREE_REGENS_BEFORE_LIMIT} free rebuilds for \"{bd.get('name')}\". "
+                          f"Pay for hosting for unlimited rebuilds, or wait about {hrs_left}h and rebuild again for free.", 'error')
+                    return redirect('/dashboard#sites')
+            except Exception as e:
+                print(f"[generate_site] regen-limit date parse error: {e}")
+
     branches = db_fetchall(q("SELECT * FROM branches WHERE business_id=?"), (biz_id,))
     bd['branches'] = [dict(b) for b in branches]
     ads = db_fetchall(q("SELECT * FROM ads WHERE business_id=? AND active=1 LIMIT 2"), (biz_id,))
@@ -2516,8 +2553,11 @@ def generate_site(biz_id):
         'documents': [p.strip() for p in str(bd.get('documents') or '').split(',') if p.strip()],
     }
 
+    db_execute(q("UPDATE business SET regen_count=regen_count+1, last_regen_at=CURRENT_TIMESTAMP WHERE id=?"), (biz_id,))
     start_daisy_build(biz_id, daisy_ctx, event_user_id=session['user_id'], event_label=bd.get('name'))
-    flash(f"✨ Daisy is rebuilding \"{bd.get('name')}\" — watch progress on this page, it'll keep building even if you leave.")
+    remaining = max(0, FREE_REGENS_BEFORE_LIMIT - (regen_count + 1))
+    note = f" You have {remaining} free rebuild{'s' if remaining != 1 else ''} left after this one." if not bd.get('is_premium') and remaining <= FREE_REGENS_BEFORE_LIMIT else ""
+    flash(f"✨ Daisy is rebuilding \"{bd.get('name')}\" — watch progress on this page, it'll keep building even if you leave.{note}")
     return redirect('/dashboard')
 
 # ── ADD BUSINESS ──────────────────────────────────────────────────────────────
@@ -2818,6 +2858,12 @@ def migrate_db():
             # a WhatsApp button — see save_documents_b64() and /contact-submit.
             db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS documents TEXT")
             db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS document_notes TEXT")
+            # Rebuild limit: building the FIRST site is always free, but a
+            # user clicking Redeploy over and over reruns the full
+            # multi-page generation each time (real Claude API cost) —
+            # see generate_site() for the actual gate.
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS regen_count INTEGER DEFAULT 0")
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS last_regen_at TIMESTAMP")
             if USE_POSTGRES:
                 db_execute("CREATE TABLE IF NOT EXISTS deploy_events (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS site_backups (id SERIAL PRIMARY KEY, business_id INTEGER, html_snapshot TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
