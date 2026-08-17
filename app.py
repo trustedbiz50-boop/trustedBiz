@@ -118,6 +118,27 @@ def _email_domain_live(name, email, biz_name, domain):
 </div>
 </body></html>""")
 
+def _email_build_ready(name, email, biz_name, preview_url):
+    _send_email(email, f"✅ \"{biz_name}\" is built — go take a look", f"""
+<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
+<div style="max-width:560px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+  <div style="background:#2b7a78;padding:32px;text-align:center;">
+    <h1 style="color:white;margin:0;font-size:24px;">Daisy finished building 🎉</h1>
+  </div>
+  <div style="padding:32px;">
+    <p style="font-size:16px;color:#333;">Hi <strong>{name}</strong>,</p>
+    <p style="color:#555;line-height:1.7;"><strong>{biz_name}</strong> is ready to preview — a real, multi-page site, built and waiting for you to look it over.</p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="{preview_url}" style="background:#2b7a78;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Preview your site →</a>
+    </div>
+    <p style="color:#888;font-size:13px;">Happy with it? Click Go Live from your dashboard to publish it — your free hosting month starts then.</p>
+  </div>
+  <div style="background:#f8f8f8;padding:16px;text-align:center;font-size:12px;color:#aaa;">
+    © 2026 TrustedBiz · <a href="https://trustedbiz.co.ug" style="color:#2b7a78;">trustedbiz.co.ug</a>
+  </div>
+</div>
+</body></html>""")
+
 def _email_2fa_enabled(name, email):
     _send_email(email, "Two-factor login enabled on your TrustedBiz account", f"""
 <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
@@ -1920,6 +1941,14 @@ def start_daisy_build(biz_id, daisy_ctx, event_user_id=None, event_label=None):
                                           f'"{event_label or biz_id}" rebuilt successfully', 'ok')
                     except Exception:
                         pass
+                    try:
+                        owner = db_fetchone(q("SELECT * FROM users WHERE id=?"), (event_user_id,))
+                        biz_row = db_fetchone(q("SELECT slug FROM business WHERE id=?"), (biz_id,))
+                        if owner and biz_row:
+                            _email_build_ready(owner['name'], owner['email'], event_label or 'Your site',
+                                                f"https://trustedbiz.co.ug/site/{biz_row['slug']}/index")
+                    except Exception as e:
+                        print(f"[Daisy/Build] build-ready email failed for biz {biz_id}: {e}")
                 print(f"[Daisy/Build] done for biz_id={biz_id}")
             else:
                 db_execute(q("UPDATE business SET build_status='failed' WHERE id=?"), (biz_id,))
@@ -2225,6 +2254,18 @@ def logout():
 def site(slug=None, page=None):
     if slug is None:
         return render_template('404.html', current_user=get_current_user()), 404
+    if page is None:
+        # THE BUG: nav links inside generated pages are relative slugs
+        # (href="about", href="contact") — they only resolve correctly
+        # from a URL that already ends in a page segment, e.g.
+        # /site/<slug>/index -> "about" -> /site/<slug>/about. Reached via
+        # the bare /site/<slug> route (no page segment), "about" instead
+        # resolves as a SIBLING of <slug> -> /site/about, which 404s since
+        # "about" isn't a real business slug. Redirect once so every nav
+        # click after that resolves correctly. (This function is also
+        # called directly by handle_subdomain() with an explicit page
+        # string, never None, so that path is untouched by this redirect.)
+        return redirect(f'/site/{slug}/index')
     biz = db_fetchone(q("SELECT * FROM business WHERE slug=?"), (slug,))
     if not biz:
         try: biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (int(slug),))
