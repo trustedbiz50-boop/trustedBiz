@@ -420,6 +420,12 @@ button{font-family:var(--font);}
           <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;" class="regen-form" data-biz-id="{{ b.id }}">
             <button type="submit" class="btn">Redeploy</button>
           </form>
+          {% if not b.is_premium %}
+          <span style="font-size:11px;color:var(--dim);align-self:center;">
+            {% if (b.regen_count or 0) < 2 %}{{ 2 - (b.regen_count or 0) }} free rebuild{{ 's' if (2 - (b.regen_count or 0)) != 1 else '' }} left
+            {% else %}Free rebuilds used — pay for hosting or wait 24h between rebuilds{% endif %}
+          </span>
+          {% endif %}
         </div>
         {% if b.generated_html %}
         <div class="build-progress" data-biz-id="{{ b.id }}" style="display:{{ 'block' if b.build_status == 'building' else 'none' }};width:100%;margin-top:8px;">
