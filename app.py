@@ -781,8 +781,8 @@ def artifact_allowed(plan, artifact_type):
 # math (server + Claude API + Cloudinary spend per site, plus margin).
 # Nothing else needs to change when you update these; every place that
 # shows a price should read from here, not have its own hardcoded number.
-HOSTING_FEE_MONTHLY = 30000   # UGX — placeholder, change after cost calculations
-HOSTING_FEE_YEARLY  = 300000  # UGX — placeholder (~2 months free vs monthly x12)
+HOSTING_FEE_MONTHLY = 15000    # UGX — his set price (Aug 2026)
+HOSTING_FEE_YEARLY  = 120000   # UGX — his set price (Aug 2026)
 HOSTING_CURRENCY    = "UGX"
 HOSTING_TRIAL_DAYS  = 30
 HOSTING_GRACE_DAYS  = 14      # days after trial/payment lapses before suspension
@@ -797,6 +797,12 @@ HOSTING_GRACE_DAYS  = 14      # days after trial/payment lapses before suspensio
 FREE_REGENS_BEFORE_LIMIT = 2
 REGEN_WAIT_HOURS = 24
 
+# ── BUSINESS COUNT LIMIT ─────────────────────────────────────────────────────
+# A free account can build ONE website. Paying for hosting on it unlocks a
+# second build slot — not unlimited. See daisy_create_business().
+FREE_BUSINESS_LIMIT = 1
+PAID_BUSINESS_LIMIT = 2
+
 
 # ── AI IMAGE GENERATION (was image_generator.py) ────────────────────────────
 # Custom on-brand images for a business that hasn't uploaded its own photos.
@@ -807,6 +813,51 @@ REGEN_WAIT_HOURS = 24
 TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY", "")
 TOGETHER_URL = "https://api.together.xyz/v1/images/generations"
 IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell-Free"
+
+# ── WHATSAPP (TrustedBiz's own sender — Phase 1) ─────────────────────────────
+# This is TrustedBiz's OWN outbound WhatsApp number (one Meta WhatsApp Cloud
+# API sender, owned by TrustedBiz) — used for platform-to-owner notifications
+# like "your site is built" or "your hosting is due." It is NOT the bigger
+# feature where each business's OWN number lets Daisy auto-reply to THEIR
+# customers — that needs Meta Tech Provider approval + Embedded Signup so
+# every business can connect its own number, which is a separate, bigger
+# piece of work once that approval is in place.
+#
+# Until WHATSAPP_TOKEN/WHATSAPP_PHONE_ID are set in the environment, every
+# call below silently no-ops (returns False) — nothing breaks, callers
+# should just fall back to email, same as every other optional integration
+# in this file.
+WHATSAPP_TOKEN    = os.environ.get("WHATSAPP_TOKEN", "")
+WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID", "")
+WHATSAPP_API_URL  = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_ID}/messages" if WHATSAPP_PHONE_ID else ""
+
+def send_whatsapp_message(to_number, text):
+    """Send a plain-text WhatsApp message from TrustedBiz's own number.
+    NOTE: outside a 24h customer-initiated conversation window, WhatsApp
+    Cloud API requires a pre-approved message TEMPLATE, not free-form text
+    — a build-ready notification will need a template approved in Meta
+    Business Manager before this works in production. Returns True/False,
+    never raises — callers should treat False as "fall back to email."""
+    if not (WHATSAPP_TOKEN and WHATSAPP_PHONE_ID and to_number):
+        return False
+    to = re.sub(r'[^\d]', '', str(to_number))
+    if not to:
+        return False
+    try:
+        resp = requests.post(
+            WHATSAPP_API_URL,
+            headers={"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"},
+            json={"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text[:4096]}},
+            timeout=15,
+        )
+        if resp.status_code >= 400:
+            print(f"[WhatsApp] send failed ({resp.status_code}): {resp.text[:300]}")
+            return False
+        return True
+    except Exception as e:
+        print(f"[WhatsApp] send error: {e}")
+        return False
+
 IMG_SAVE_DIR = os.path.join(os.path.dirname(__file__), "static", "ai-images")
 
 def _img_save_dir():
@@ -1943,12 +1994,19 @@ def start_daisy_build(biz_id, daisy_ctx, event_user_id=None, event_label=None):
                         pass
                     try:
                         owner = db_fetchone(q("SELECT * FROM users WHERE id=?"), (event_user_id,))
-                        biz_row = db_fetchone(q("SELECT slug FROM business WHERE id=?"), (biz_id,))
+                        biz_row = db_fetchone(q("SELECT slug, whatsapp FROM business WHERE id=?"), (biz_id,))
                         if owner and biz_row:
-                            _email_build_ready(owner['name'], owner['email'], event_label or 'Your site',
-                                                f"https://trustedbiz.co.ug/site/{biz_row['slug']}/index")
+                            preview_url = f"https://trustedbiz.co.ug/site/{biz_row['slug']}/index"
+                            biz_name = event_label or 'Your site'
+                            sent_wa = send_whatsapp_message(
+                                biz_row.get('whatsapp') or owner.get('whatsapp'),
+                                f"✅ \"{biz_name}\" is built and ready to preview on TrustedBiz: {preview_url}\n\n"
+                                f"Like it? Go to your dashboard and click Go Live to publish it."
+                            )
+                            if not sent_wa:
+                                _email_build_ready(owner['name'], owner['email'], biz_name, preview_url)
                     except Exception as e:
-                        print(f"[Daisy/Build] build-ready email failed for biz {biz_id}: {e}")
+                        print(f"[Daisy/Build] build-ready notification failed for biz {biz_id}: {e}")
                 print(f"[Daisy/Build] done for biz_id={biz_id}")
             else:
                 db_execute(q("UPDATE business SET build_status='failed' WHERE id=?"), (biz_id,))
@@ -2364,6 +2422,27 @@ def daisy_create_business():
     actual live listing — called once the conversation has a name and
     enough detail to go live."""
     user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Please log in first.'}), 401
+
+    # THE LIMIT: every account gets ONE free website. A real, multi-page
+    # build is genuinely expensive to generate (several Claude API calls
+    # per site) — unlimited free builds per account would burn through API
+    # cost fast with no revenue behind it. Paying for hosting on your
+    # first site unlocks a second build slot; that's the ceiling for now
+    # (not unlimited) — see FREE_BUSINESS_LIMIT / PAID_BUSINESS_LIMIT.
+    existing = db_fetchall(q("SELECT is_premium FROM business WHERE owner_id=?"), (user['id'],))
+    has_paid_hosting = any(b.get('is_premium') for b in existing)
+    limit = PAID_BUSINESS_LIMIT if has_paid_hosting else FREE_BUSINESS_LIMIT
+    if len(existing) >= limit:
+        if has_paid_hosting:
+            msg = f"You've reached the {limit}-site limit for a paid account. Contact us if you need more."
+        else:
+            msg = (f"Your first website is free — building a second one needs active hosting. "
+                   f"Pay UGX {HOSTING_FEE_MONTHLY:,}/month or UGX {HOSTING_FEE_YEARLY:,}/year on your "
+                   f"first site to unlock a second build slot.")
+        return jsonify({'error': msg}), 402
+
     data = request.get_json() or {}
     name        = (data.get('name') or '').strip()[:100]
     category    = (data.get('category') or '').strip().lower()
