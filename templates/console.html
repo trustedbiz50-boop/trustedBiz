@@ -133,6 +133,10 @@ button{font-family:var(--font);}
 .daisy-progress-chip.got{color:#14141e;background:var(--daisy-violet);border-color:var(--daisy-violet);font-weight:700;}
 .daisy-body{padding:22px 20px;}
 
+#daisyScrollBtn{position:absolute;left:50%;bottom:14px;transform:translate(-50%,10px);width:36px;height:36px;border-radius:50%;border:1px solid var(--daisy-border);background:var(--daisy-card);color:#e9e8f2;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);z-index:5;opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;}
+#daisyScrollBtn.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;}
+#daisyScrollBtn svg{width:16px;height:16px;}
+
 /* Chat bubbles — user on the right (violet, filled), Daisy on the left
    (dark card, bordered) so the two voices are unmistakably different. */
 .daisy-row{display:flex;margin-bottom:14px;gap:8px;animation:daisyRowIn .28s ease both;}
@@ -537,13 +541,18 @@ button{font-family:var(--font);}
           <span class="daisy-progress-chip" data-field="documents">Company docs</span>
         </div>
 
-        <div class="daisy-body" id="daisyMessages" style="max-height:min(58vh,520px);min-height:260px;overflow-y:auto;scroll-behavior:smooth;overscroll-behavior-y:contain;">
-          <div class="daisy-row from-daisy"><div class="daisy-avatar-sm">D</div><p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p></div>
-          <div class="prompt-chips">
-            <button type="button" class="prompt-chip">A hair salon in Kampala</button>
-            <button type="button" class="prompt-chip">A coding bootcamp</button>
-            <button type="button" class="prompt-chip">A restaurant with delivery</button>
+        <div style="position:relative;">
+          <div class="daisy-body" id="daisyMessages" style="max-height:min(58vh,520px);min-height:260px;overflow-y:auto;overscroll-behavior-y:contain;">
+            <div class="daisy-row from-daisy"><div class="daisy-avatar-sm">D</div><p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p></div>
+            <div class="prompt-chips">
+              <button type="button" class="prompt-chip">A hair salon in Kampala</button>
+              <button type="button" class="prompt-chip">A coding bootcamp</button>
+              <button type="button" class="prompt-chip">A restaurant with delivery</button>
+            </div>
           </div>
+          <button id="daisyScrollBtn" aria-label="Scroll to latest" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          </button>
         </div>
 
         <div id="photoStrip" style="display:none;padding:12px 18px 0;border-top:1px solid var(--daisy-border);">
@@ -888,18 +897,25 @@ button{font-family:var(--font);}
   daisyMessages.addEventListener('touchstart', () => {
     daisyIsTouching = true;
     daisyStickToBottom = false;
-    daisyMessages.scrollTop = daisyMessages.scrollTop; // stop any in-flight scroll animation
   }, {passive: true});
   daisyMessages.addEventListener('touchmove', () => { daisyStickToBottom = false; }, {passive: true});
   daisyMessages.addEventListener('touchend', () => { daisyIsTouching = false; if(daisyNearBottom()) daisyStickToBottom = true; }, {passive: true});
   daisyMessages.addEventListener('touchcancel', () => { daisyIsTouching = false; if(daisyNearBottom()) daisyStickToBottom = true; }, {passive: true});
   daisyMessages.addEventListener('wheel', () => { daisyStickToBottom = false; }, {passive: true});
   let daisyScrollSettle = null;
+  const daisyScrollBtn = document.getElementById('daisyScrollBtn');
   daisyMessages.addEventListener('scroll', () => {
+    if(daisyScrollBtn) daisyScrollBtn.classList.toggle('show', !daisyNearBottom());
     if(daisyIsTouching) return;
     clearTimeout(daisyScrollSettle);
     daisyScrollSettle = setTimeout(() => { if(!daisyIsTouching && daisyNearBottom()) daisyStickToBottom = true; }, 150);
   });
+  if(daisyScrollBtn){
+    daisyScrollBtn.addEventListener('click', () => {
+      daisyStickToBottom = true;
+      daisyMessages.scrollTo({top: daisyMessages.scrollHeight, behavior: 'smooth'});
+    });
+  }
   const daisyForm      = document.getElementById('daisyChatForm');
   const daisyInput     = document.getElementById('daisyChatInput');
   const daisyStatusDot = document.getElementById('daisyStatusDot');
@@ -1273,12 +1289,13 @@ button{font-family:var(--font);}
             documents: uploadedDocuments
           })
         });
+        let data = {};
+        try { data = await res.json(); } catch(e) { /* non-JSON error page */ }
         if(!res.ok){
-          goLiveStatus.textContent = 'Server error (' + res.status + ') — try again in a moment.';
+          goLiveStatus.textContent = data.error || ('Server error (' + res.status + ') — try again in a moment.');
           goLiveBtn.disabled = false;
           return;
         }
-        const data = await res.json();
         if(data.success){
           goLiveStatus.textContent = 'Saved — Daisy is building your site now…';
           goLiveBtn.textContent = 'Building…';
