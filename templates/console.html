@@ -948,13 +948,58 @@ button{font-family:var(--font);}
 
   // Publishes a previewed draft site — the one action that actually
   // starts its free hosting trial and makes it publicly reachable.
-  function goLive(bizId){
-    if(!confirm('Go live now? Your site becomes public immediately and your free hosting month starts today.')) return;
-    fetch('/dashboard/go-live/' + bizId, {method:'POST'})
-      .then(r=>r.json())
-      .then(d=>{
-        if(d.success){ window.location.reload(); }
-        else { alert(d.error || 'Could not go live — try again.'); }
+  const goLivePhoneModal  = document.getElementById('goLivePhoneModal');
+  const goLiveCountryCode = document.getElementById('goLiveCountryCode');
+  const goLivePhoneInput  = document.getElementById('goLivePhoneInput');
+  const goLivePhoneError  = document.getElementById('goLivePhoneError');
+  const goLivePhoneSubmit = document.getElementById('goLivePhoneSubmit');
+  const goLivePhoneCancel = document.getElementById('goLivePhoneCancel');
+  let pendingGoLiveBizId = null;
+
+  function openGoLivePhoneModal(bizId){
+    pendingGoLiveBizId = bizId;
+    goLivePhoneInput.value = '';
+    goLivePhoneError.style.display = 'none';
+    goLivePhoneModal.style.display = 'flex';
+    setTimeout(()=>goLivePhoneInput.focus(), 50);
+  }
+  function closeGoLivePhoneModal(){
+    goLivePhoneModal.style.display = 'none';
+    pendingGoLiveBizId = null;
+  }
+  if(goLivePhoneCancel) goLivePhoneCancel.addEventListener('click', closeGoLivePhoneModal);
+  if(goLivePhoneSubmit) goLivePhoneSubmit.addEventListener('click', function(){
+    const digits = goLivePhoneInput.value.replace(/[^0-9]/g, '').replace(/^0+/, '');
+    if(digits.length < 7){
+      goLivePhoneError.textContent = 'Enter a valid number.';
+      goLivePhoneError.style.display = 'block';
+      return;
+    }
+    const fullNumber = goLiveCountryCode.value + digits;
+    const bizId = pendingGoLiveBizId;
+    closeGoLivePhoneModal();
+    goLive(bizId, fullNumber);
+  });
+
+  function goLive(bizId, phone){
+    const body = phone ? JSON.stringify({phone: phone}) : JSON.stringify({});
+    fetch('/dashboard/go-live/' + bizId, {
+      method:'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: body
+    })
+      .then(r=>r.json().then(d=>({status:r.status, body:d})))
+      .then(({status, body:d})=>{
+        if(d.success){
+          alert('🎉 Your site is live at ' + d.url + '\n\nFree for ' + d.hosting_trial_days +
+                ' days. After that: UGX ' + d.hosting_fee_monthly.toLocaleString() +
+                '/month or UGX ' + d.hosting_fee_yearly.toLocaleString() + '/year.');
+          window.location.reload();
+        } else if(status === 400 && d.needs_phone){
+          openGoLivePhoneModal(bizId);
+        } else {
+          alert(d.error || 'Could not go live — try again.');
+        }
       })
       .catch(()=>alert('Could not go live — try again.'));
   }
@@ -1345,6 +1390,39 @@ button{font-family:var(--font);}
     });
   }
 </script>
+
+<!-- Go Live — WhatsApp number modal (billing contact, collected once per site) -->
+<div id="goLivePhoneModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+  <div style="background:var(--daisy-panel,#1b1830);border:1px solid var(--daisy-border,#332f52);border-radius:14px;max-width:360px;width:100%;padding:22px;box-sizing:border-box;">
+    <h3 style="margin:0 0 8px;font-size:17px;color:#fff;">One last thing</h3>
+    <p style="margin:0 0 16px;font-size:13px;color:#c3c1d4;line-height:1.5;">
+      What's your WhatsApp number? We'll only use it to reach you when it's time to pay for hosting — your first month is free.
+    </p>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <select id="goLiveCountryCode" style="flex:0 0 108px;padding:10px 6px;border-radius:8px;border:1px solid var(--daisy-border,#332f52);background:#12101f;color:#fff;font-size:13px;">
+        <option value="+256" selected>🇺🇬 +256</option>
+        <option value="+254">🇰🇪 +254</option>
+        <option value="+255">🇹🇿 +255</option>
+        <option value="+250">🇷🇼 +250</option>
+        <option value="+257">🇧🇮 +257</option>
+        <option value="+211">🇸🇸 +211</option>
+        <option value="+243">🇨🇩 +243</option>
+        <option value="+234">🇳🇬 +234</option>
+        <option value="+233">🇬🇭 +233</option>
+        <option value="+27">🇿🇦 +27</option>
+        <option value="+1">🇺🇸 +1</option>
+        <option value="+44">🇬🇧 +44</option>
+      </select>
+      <input id="goLivePhoneInput" type="tel" inputmode="numeric" placeholder="700 123 456"
+             style="flex:1;min-width:0;padding:10px 12px;border-radius:8px;border:1px solid var(--daisy-border,#332f52);background:#12101f;color:#fff;font-size:14px;">
+    </div>
+    <p id="goLivePhoneError" style="display:none;color:#f87171;font-size:12px;margin:-8px 0 12px;"></p>
+    <div style="display:flex;gap:8px;">
+      <button id="goLivePhoneCancel" class="btn" style="flex:1;padding:10px;">Cancel</button>
+      <button id="goLivePhoneSubmit" class="daisy-send" style="flex:1;padding:10px;">Go Live</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

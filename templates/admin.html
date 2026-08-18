@@ -246,6 +246,7 @@ button{font-family:var(--font);}
               <strong>Owner:</strong> {{ b.owner_name or 'Unknown' }} &nbsp;·&nbsp;
               <strong>Views:</strong> {{ b.views or 0 }} &nbsp;·&nbsp;
               <strong>Added:</strong> {{ b.created_at[:10] if b.created_at else '—' }}
+              {% if b.payment_phone %}&nbsp;·&nbsp;<strong>WhatsApp (billing):</strong> <a href="https://wa.me/{{ b.payment_phone|replace('+','')|replace(' ','') }}" target="_blank">{{ b.payment_phone }}</a>{% endif %}
             </div>
           </div>
           <div class="biz-actions">
