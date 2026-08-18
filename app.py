@@ -231,6 +231,9 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 
+from payments import payments_bp
+app.register_blueprint(payments_bp)
+
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
 
 # ── SUBDOMAIN MIDDLEWARE ───────────────────────────────────────────────────────
@@ -781,8 +784,8 @@ def artifact_allowed(plan, artifact_type):
 # math (server + Claude API + Cloudinary spend per site, plus margin).
 # Nothing else needs to change when you update these; every place that
 # shows a price should read from here, not have its own hardcoded number.
-HOSTING_FEE_MONTHLY = 15000    # UGX — his set price (Aug 2026)
-HOSTING_FEE_YEARLY  = 120000   # UGX — his set price (Aug 2026)
+HOSTING_FEE_MONTHLY = 7500     # UGX — his set price (Aug 2026)
+HOSTING_FEE_YEARLY  = 80000    # UGX — his set price (Aug 2026)
 HOSTING_CURRENCY    = "UGX"
 HOSTING_TRIAL_DAYS  = 30
 HOSTING_GRACE_DAYS  = 14      # days after trial/payment lapses before suspension
@@ -2507,9 +2510,10 @@ def daisy_create_business():
 @login_required
 def dashboard_go_live(biz_id):
     """The 'click Host' step. Free to build and preview up to here — this
-    is the one action that actually publishes the site and starts its free
-    hosting trial. Idempotent: re-clicking on an already-live site is a
-    harmless no-op."""
+    is the one action that actually publishes the site. First time, it
+    requires a mobile number (so we know who/where to bill) and starts the
+    HOSTING_TRIAL_DAYS free trial. Idempotent after that: re-clicking on an
+    already-live site is a harmless no-op."""
     biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id, session['user_id']))
     if not biz:
         return jsonify({'error': 'Not found.'}), 404
@@ -2518,14 +2522,25 @@ def dashboard_go_live(biz_id):
         return jsonify({'error': "Daisy hasn't finished building this site yet — try again in a moment."}), 400
 
     from datetime import date, timedelta
+
     if bd.get('status') != 'approved':
+        # First time going live — need a mobile number before we publish.
+        phone = (request.get_json(silent=True) or {}).get('phone', '').strip()
+        if not phone:
+            return jsonify({'success': False, 'needs_phone': True}), 400
+
         trial_end = (date.today() + timedelta(days=HOSTING_TRIAL_DAYS)).isoformat()
-        db_execute(q("UPDATE business SET status='approved', free_trial_end=? WHERE id=?"), (trial_end, biz_id))
+        db_execute(q("UPDATE business SET status='approved', is_premium=1, "
+                     "free_trial_end=?, payment_phone=? WHERE id=?"),
+                   (trial_end, phone, biz_id))
         ping_google(bd.get('slug'))
-        log_deploy_event(biz_id, session['user_id'], 'deploy', f'"{bd.get("name")}" went live — {HOSTING_TRIAL_DAYS}-day free hosting trial started', 'ok')
+        log_deploy_event(biz_id, session['user_id'], 'deploy',
+                          f'"{bd.get("name")}" went live — {HOSTING_TRIAL_DAYS}-day free trial started', 'ok')
 
     return jsonify({'success': True, 'url': f"https://{bd.get('slug')}.trustedbiz.co.ug",
-                     'hosting_trial_days': HOSTING_TRIAL_DAYS})
+                     'hosting_trial_days': HOSTING_TRIAL_DAYS,
+                     'hosting_fee_monthly': HOSTING_FEE_MONTHLY,
+                     'hosting_fee_yearly': HOSTING_FEE_YEARLY})
 
 
 
@@ -2956,6 +2971,7 @@ def migrate_db():
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS brand_color TEXT DEFAULT '#2b7a78'")
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS build_status TEXT DEFAULT 'idle'")
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS build_progress INTEGER DEFAULT 0")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS payment_phone TEXT")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS chosen_plan TEXT DEFAULT 'free'")
         # Agent-submitted business extras
