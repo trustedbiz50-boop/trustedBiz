@@ -48,8 +48,21 @@ button{font-family:var(--font);}
 /* SHELL */
 .shell{display:flex;min-height:100vh;}
 
-/* SIDEBAR */
-.sidebar{width:230px;flex-shrink:0;background:var(--side-bg);color:var(--side-text);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;}
+/* SIDEBAR — collapses to an icon-only rail (e.g. while the Daisy room is
+   open, so the chat gets the full screen) and expands again on click. */
+.sidebar{width:230px;flex-shrink:0;background:var(--side-bg);color:var(--side-text);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;transition:width .2s ease,padding .2s ease;overflow:hidden;}
+.side-collapse-btn{align-self:flex-end;background:none;border:1px solid var(--side-border);border-radius:5px;color:var(--side-dim);width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:10px;flex-shrink:0;}
+.side-collapse-btn:hover{color:var(--side-text);border-color:var(--side-dim);}
+.side-collapse-btn svg{width:13px;height:13px;transition:transform .2s ease;}
+@media(min-width:821px){.sidebar.collapsed{width:64px;padding:20px 10px;}}
+.sidebar.collapsed .side-collapse-btn{align-self:center;}
+.sidebar.collapsed .side-collapse-btn svg{transform:rotate(180deg);}
+.sidebar.collapsed .side-label,
+.sidebar.collapsed .side-logo,
+.sidebar.collapsed .side-group,
+.sidebar.collapsed .side-foot{display:none;}
+.sidebar.collapsed .side-new,
+.sidebar.collapsed .side-link{justify-content:center;padding:9px;}
 .side-logo{font-family:var(--mono);font-size:15px;font-weight:500;color:var(--side-text);padding:6px 8px 22px;}
 .side-logo span{color:var(--brand-light);}
 .side-new{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--brand);color:#fff;padding:10px;border-radius:4px;font-size:13px;font-weight:600;margin-bottom:22px;cursor:pointer;border:none;}
@@ -113,10 +126,14 @@ button{font-family:var(--font);}
 .site-plan{font-size:11px;color:var(--dim);font-family:var(--mono);border:1px solid var(--border);padding:3px 8px;border-radius:3px;}
 
 /* DAISY BUILDER PANEL */
-.daisy-panel{background:var(--daisy-bg);border-radius:8px;overflow:hidden;border:1px solid var(--daisy-border);box-shadow:0 8px 30px rgba(0,0,0,.25);}
+.panel[data-panel="daisy"]{max-width:1100px;}
+.daisy-topbar{margin:-28px -30px 26px;}
+.daisy-panel{background:var(--daisy-bg);border-radius:14px;overflow:hidden;border:1px solid var(--daisy-border);box-shadow:0 8px 30px rgba(0,0,0,.25);display:flex;flex-direction:column;height:min(78vh,720px);}
 .daisy-panel-head{padding:16px 20px;border-bottom:1px solid var(--daisy-border);display:flex;align-items:center;gap:12px;}
-.daisy-avatar{position:relative;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--daisy-violet),#7c5cff);color:#14141e;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.daisy-avatar-sm{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--daisy-violet),#7c5cff);color:#14141e;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.daisy-avatar{position:relative;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--daisy-violet),#7c5cff);color:#14141e;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.daisy-avatar::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid rgba(167,139,250,.4);animation:daisyBreathe 2.6s ease-in-out infinite;pointer-events:none;}
+@keyframes daisyBreathe{0%{transform:scale(.92);opacity:.6;}70%{transform:scale(1.18);opacity:0;}100%{transform:scale(1.18);opacity:0;}}
+.daisy-avatar-sm{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--daisy-violet),#7c5cff);color:#14141e;font-weight:800;font-size:11.5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;transition:visibility 0s;}
 .daisy-dot{position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--daisy-bg);}
 .daisy-dot.busy{background:var(--daisy-violet);animation:daisyPulse 1s ease-in-out infinite;}
 @keyframes daisyPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
@@ -124,30 +141,59 @@ button{font-family:var(--font);}
 .daisy-panel-head-text b{color:var(--daisy-text);font-weight:700;font-size:14px;}
 .daisy-panel-head-text span{font-family:var(--mono);font-size:11.5px;color:var(--daisy-dim);}
 .daisy-editing-badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--daisy-violet);border:1px solid rgba(167,139,250,.35);background:rgba(167,139,250,.08);padding:4px 10px;border-radius:20px;}
+.daisy-chips-toggle{margin-left:auto;background:none;border:none;color:var(--daisy-dim);cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;padding:4px 6px;flex-shrink:0;}
+.daisy-chips-toggle svg{width:12px;height:12px;transition:transform .2s ease;}
+.daisy-chips-toggle.collapsed svg{transform:rotate(-90deg);}
 
 /* Live "what I have so far" checklist — fills in as the conversation
    gives Daisy real details, so building a site feels like visible
-   progress instead of a black box. */
-.daisy-progress{display:flex;gap:6px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--daisy-border);}
+   progress instead of a black box. Collapsible so it doesn't clutter
+   the room once things are underway. */
+.daisy-progress{display:flex;gap:6px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--daisy-border);overflow:hidden;max-height:80px;transition:max-height .22s ease,padding .22s ease,opacity .18s ease;opacity:1;}
+.daisy-progress.collapsed{max-height:0;padding-top:0;padding-bottom:0;opacity:0;border-bottom-color:transparent;}
 .daisy-progress-chip{font-family:var(--mono);font-size:10.5px;color:#5f5d6e;border:1px solid var(--daisy-border);padding:4px 9px;border-radius:20px;transition:all .25s ease;}
 .daisy-progress-chip.got{color:#14141e;background:var(--daisy-violet);border-color:var(--daisy-violet);font-weight:700;}
-.daisy-body{padding:22px 20px;}
+.daisy-body{padding:24px 22px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;}
+
+/* FULL-ROOM MODE — while Daisy is open, the sidebar tucks itself into an
+   icon rail and the whole viewport becomes one clean chat surface: one
+   scroll container (the message list), not a page that scrolls around a
+   boxed-in widget. Click the collapse arrow to bring the sidebar back. */
+.shell.daisy-active{overflow:hidden;height:100vh;}
+.shell.daisy-active .main{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+.shell.daisy-active .panel[data-panel="daisy"]{flex:1;min-height:0;display:flex;flex-direction:column;padding:0;max-width:none;}
+.shell.daisy-active .panel[data-panel="daisy"] .daisy-topbar{flex-shrink:0;margin:0;padding:14px 22px;}
+.shell.daisy-active .daisy-panel{flex:1;min-height:0;height:auto;border-radius:0;border-left:none;border-right:none;border-bottom:none;box-shadow:none;}
+@media(max-width:820px){
+  .shell.daisy-active{height:100dvh;}
+  .shell.daisy-active .main{height:calc(100dvh - 0px);}
+}
 
 #daisyScrollBtn{position:absolute;left:50%;bottom:14px;transform:translate(-50%,10px);width:36px;height:36px;border-radius:50%;border:1px solid var(--daisy-border);background:var(--daisy-card);color:#e9e8f2;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);z-index:5;opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;}
 #daisyScrollBtn.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;}
 #daisyScrollBtn svg{width:16px;height:16px;}
 
 /* Chat bubbles — user on the right (violet, filled), Daisy on the left
-   (dark card, bordered) so the two voices are unmistakably different. */
-.daisy-row{display:flex;margin-bottom:14px;gap:8px;animation:daisyRowIn .28s ease both;}
+   (dark card, bordered) so the two voices are unmistakably different.
+   Consecutive messages from the same speaker sit closer together and
+   repeat the avatar as invisible spacing rather than a new icon, the
+   way a real chat app groups a run of messages — that's most of what
+   makes it feel like a conversation and not a form log. */
+.daisy-row{display:flex;margin-bottom:20px;gap:10px;animation:daisyRowIn .28s ease both;align-items:flex-end;}
 @keyframes daisyRowIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .daisy-row.from-user{justify-content:flex-end;}
 .daisy-row.from-daisy{justify-content:flex-start;}
-.daisy-msg{color:#e9e8f2;font-size:14px;line-height:1.55;max-width:82%;padding:10px 14px;border-radius:12px;white-space:pre-wrap;word-break:break-word;}
-.daisy-row.from-daisy .daisy-msg{background:var(--daisy-card);border:1px solid var(--daisy-border);border-bottom-left-radius:3px;}
-.daisy-row.from-user .daisy-msg{background:var(--daisy-violet);color:#14141e;font-weight:500;border-bottom-right-radius:3px;}
+.daisy-row.daisy-grouped{margin-top:-12px;}
+.daisy-row.daisy-grouped .daisy-avatar-sm{visibility:hidden;}
+.daisy-msg-wrap{display:flex;flex-direction:column;max-width:82%;}
+.daisy-row.from-user .daisy-msg-wrap{align-items:flex-end;}
+.daisy-row.from-daisy .daisy-msg-wrap{align-items:flex-start;}
+.daisy-msg{color:#e9e8f2;font-size:14.5px;line-height:1.6;padding:11px 15px;border-radius:16px;white-space:pre-wrap;word-break:break-word;}
+.daisy-row.from-daisy .daisy-msg{background:var(--daisy-card);border:1px solid var(--daisy-border);border-bottom-left-radius:4px;}
+.daisy-row.from-user .daisy-msg{background:var(--daisy-violet);color:#14141e;font-weight:500;border-bottom-right-radius:4px;}
 .daisy-msg b{color:var(--daisy-violet);}
 .daisy-row.from-user .daisy-msg b{color:#14141e;text-decoration:underline;}
+.daisy-msg-time{font-family:var(--mono);font-size:10px;color:#5f5d6e;margin:5px 5px 0;}
 
 /* "Daisy is thinking / building" indicator — three bouncing dots in a
    bubble that matches her side of the conversation. */
@@ -272,34 +318,37 @@ button{font-family:var(--font);}
 <div class="shell">
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
+    <button class="side-collapse-btn" id="sidebarCollapseBtn" title="Collapse sidebar" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
     <div class="side-logo">Trusted<span>Biz</span></div>
-    <button class="side-new" data-target="sites">+ New site</button>
+    <button class="side-new" data-target="sites"><span class="side-label">+ New site</span></button>
 
     <div class="side-group">Workspace</div>
     <button class="side-link active" data-target="overview">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-      Overview
+      <span class="side-label">Overview</span>
     </button>
     <button class="side-link" data-target="sites">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18a14 14 0 010-18"/></svg>
-      Sites
+      <span class="side-label">Sites</span>
     </button>
     <button class="side-link" data-target="daisy">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>
-      Daisy builder
+      <span class="side-label">Daisy builder</span>
     </button>
     <button class="side-link" data-target="hosting">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20l-1-4h-4l5-9 5 9h-4l-1 4z"/><path d="M4 20h16"/></svg>
-      Hosting
+      <span class="side-label">Hosting</span>
     </button>
     <button class="side-link" data-target="security">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"/></svg>
-      Security
+      <span class="side-label">Security</span>
     </button>
     <button class="side-link" data-target="billing">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
-      Billing
+      <span class="side-label">Billing</span>
     </button>
 
     <div class="side-foot">
@@ -519,7 +568,7 @@ button{font-family:var(--font);}
 
     <!-- DAISY BUILDER -->
     <div class="panel" data-panel="daisy" hidden>
-      <div class="topbar" style="margin:-28px -30px 26px;">
+      <div class="topbar daisy-topbar">
         <div><h1>Daisy builder</h1><p>// describe a business, get a live site</p></div>
       </div>
 
@@ -531,6 +580,10 @@ button{font-family:var(--font);}
             <span id="daisyStatusLabel">online — ready to build</span>
           </div>
           <span class="daisy-editing-badge" id="daisyEditingBadge" style="display:none;"></span>
+          <button type="button" class="daisy-chips-toggle" id="daisyChipsToggle" title="Show/hide checklist">
+            Details
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
         </div>
 
         <div class="daisy-progress" id="daisyProgress">
@@ -541,8 +594,8 @@ button{font-family:var(--font);}
           <span class="daisy-progress-chip" data-field="documents">Company docs</span>
         </div>
 
-        <div style="position:relative;">
-          <div class="daisy-body" id="daisyMessages" style="max-height:min(58vh,520px);min-height:260px;overflow-y:auto;overscroll-behavior-y:contain;">
+        <div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">
+          <div class="daisy-body" id="daisyMessages">
             <div class="daisy-row from-daisy"><div class="daisy-avatar-sm">D</div><p class="daisy-msg">Tell me about the business you want online, its name, what it sells, and I'll build the first version of the site right now.</p></div>
             <div class="prompt-chips">
               <button type="button" class="prompt-chip">A hair salon in Kampala</button>
@@ -794,13 +847,24 @@ button{font-family:var(--font);}
   // to Overview.
   const links = document.querySelectorAll('[data-target]');
   const panels = document.querySelectorAll('.panel');
+  const shellEl = document.querySelector('.shell');
+  const sidebarEl = document.getElementById('sidebar');
+  const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
 
   function showPanel(name, setHash){
     panels.forEach(p => p.hidden = p.dataset.panel !== name);
     document.querySelectorAll('.side-link').forEach(l => l.classList.toggle('active', l.dataset.target === name));
     if(setHash !== false) history.replaceState(null, '', '#' + name);
+    // The Daisy room takes the full screen and tucks the sidebar into an
+    // icon-only rail — click the arrow to bring it back without leaving.
+    const isDaisy = name === 'daisy';
+    if(shellEl) shellEl.classList.toggle('daisy-active', isDaisy);
+    if(sidebarEl) sidebarEl.classList.toggle('collapsed', isDaisy);
   }
   links.forEach(el => el.addEventListener('click', () => showPanel(el.dataset.target)));
+  if(sidebarCollapseBtn && sidebarEl){
+    sidebarCollapseBtn.addEventListener('click', () => sidebarEl.classList.toggle('collapsed'));
+  }
 
   const initial = (location.hash || '').replace('#', '');
   if(initial && document.querySelector('.panel[data-panel="' + initial + '"]')){
@@ -941,6 +1005,17 @@ button{font-family:var(--font);}
   const docChips        = document.getElementById('docChips');
   const docStatus       = document.getElementById('docStatus');
   let daisyHistory = [];
+  let daisyLastSender = null; // tracks who sent the last bubble, so consecutive
+                               // messages from the same speaker group together
+                               // instead of repeating the avatar every time
+  const daisyChipsToggle = document.getElementById('daisyChipsToggle');
+  const daisyProgressEl  = document.getElementById('daisyProgress');
+  if(daisyChipsToggle && daisyProgressEl){
+    daisyChipsToggle.addEventListener('click', () => {
+      const collapsed = daisyProgressEl.classList.toggle('collapsed');
+      daisyChipsToggle.classList.toggle('collapsed', collapsed);
+    });
+  }
   let uploadedPhotos = []; // real URLs, sent to Daisy's build + saved on go-live
   let uploadedDocuments = []; // {url, name, has_text}, sent to Daisy's build + saved on go-live
   let daisyEditBizId = null; // set when "Edit with Daisy" is used, so Daisy remembers this client
@@ -1032,17 +1107,29 @@ button{font-family:var(--font);}
   }
 
   function addDaisyMsg(text, who){
+    const isUser = who === 'user';
+    const sender = isUser ? 'user' : 'daisy';
+    const grouped = sender === daisyLastSender;
+    daisyLastSender = sender;
+
     const row = document.createElement('div');
-    row.className = 'daisy-row ' + (who === 'user' ? 'from-user' : 'from-daisy');
-    if(who !== 'user'){
+    row.className = 'daisy-row ' + (isUser ? 'from-user' : 'from-daisy') + (grouped ? ' daisy-grouped' : '');
+    if(!isUser){
       const av = document.createElement('div');
       av.className = 'daisy-avatar-sm';
       av.textContent = 'D';
       row.appendChild(av);
     }
+    const wrap = document.createElement('div');
+    wrap.className = 'daisy-msg-wrap';
     const p = document.createElement('p');
     p.className = 'daisy-msg';
-    row.appendChild(p);
+    wrap.appendChild(p);
+    const time = document.createElement('span');
+    time.className = 'daisy-msg-time';
+    time.textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    wrap.appendChild(time);
+    row.appendChild(wrap);
     daisyMessages.appendChild(row);
     daisyAutoScroll();
 
