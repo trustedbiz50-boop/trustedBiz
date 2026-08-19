@@ -163,15 +163,15 @@ button{font-family:var(--font);}
    desktop — and sits ON TOP of the chat rather than squeezing it. Tapping
    the arrow slides it out into a drawer that overlays roughly half the
    screen; the chat underneath never reflows. */
-.shell.daisy-active{overflow:hidden;height:100vh;height:100dvh;}
-.shell.daisy-active .main{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;margin-left:60px;transition:margin-left .2s ease;}
+.shell.daisy-active{overflow:hidden;height:100vh;height:100dvh;min-height:0;}
+.shell.daisy-active .main{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;margin-left:48px;transition:margin-left .2s ease;}
 .shell.daisy-active .panel[data-panel="daisy"]{flex:1;min-height:0;display:flex;flex-direction:column;padding:0;max-width:none;}
 .shell.daisy-active .panel[data-panel="daisy"] .daisy-topbar{flex-shrink:0;margin:0;padding:12px 16px;}
 .shell.daisy-active .daisy-panel{flex:1;min-height:0;height:auto;border-radius:0;border-left:none;border-right:none;border-bottom:none;box-shadow:none;}
 
 .shell.daisy-active .sidebar{
   position:fixed;top:0;left:0;z-index:40;height:100vh;height:100dvh;
-  width:60px;padding:16px 8px;flex-direction:column;flex-wrap:nowrap;
+  width:48px;padding:12px 6px;flex-direction:column;flex-wrap:nowrap;
   border-right:1px solid var(--side-border);box-shadow:2px 0 18px rgba(0,0,0,.2);
   transition:width .22s ease,padding .22s ease;
 }
@@ -180,7 +180,10 @@ button{font-family:var(--font);}
 .shell.daisy-active .sidebar.collapsed .side-logo,
 .shell.daisy-active .sidebar.collapsed .side-group,
 .shell.daisy-active .sidebar.collapsed .side-foot{display:none;}
-.shell.daisy-active .sidebar.collapsed .side-link{justify-content:center;padding:9px;}
+.shell.daisy-active .sidebar.collapsed .side-collapse-btn{width:22px;height:22px;margin-bottom:6px;}
+.shell.daisy-active .sidebar.collapsed .side-collapse-btn svg{width:11px;height:11px;}
+.shell.daisy-active .sidebar.collapsed .side-link{justify-content:center;padding:7px;}
+.shell.daisy-active .sidebar.collapsed .side-link svg{width:14px;height:14px;}
 .shell.daisy-active .side-new{display:none;}
 
 /* Dims the chat behind the drawer so it reads as "on top of", not "next
