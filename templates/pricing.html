@@ -25,7 +25,7 @@ header{border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:
 .wrap{max-width:900px;margin:0 auto;padding:56px 24px 80px;}
 h1{font-size:30px;font-weight:800;letter-spacing:-.7px;text-align:center;margin-bottom:10px;}
 .sub{text-align:center;color:var(--mid);font-size:14.5px;margin-bottom:40px;}
-.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);}
+.plan-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border);border:1px solid var(--border);max-width:640px;margin:0 auto;}
 .plan-tier{background:var(--surface);padding:26px 22px;display:flex;flex-direction:column;}
 .plan-tier.mid{background:var(--bg);}
 .tier-name{font-size:16px;font-weight:800;margin-bottom:4px;}
@@ -45,52 +45,35 @@ h1{font-size:30px;font-weight:800;letter-spacing:-.7px;text-align:center;margin-
   <a href="/" class="btn">← Home</a>
 </header>
 <div class="wrap">
-  <h1>Simple pricing, upgrade when you're ready</h1>
-  <p class="sub">Every plan includes hosting, a WhatsApp button, and reviews. Pay by MTN or Airtel Money.</p>
+  <h1>Simple pricing, no plans to pick</h1>
+  <p class="sub">Building with Daisy is free, always. Hosting your site live is one flat fee. Pay by MTN or Airtel Money.</p>
 
   <div class="plan-grid">
     <div class="plan-tier">
-      <div class="tier-name">Free</div>
+      <div class="tier-name">Build</div>
       <div class="tier-price">UGX 0</div>
-      <div class="tier-sub">Get listed and online</div>
+      <div class="tier-sub">Build, preview, and edit with Daisy</div>
       <ul class="tier-features">
-        <li>✓ 1 business listing</li>
-        <li>✓ Hosted at yourbiz.trustedbiz.co.ug</li>
-        <li>✓ 1 site built with Daisy</li>
-        <li>✓ Reviews &amp; ratings</li>
-        <li>✓ WhatsApp inquiries</li>
-        <li>✓ 100 MB storage</li>
+        <li>✓ 1 real website built by Daisy</li>
+        <li>✓ Full multi-page site, not a template</li>
+        <li>✓ Unlimited edits &amp; regenerates before you go live</li>
+        <li>✓ WhatsApp contact button</li>
+        <li>✓ Photo gallery, reviews &amp; ratings</li>
       </ul>
       <a class="tier-btn" href="/register">Get started</a>
     </div>
     <div class="plan-tier mid">
-      <div class="tier-name">Basic</div>
-      <div class="tier-price">UGX 8,000<span>/month</span></div>
-      <div class="tier-sub">For a growing business</div>
+      <div class="tier-name">Hosting</div>
+      <div class="tier-price">UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}<span>/month</span></div>
+      <div class="tier-sub">or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }}/year &middot; first {{ hosting_trial_days or 30 }} days free</div>
       <ul class="tier-features">
-        <li>✓ Everything in Free</li>
-        <li>✓ Up to 3 business listings</li>
-        <li>✓ Edit &amp; regenerate with Daisy anytime</li>
-        <li>✓ Logo &amp; flyer generation</li>
-        <li>✓ Priority placement in directory</li>
-        <li>✓ 500 MB storage · 5 GB bandwidth</li>
+        <li>✓ Everything in Build</li>
+        <li>✓ Live at yourbiz.trustedbiz.co.ug</li>
+        <li>✓ Listed in the TrustedBiz directory</li>
+        <li>✓ Indexed on Google search</li>
+        <li>✓ Ongoing hosting &amp; uptime</li>
       </ul>
       <a class="tier-btn solid" href="/register">Get started</a>
-    </div>
-    <div class="plan-tier">
-      <div class="tier-name">Pro Max</div>
-      <div class="tier-price">UGX 15,000<span>/month</span></div>
-      <div class="tier-sub">For businesses ready to grow fast</div>
-      <ul class="tier-features">
-        <li>✓ Everything in Basic</li>
-        <li>✓ Up to 5 business listings</li>
-        <li>✓ Your own custom domain</li>
-        <li>✓ Google visibility &amp; search indexing</li>
-        <li>✓ Full Daisy suite — sites, logos, flyers, cards</li>
-        <li>✓ Security scans &amp; protection dashboard</li>
-        <li>✓ Priority WhatsApp support</li>
-      </ul>
-      <a class="tier-btn" href="/register">Get started</a>
     </div>
   </div>
 </div>

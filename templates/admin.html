@@ -173,7 +173,7 @@ button{font-family:var(--font);}
       </div>
 
       <div class="auto-note">
-        <b>Listings publish automatically now.</b> Daisy generates and publishes new businesses the moment someone signs up or activates an agent invite, no approval queue needed for that anymore. <b>Billing still needs you.</b> When someone pays via WhatsApp/mobile money, you confirm it and click Set Basic or Set Pro Max in Listings, that part isn't automatic yet, real payment automation needs a mobile money webhook that doesn't exist. Admin now mainly handles moderation, reports, verification, and plan confirmations.
+        <b>Listings publish automatically now.</b> Daisy generates and publishes new businesses the moment someone signs up or activates an agent invite, no approval queue needed for that anymore. <b>Billing still needs you.</b> When someone pays via WhatsApp/mobile money, you confirm it and click Mark hosting paid in Listings, that part isn't automatic yet, real payment automation needs a mobile money webhook that doesn't exist. Admin now mainly handles moderation, reports, verification, and hosting confirmations.
       </div>
 
       {% if late_alert %}
@@ -236,8 +236,7 @@ button{font-family:var(--font);}
             <div class="biz-name">
               {{ b.name }}
               {% if b.status == 'approved' %}<span class="badge badge-live">Live</span>{% else %}<span class="badge badge-unpub">Unpublished</span>{% endif %}
-              {% if b.plan == 'pro_max' %}<span class="badge badge-plan-pro">Pro Max</span>
-              {% elif b.plan == 'basic' %}<span class="badge badge-plan-basic">Basic</span>{% endif %}
+              {% if b.plan == 'hosted' %}<span class="badge badge-plan-basic">Hosted</span>{% endif %}
               {% if b.verified %}<span class="badge badge-verified">Verified</span>{% endif %}
               {% if b.reports and b.reports > 0 %}<span class="badge badge-reports">{{ b.reports }} reports</span>{% endif %}
             </div>
@@ -269,14 +268,10 @@ button{font-family:var(--font);}
             {% endif %}
 
             {% if not b.plan or b.plan == 'free' %}
-            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_basic"><button type="submit" class="btn" style="color:#2563eb;border-color:rgba(37,99,235,.35);">Set Basic</button></form>
-            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_pro_max"><button type="submit" class="btn" style="color:#b45309;border-color:rgba(180,83,9,.35);">Set Pro Max</button></form>
-            {% elif b.plan == 'basic' %}
-            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_pro_max"><button type="submit" class="btn" style="color:#b45309;border-color:rgba(180,83,9,.35);">Upgrade to Pro Max</button></form>
-            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_free"><button type="submit" class="btn">Downgrade to Free</button></form>
-            {% elif b.plan == 'pro_max' %}
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="mark_hosting_paid"><button type="submit" class="btn" style="color:#2563eb;border-color:rgba(37,99,235,.35);">Mark hosting paid</button></form>
+            {% elif b.plan == 'hosted' %}
             <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="regen"><button type="submit" class="btn" style="color:#b45309;border-color:rgba(180,83,9,.35);">Regen site</button></form>
-            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="set_basic"><button type="submit" class="btn">Downgrade to Basic</button></form>
+            <form method="POST" style="display:inline;"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="mark_hosting_unpaid"><button type="submit" class="btn">Mark hosting unpaid</button></form>
             {% endif %}
 
             <form method="POST" style="display:inline;" onsubmit="return confirm('Delete {{ b.name }}? Cannot be undone.')"><input type="hidden" name="id" value="{{ b.id }}"><input type="hidden" name="action" value="delete"><button type="submit" class="btn btn-delete">Delete</button></form>
