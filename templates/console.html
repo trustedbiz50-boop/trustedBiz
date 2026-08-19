@@ -164,18 +164,24 @@ button{font-family:var(--font);}
    the arrow slides it out into a drawer that overlays roughly half the
    screen; the chat underneath never reflows. */
 .shell.daisy-active{overflow:hidden;height:100vh;height:100dvh;min-height:0;}
-.shell.daisy-active .main{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;margin-left:48px;transition:margin-left .2s ease;}
+.shell.daisy-active .main{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;margin-left:64px;transition:margin-left .2s ease;}
 .shell.daisy-active .panel[data-panel="daisy"]{flex:1;min-height:0;display:flex;flex-direction:column;padding:0;max-width:none;}
 .shell.daisy-active .panel[data-panel="daisy"] .daisy-topbar{flex-shrink:0;margin:0;padding:12px 16px;}
 .shell.daisy-active .daisy-panel{flex:1;min-height:0;height:auto;border-radius:0;border-left:none;border-right:none;border-bottom:none;box-shadow:none;}
 
+/* A compact rounded rail rather than an edge-to-edge bar — it only takes
+   up the space its own icons need, floating near the top-left corner, so
+   the rest of the screen (especially down by the composer) stays open and
+   fully part of the chat instead of feeling boxed in by a nav column. */
 .shell.daisy-active .sidebar{
-  position:fixed;top:0;left:0;z-index:40;height:100vh;height:100dvh;
-  width:48px;padding:12px 6px;flex-direction:column;flex-wrap:nowrap;
-  border-right:1px solid var(--side-border);box-shadow:2px 0 18px rgba(0,0,0,.2);
+  position:fixed;top:10px;left:10px;z-index:40;
+  height:auto;max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);
+  width:44px;padding:10px 5px;flex-direction:column;flex-wrap:nowrap;
+  border:1px solid var(--side-border);border-radius:14px;
+  box-shadow:0 8px 22px rgba(0,0,0,.28);overflow-y:auto;
   transition:width .22s ease,padding .22s ease;
 }
-.shell.daisy-active .sidebar:not(.collapsed){width:min(50vw,260px);padding:18px 12px;}
+.shell.daisy-active .sidebar:not(.collapsed){width:min(50vw,260px);padding:16px 12px;}
 .shell.daisy-active .sidebar.collapsed .side-label,
 .shell.daisy-active .sidebar.collapsed .side-logo,
 .shell.daisy-active .sidebar.collapsed .side-group,
@@ -229,11 +235,14 @@ button{font-family:var(--font);}
 .prompt-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
 .prompt-chip{font-family:var(--mono);font-size:12px;color:#c3c1d4;border:1px solid var(--daisy-border);padding:7px 12px;border-radius:4px;cursor:pointer;background:none;}
 .prompt-chip:hover{border-color:var(--daisy-violet);color:#fff;}
-.daisy-form{display:flex;align-items:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--daisy-border);}
-.daisy-input{flex:1;min-width:0;background:var(--daisy-card);border:1px solid var(--daisy-border);border-radius:22px;padding:11px 16px;color:#f0f0f6;font-family:var(--font);font-size:14px;line-height:1.4;resize:none;max-height:110px;overflow-y:auto;overscroll-behavior-y:contain;transition:border-color .2s;}
-.daisy-input:focus{outline:none;border-color:var(--daisy-violet);}
+.daisy-form{display:flex;flex-direction:column;gap:6px;margin:10px 14px 14px;padding:10px 10px 8px;border:1.5px solid var(--daisy-border);border-radius:20px;background:var(--daisy-bg);transition:border-color .2s;}
+.daisy-form:focus-within{border-color:var(--daisy-violet);}
+.daisy-input{width:100%;background:none;border:none;padding:4px 6px;color:#f0f0f6;font-family:var(--font);font-size:14px;line-height:1.4;resize:none;max-height:110px;overflow-y:auto;overscroll-behavior-y:contain;}
+.daisy-input:focus{outline:none;}
 .daisy-input::placeholder{color:#6f6d80;}
-.daisy-icon-btn{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1px solid var(--daisy-border);background:var(--daisy-card);color:#c3c1d4;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,transform .1s;padding:0;}
+.daisy-form-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.daisy-form-tools-left{display:flex;align-items:center;gap:6px;}
+.daisy-icon-btn{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:1px solid var(--daisy-border);background:var(--daisy-card);color:#c3c1d4;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,transform .1s;padding:0;}
 .daisy-icon-btn:hover{background:var(--daisy-border);}
 .daisy-icon-btn:active{transform:scale(.94);}
 .daisy-send-btn{background:var(--daisy-violet);border-color:var(--daisy-violet);color:#14141e;}
@@ -667,18 +676,22 @@ button{font-family:var(--font);}
         </div>
 
         <form class="daisy-form" id="daisyChatForm">
-          <input type="file" id="photoInput" accept="image/*" multiple hidden>
-          <button type="button" id="photoBtn" class="daisy-icon-btn" title="Add photos">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          </button>
-          <input type="file" id="docInput" accept="application/pdf" multiple hidden>
-          <button type="button" id="docBtn" class="daisy-icon-btn" title="Add company documents (PDF)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-          </button>
           <textarea class="daisy-input" id="daisyChatInput" rows="1" placeholder="e.g. A tailoring shop called Nakato's, based in Ntinda" autocomplete="off"></textarea>
-          <button class="daisy-icon-btn daisy-send-btn" type="submit" title="Send" aria-label="Send">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
+          <div class="daisy-form-tools">
+            <div class="daisy-form-tools-left">
+              <input type="file" id="photoInput" accept="image/*" multiple hidden>
+              <button type="button" id="photoBtn" class="daisy-icon-btn" title="Add photos">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </button>
+              <input type="file" id="docInput" accept="application/pdf" multiple hidden>
+              <button type="button" id="docBtn" class="daisy-icon-btn" title="Add company documents (PDF)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+              </button>
+            </div>
+            <button class="daisy-icon-btn daisy-send-btn" type="submit" title="Send" aria-label="Send">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
         </form>
         <p id="photoStatus" style="font-size:11.5px;color:#8b899c;padding:0 18px 12px;display:none;"></p>
         <p id="docStatus" style="font-size:11.5px;color:#8b899c;padding:0 18px 12px;display:none;"></p>
