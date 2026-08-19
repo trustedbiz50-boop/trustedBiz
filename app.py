@@ -465,7 +465,7 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS ads (id SERIAL PRIMARY KEY, business_id INTEGER, title TEXT, body TEXT, image_ref TEXT, active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS agents (id SERIAL PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS template_pool (id SERIAL PRIMARY KEY, category TEXT NOT NULL, html TEXT NOT NULL, quality_score INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS invite_codes (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'promax', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS invite_codes (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'hosted', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS daisy_training (id SERIAL PRIMARY KEY, input TEXT NOT NULL, output TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS deploy_events (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS site_backups (id SERIAL PRIMARY KEY, business_id INTEGER, html_snapshot TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -487,7 +487,7 @@ def create_tables():
         "CREATE TABLE IF NOT EXISTS ads (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, title TEXT, body TEXT, image_ref TEXT, active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS agents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, whatsapp TEXT, area TEXT, code TEXT UNIQUE, status TEXT DEFAULT 'active', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS template_pool (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, html TEXT NOT NULL, quality_score INTEGER DEFAULT 0, times_used INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS invite_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'promax', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS invite_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, biz_id INTEGER, agent_id INTEGER, plan TEXT DEFAULT 'hosted', used INTEGER DEFAULT 0, used_by_user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS daisy_training (id INTEGER PRIMARY KEY AUTOINCREMENT, input TEXT NOT NULL, output TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS deploy_events (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS site_backups (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, html_snapshot TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
@@ -756,7 +756,6 @@ def get_anthropic_client():
 # purely as a HOSTING/billing label, not a generation-power lever. See
 # HOSTING_* below for the thing TrustedBiz actually charges for.
 FULL_WEBSITE_POWER = {"model": "claude-sonnet-5", "max_tokens": 24000, "passes": 2, "images": 6, "label": "TrustedBiz"}
-_PLAN_ALIASES = {"promax": "pro_max"}
 
 def get_website_power(plan=None):
     return FULL_WEBSITE_POWER
@@ -784,8 +783,8 @@ def artifact_allowed(plan, artifact_type):
 # math (server + Claude API + Cloudinary spend per site, plus margin).
 # Nothing else needs to change when you update these; every place that
 # shows a price should read from here, not have its own hardcoded number.
-HOSTING_FEE_MONTHLY = 7500     # UGX — his set price (Aug 2026)
-HOSTING_FEE_YEARLY  = 80000    # UGX — his set price (Aug 2026)
+HOSTING_FEE_MONTHLY = 15000    # UGX — his set price (Aug 2026)
+HOSTING_FEE_YEARLY  = 150000   # UGX — his set price (Aug 2026)
 HOSTING_CURRENCY    = "UGX"
 HOSTING_TRIAL_DAYS  = 30
 HOSTING_GRACE_DAYS  = 14      # days after trial/payment lapses before suspension
@@ -1426,8 +1425,23 @@ is often the richest source of real content you'll get — use it heavily
 once uploaded (see DAISY_KNOWLEDGE above on document_notes).
 
 Don't interrogate — ask for one or two things at a time, warmly and
-conversationally, like a helpful local assistant, not a form. Once you
-have at least name, category, and description, tell them you're building
+conversationally, like a helpful local assistant, not a form.
+
+DESIGN TRACK — ASK ONCE, BEFORE YOU BUILD
+Once you have name, category, and description (and have asked about
+photos/documents where relevant), ask one more short question before
+marking the conversation ready: whether they want their site built
+"classic" or "motion" — in your own words, e.g. "One last thing — do you
+want a clean, classic-style site, or a more modern one with animation and
+motion as you scroll?" Keep it brief and give a real sense of each in
+plain language, not jargon: classic is a clean, professional, fast-
+loading site; motion is the same professional site with tasteful
+scroll-triggered reveals, smooth transitions, and subtle interactive
+touches — still fast, still built for their business, not flashy for its
+own sake. If they don't have a preference or don't answer clearly,
+default to "classic" and move on — don't block the build on this.
+Record their choice as "site_style": "classic" or "motion" in the JSON
+below. Once you have this plus the basics, tell them you're building
 their site now and mark the conversation ready.
 
 BEYOND WEBSITES — OTHER THINGS YOU CAN BUILD
@@ -1451,12 +1465,14 @@ building it now and mark the conversation ready.
 RESPONSE FORMAT — CRITICAL
 Reply with ONLY a JSON object — no markdown fences, no text outside the
 JSON:
-{"reply": "<what you say to them next, in your own conversational voice>", "ready": <true or false>, "artifact_type": "<omit for a website, otherwise one of: catalog, logo, flyer, cards, cv, presentation>", "business": {"name": "...", "category": "...", "description": "...", "whatsapp": "...", "hours": "...", "brand_color": "...", "style": "...", "items": ["..."]}}
+{"reply": "<what you say to them next, in your own conversational voice>", "ready": <true or false>, "artifact_type": "<omit for a website, otherwise one of: catalog, logo, flyer, cards, cv, presentation>", "business": {"name": "...", "category": "...", "description": "...", "whatsapp": "...", "hours": "...", "brand_color": "...", "site_style": "classic or motion — website requests only", "style": "...", "items": ["..."]}}
 
 - "business" holds whatever fields you've collected so far — omit fields
   you don't have yet, and omit "business" entirely only if you have
   nothing at all.
 - Omit "artifact_type" entirely when this is an ordinary website request.
+- Omit "site_style" entirely for non-website artifacts (catalog, logo,
+  flyer, cards, cv, presentation) — it only applies to real websites.
 - Set "ready" to true only once you have what that thing needs, and
   "reply" has told the user it's being built now.
 """
@@ -1600,6 +1616,57 @@ invented facts. Don't repeat the home page's hero or duplicate content
 that belongs on another page; go deeper on this page's specific purpose
 instead. Use any photos given the same way the home page would — real
 content in the page, never a full-bleed background.
+"""
+
+DAISY_MOTION_BLOCK = """
+
+DESIGN TRACK: MOTION
+This client chose the motion track — the same grounded, professional site
+described above, with one addition: purposeful, restrained animation.
+Motion here means the site feels alive and premium, not that it feels
+busy or childish. Every rule above (real content only, no gradient-blob
+clichés, no mascots, category-specific design, WhatsApp front and
+center) still applies in full — motion sits on top of that, it doesn't
+replace it.
+
+What "adds value" actually means:
+- Motion should guide attention and reveal hierarchy — a section fading
+  and lifting gently into place as it enters view tells the eye "this is
+  the next thing to read." Motion that doesn't do that job shouldn't be
+  there.
+- Restraint is the craft. One well-executed scroll-reveal pattern used
+  consistently reads as premium. Five different animation styles on one
+  page reads as an AI demo. Pick a small, consistent motion vocabulary
+  and repeat it.
+- Respect the medium: most visitors are on a phone on Ugandan mobile
+  data. Motion must be CSS-first (transition/transform/@keyframes) with
+  at most a small vanilla-JS IntersectionObserver for scroll-reveal
+  triggers — no animation libraries, no external scripts (the one-file,
+  no-external-script rule above is unchanged). Nothing that adds
+  meaningful load weight or jank on a mid-range Android phone.
+- Always honor prefers-reduced-motion: wrap non-essential animation in
+  @media (prefers-reduced-motion: no-preference), so it falls back to
+  the static classic layout for anyone who needs that.
+
+A tasteful, small vocabulary to draw from — use a few, not all, and only
+where they earn their place:
+- Sections and cards fade/slide/scale in gently as they enter the
+  viewport on scroll (short duration, subtle distance — this is by far
+  the highest-value pattern and often enough on its own).
+- A hero heading or key stat that counts up or settles into place once,
+  on load.
+- Buttons, cards, and gallery photos that respond to hover/tap with a
+  small, quick lift, scale, or shadow change — never anything that
+  causes layout shift.
+- A slow, subtle animated gradient or shifting accent-color wash behind
+  the hero, if it fits the brand color and category, kept understated.
+- A sticky header that condenses slightly on scroll.
+
+Never: parallax that fights readability, spinning or bouncing elements,
+looping attention-grabbing animation with no trigger, animated text that
+scrambles/types letter-by-letter as a gimmick, or so much motion that
+the site feels like a showcase of effects rather than a business's real
+website.
 """
 
 DAISY_SITE_PLAN_SYSTEM = """You plan the page structure for a real \
@@ -1774,6 +1841,12 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
             power = get_website_power(ctx.get('plan'))
             model = power['model']
             max_tokens = power['max_tokens']
+            # DESIGN TRACK: append the motion instructions only when this
+            # client chose it in the Daisy chat (see DAISY_CHAT_SYSTEM);
+            # classic stays exactly as before, byte-for-byte.
+            motion = str(ctx.get('site_style') or 'classic').strip().lower() == 'motion'
+            website_system = DAISY_WEBSITE_SYSTEM + DAISY_MOTION_BLOCK if motion else DAISY_WEBSITE_SYSTEM
+            page_system = DAISY_PAGE_SYSTEM + DAISY_MOTION_BLOCK if motion else DAISY_PAGE_SYSTEM
             # Multi-page builds do several real generation calls (plan,
             # home page, art-director rewrite, N other pages) — give the
             # whole build real room, same generous timeout every time now
@@ -1869,7 +1942,7 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                 "\n\nBusiness details (JSON):\n" + ctx_json + brief_block +
                 "\n\nRespond with the complete HTML document only."
             )
-            home_html = _daisy_generate_html(client, model, max_tokens, DAISY_WEBSITE_SYSTEM,
+            home_html = _daisy_generate_html(client, model, max_tokens, website_system,
                                               home_prompt, call_timeout, label="Daisy/Home")
             if not home_html or len(home_html) < 200:
                 return None, "Daisy is thinking hard on this one. Please try again in a moment."
@@ -1897,7 +1970,7 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                         "templated, or unfinished. Respond with the complete "
                         "rewritten HTML document only."
                     )
-                    rewritten = _daisy_generate_html(client, model, max_tokens, DAISY_WEBSITE_SYSTEM,
+                    rewritten = _daisy_generate_html(client, model, max_tokens, website_system,
                                                       review_prompt, call_timeout, label="Daisy/Home/Pass2")
                     if rewritten and len(rewritten) > 200:
                         home_html = rewritten
@@ -1928,7 +2001,7 @@ def call_daisy(mode, context=None, history=None, message=None, timeout=55):
                     brief_block + shared_block +
                     "\n\nRespond with the complete HTML document only."
                 )
-                page_html = _daisy_generate_html(client, model, max_tokens, DAISY_PAGE_SYSTEM,
+                page_html = _daisy_generate_html(client, model, max_tokens, page_system,
                                                   page_prompt, call_timeout, label=f"Daisy/Page/{slug}")
                 if page_html and len(page_html) > 200:
                     pages[slug] = page_html
@@ -2048,6 +2121,7 @@ def build_daisy_ctx(biz_id):
         'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
         'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
         'brand_color': bd.get('brand_color') or '#2b7a78',
+        'site_style': bd.get('site_style') or 'classic',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
         'plan': bd.get('plan') or 'free',
@@ -2381,6 +2455,7 @@ def site(slug=None, page=None):
         'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
         'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
         'brand_color': bd.get('brand_color') or '#2b7a78',
+        'site_style': bd.get('site_style') or 'classic',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
         'slug': bd.get('slug'),
@@ -2452,6 +2527,9 @@ def daisy_create_business():
     whatsapp    = (data.get('whatsapp') or '').strip()
     description = (data.get('description') or '').strip()
     color       = (data.get('brand_color') or '#2b7a78').strip()
+    site_style  = (data.get('site_style') or 'classic').strip().lower()
+    if site_style not in ('classic', 'motion'):
+        site_style = 'classic'
     html        = data.get('html')  # Daisy may have already generated this during chat
     # Photos the owner uploaded mid-conversation via /daisy/upload-photo —
     # frontend sends back the URLs it already collected, comma-joined or as
@@ -2486,8 +2564,8 @@ def daisy_create_business():
     # clicks Go Live on the dashboard (see /dashboard/go-live/<id>). The
     # free hosting trial starts at that click, not at build time.
     biz_id = db_insert(
-        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html, photos, documents, document_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
-        (name, category, whatsapp, description, color, slug, user['id'], 'draft', 'free', 0, html, photos_str, documents_str, document_notes)
+        q("INSERT INTO business (name, category, whatsapp, description, brand_color, site_style, slug, owner_id, status, plan, is_premium, generated_html, photos, documents, document_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"),
+        (name, category, whatsapp, description, color, site_style, slug, user['id'], 'draft', 'free', 0, html, photos_str, documents_str, document_notes)
     )
 
     if html:
@@ -2495,7 +2573,8 @@ def daisy_create_business():
         log_deploy_event(biz_id, user['id'], 'build', f'"{name}" built — preview it, then click Go Live to publish', 'ok')
     else:
         daisy_ctx = {'name': name, 'category': category, 'description': description,
-                     'whatsapp': whatsapp, 'brand_color': color, 'hours': 'Mon-Sat 8am-7pm',
+                     'whatsapp': whatsapp, 'brand_color': color, 'site_style': site_style,
+                     'hours': 'Mon-Sat 8am-7pm',
                      'photos': photos_in, 'slug': slug, 'document_notes': document_notes,
                      'documents': [d.get('url') for d in documents_in if isinstance(d, dict) and d.get('url')]}
         start_daisy_build(biz_id, daisy_ctx, event_user_id=user['id'], event_label=name)
@@ -2681,6 +2760,7 @@ def generate_site(biz_id):
         'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
         'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
         'brand_color': bd.get('brand_color') or '#2b7a78',
+        'site_style': bd.get('site_style') or 'classic',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
         'slug': bd.get('slug'),
@@ -2972,11 +3052,16 @@ def migrate_db():
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS build_status TEXT DEFAULT 'idle'")
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS build_progress INTEGER DEFAULT 0")
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS payment_phone TEXT")
+        # Site design track: 'classic' (default, grounded/professional) or
+        # 'motion' (adds restrained scroll/interaction animation on top of
+        # the same design system) — chosen by the owner in the Daisy chat
+        # before the build runs. See DAISY_CHAT_SYSTEM and DAISY_MOTION_BLOCK.
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS site_style TEXT DEFAULT 'classic'")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS chosen_plan TEXT DEFAULT 'free'")
         # Agent-submitted business extras
         try:
-            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'basic'")
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free'")
         except Exception:
             pass
         try:
@@ -3041,6 +3126,7 @@ def admin_preview(biz_id):
         'description': bd.get('description'), 'whatsapp': bd.get('whatsapp'),
         'hours': bd.get('hours') or 'Mon-Sat 8am-7pm',
         'brand_color': bd.get('brand_color') or '#2b7a78',
+        'site_style': bd.get('site_style') or 'classic',
         'photos': [p.strip() for p in str(bd.get('photos') or '').split(',') if p.strip()],
         'branches': bd.get('branches') or [], 'ads': bd.get('ads') or [],
         'slug': bd.get('slug'),
@@ -3082,7 +3168,7 @@ def check_payments():
         else:
             if b['owner_id']:
                 db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
-                    (b['owner_id'], f"Payment reminder: Your free month has ended. Pay UGX 7,500 or 15,000 via WhatsApp. You have {14 - days_overdue} days before suspension."))
+                    (b['owner_id'], f"Payment reminder: Your free month has ended. Pay UGX {HOSTING_FEE_MONTHLY:,} via WhatsApp. You have {14 - days_overdue} days before suspension."))
             reminded += 1
     return f"Done. {reminded} reminded. {suspended} suspended."
 
@@ -3566,6 +3652,7 @@ def daisy_chat():
                     'whatsapp':    biz.get('whatsapp'),
                     'hours':       biz.get('hours'),
                     'brand_color': biz.get('brand_color'),
+                    'site_style':  biz.get('site_style') or 'classic',
                     'live_url':    f"https://{biz['slug']}.trustedbiz.co.ug" if biz.get('slug') else None,
                     'status':      biz.get('status'),
                     'pages':       _decode_site(biz.get('generated_html'))[1] or None,
@@ -3602,14 +3689,15 @@ def daisy_create_artifact():
         return jsonify({'error': 'Unknown artifact type.'}), 400
 
     biz_id = data.get('biz_id')
-    # Plan gate — the same rule the Billing panel already promises: free
-    # only gets logo/catalog, basic adds flyer/cards/cv, pro_max gets all.
+    # Every artifact type is available to everyone now (see
+    # get_artifact_power()) — 'plan' here is only kept for the error
+    # message below and isn't actually a gate anymore.
     plan = 'free'
     if biz_id:
         biz_row = db_fetchone(q("SELECT plan FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
         if biz_row: plan = dict(biz_row).get('plan') or 'free'
     else:
-        plan_rank = {'free': 0, 'basic': 1, 'pro_max': 2}
+        plan_rank = {'free': 0, 'hosted': 1}
         for b in db_fetchall(q("SELECT plan FROM business WHERE owner_id=?"), (user['id'],)):
             p = dict(b).get('plan') or 'free'
             if plan_rank.get(p, 0) > plan_rank.get(plan, 0): plan = p
@@ -3979,7 +4067,7 @@ def agent_dashboard():
     for biz in businesses:
         b = dict(biz)
         if not b.get('plan'):
-            b['plan'] = 'promax' if b.get('is_premium') else 'free'
+            b['plan'] = 'hosted' if b.get('is_premium') else 'free'
         biz_dicts.append(b)
 
     return render_template('agent_dashboard.html',
@@ -4006,9 +4094,9 @@ def agent_add_business():
     description = request.form.get('description', '').strip()
     brand_color = request.form.get('brand_color', '#2b7a78').strip()
     map_link    = request.form.get('map_link', '').strip()
-    plan        = request.form.get('plan', 'basic').strip().lower()
-    if plan not in ('free', 'basic', 'promax'):
-        plan = 'basic'
+    plan        = request.form.get('plan', 'free').strip().lower()
+    if plan not in ('free', 'hosted'):
+        plan = 'free'
 
     # Only name, category, location, description are required — email/whatsapp optional for demo
     if not all([name, category, location, description]):
@@ -4030,7 +4118,7 @@ def agent_add_business():
 
     slug       = make_slug(name)
     agent_code = agent['code']
-    is_premium = 1 if plan in ('basic', 'promax') else 0
+    is_premium = 1 if plan == 'hosted' else 0
 
     # Store plan in the business record (reuse a spare column or add to notes)
     # We store plan value in a separate field; fall back to storing in description prefix if column missing
@@ -4062,7 +4150,7 @@ def agent_add_business():
         except Exception:
             pass
 
-    plan_label = {'free': 'Free', 'basic': 'Basic', 'promax': 'Pro Max'}.get(plan, plan.title())
+    plan_label = {'free': 'Free', 'hosted': 'Hosted'}.get(plan, plan.title())
     flash(f'✅ "{name}" ({plan_label} plan) submitted for approval! Once approved, you\'ll get a passcode to share with the owner.', 'success')
     return redirect('/agent/dashboard')
 
@@ -4133,7 +4221,7 @@ def admin_approve_agent_biz(biz_id):
                 return code
         return _sec.token_hex(3).upper()
 
-    actual_plan = biz.get('plan') or 'basic'
+    actual_plan = biz.get('plan') or 'free'
     existing_code = db_fetchone(q("SELECT * FROM invite_codes WHERE biz_id=? AND used=0"), (biz_id,))
     if not existing_code:
         agent_row = db_fetchone(q("SELECT * FROM agents WHERE code=?"), (biz.get('agent_code'),)) if biz.get('agent_code') else None
@@ -4251,7 +4339,7 @@ def migrate_agents():
         db_execute(q("ALTER TABLE business ADD COLUMN agent_code TEXT"))
     except: pass
     try:
-        db_execute(q("ALTER TABLE business ADD COLUMN plan TEXT DEFAULT 'basic'"))
+        db_execute(q("ALTER TABLE business ADD COLUMN plan TEXT DEFAULT 'free'"))
     except: pass
     try:
         db_execute(q("ALTER TABLE business ADD COLUMN location TEXT"))
