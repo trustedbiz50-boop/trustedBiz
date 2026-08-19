@@ -164,24 +164,18 @@ button{font-family:var(--font);}
    the arrow slides it out into a drawer that overlays roughly half the
    screen; the chat underneath never reflows. */
 .shell.daisy-active{overflow:hidden;height:100vh;height:100dvh;min-height:0;}
-.shell.daisy-active .main{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;margin-left:64px;transition:margin-left .2s ease;}
+.shell.daisy-active .main{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;margin-left:44px;transition:margin-left .2s ease;}
 .shell.daisy-active .panel[data-panel="daisy"]{flex:1;min-height:0;display:flex;flex-direction:column;padding:0;max-width:none;}
 .shell.daisy-active .panel[data-panel="daisy"] .daisy-topbar{flex-shrink:0;margin:0;padding:12px 16px;}
 .shell.daisy-active .daisy-panel{flex:1;min-height:0;height:auto;border-radius:0;border-left:none;border-right:none;border-bottom:none;box-shadow:none;}
 
-/* A compact rounded rail rather than an edge-to-edge bar — it only takes
-   up the space its own icons need, floating near the top-left corner, so
-   the rest of the screen (especially down by the composer) stays open and
-   fully part of the chat instead of feeling boxed in by a nav column. */
 .shell.daisy-active .sidebar{
-  position:fixed;top:10px;left:10px;z-index:40;
-  height:auto;max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);
-  width:44px;padding:10px 5px;flex-direction:column;flex-wrap:nowrap;
-  border:1px solid var(--side-border);border-radius:14px;
-  box-shadow:0 8px 22px rgba(0,0,0,.28);overflow-y:auto;
+  position:fixed;top:0;left:0;z-index:40;height:100vh;height:100dvh;
+  width:44px;padding:12px 5px;flex-direction:column;flex-wrap:nowrap;
+  border-right:1px solid var(--side-border);box-shadow:2px 0 18px rgba(0,0,0,.2);
   transition:width .22s ease,padding .22s ease;
 }
-.shell.daisy-active .sidebar:not(.collapsed){width:min(50vw,260px);padding:16px 12px;}
+.shell.daisy-active .sidebar:not(.collapsed){width:min(50vw,260px);padding:18px 12px;}
 .shell.daisy-active .sidebar.collapsed .side-label,
 .shell.daisy-active .sidebar.collapsed .side-logo,
 .shell.daisy-active .sidebar.collapsed .side-group,
