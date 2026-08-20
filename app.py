@@ -3195,7 +3195,7 @@ def _editor_site_card(bd):
     return {
         'id': bd['id'], 'name': bd.get('name') or 'Untitled', 'slug': bd.get('slug') or '',
         'status': _editor_ui_status(bd), 'accent': design.get('accent') or '#2b7a78',
-        'edited': updated,
+        'edited': updated, 'thumbnail': bd.get('thumbnail_url') or None,
     }
 
 @app.route('/api/editor/businesses')
@@ -3282,6 +3282,20 @@ def api_editor_business_save(biz_id):
 
     return jsonify({'ok': True, 'edited': datetime.utcnow().isoformat()})
 
+@app.route('/api/editor/business/<int:biz_id>/thumbnail', methods=['POST'])
+@login_required
+def api_editor_business_thumbnail(biz_id):
+    biz = _editor_owns_or_404(biz_id)
+    if not biz:
+        return jsonify({'error': 'not found'}), 404
+    data = request.get_json(force=True, silent=True) or {}
+    data_url = data.get('dataUrl') or ''
+    # Small JPEG data URLs only — this is a card thumbnail, not a photo upload.
+    if not data_url.startswith('data:image/') or len(data_url) > 400_000:
+        return jsonify({'error': 'invalid or too large'}), 400
+    db_execute(q("UPDATE business SET thumbnail_url=? WHERE id=?"), (data_url, biz_id))
+    return jsonify({'ok': True})
+
 @app.route('/api/editor/business/<int:biz_id>/duplicate', methods=['POST'])
 @login_required
 def api_editor_business_duplicate(biz_id):
@@ -3293,8 +3307,8 @@ def api_editor_business_duplicate(biz_id):
     new_slug = make_slug(new_name)
     new_id = db_insert(q("INSERT INTO business (name, slug, owner_id, status, plan, brand_color) VALUES (?,?,?,?,?,?)"),
                         (new_name, new_slug, session['user_id'], 'draft', 'free', bd.get('brand_color') or '#2b7a78'))
-    db_execute(q("UPDATE business SET editor_pages=?, editor_design=?, editor_settings=?, editor_updated_at=CURRENT_TIMESTAMP WHERE id=?"),
-               (bd.get('editor_pages'), bd.get('editor_design'), bd.get('editor_settings'), new_id))
+    db_execute(q("UPDATE business SET editor_pages=?, editor_design=?, editor_settings=?, editor_updated_at=CURRENT_TIMESTAMP, thumbnail_url=? WHERE id=?"),
+               (bd.get('editor_pages'), bd.get('editor_design'), bd.get('editor_settings'), bd.get('thumbnail_url'), new_id))
     log_deploy_event(new_id, session['user_id'], 'editor_duplicate', f'Duplicated "{bd.get("name")}"')
     return jsonify(_editor_site_card(biz_to_dict(db_fetchone(q("SELECT * FROM business WHERE id=?"), (new_id,)))))
 
@@ -3561,6 +3575,7 @@ def migrate_db():
         # the same design system) — chosen by the owner in the Daisy chat
         # before the build runs. See DAISY_CHAT_SYSTEM and DAISY_MOTION_BLOCK.
         db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS site_style TEXT DEFAULT 'classic'")
+        db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS thumbnail_url TEXT")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0")
         db_execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS chosen_plan TEXT DEFAULT 'free'")
         # Agent-submitted business extras
