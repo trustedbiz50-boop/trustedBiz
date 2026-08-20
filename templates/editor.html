@@ -413,12 +413,14 @@ a{color:inherit;}
   .rail{width:56px;}
   .rail-btn{width:40px;height:40px;}
   .rail-btn span{display:none;}
-  .topbar{height:auto;min-height:56px;padding:8px 10px;flex-wrap:wrap;row-gap:8px;}
+  .topbar{height:auto;min-height:56px;padding:8px 10px;flex-wrap:wrap;row-gap:8px;overflow:hidden;}
   .topbar-left{min-width:0;flex:1 1 auto;}
   .tb-title .n{max-width:130px;font-size:12.5px;}
-  .topbar-right{flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+  .topbar-right{flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:100%;}
   .btn{padding:7px 11px;font-size:12px;}
   .device-toggle{order:5;}
+  .canvas-wrap{overflow-x:hidden;}
+  .shell{overflow-x:hidden;}
   .canvas-scroll{padding:20px 10px 70px;}
   .sites-head{padding:16px 16px 12px;}
   .sites-body{padding:14px 16px 24px;}
@@ -1043,6 +1045,15 @@ $('#addPageBtn').addEventListener('click', ()=>{
 });
 
 function renderBlocksPanel(){
+  if(!currentSite()){
+    $('#panel-blocks .tool-panel-inner').innerHTML = '<div class="tool-h">Add a block</div><div class="insp-empty">Open a site first.</div>';
+    return;
+  }
+  $('#panel-blocks .tool-panel-inner').innerHTML = `
+    <div class="tool-h">Add a block</div>
+    <div class="tool-sub">Click to drop it onto the page</div>
+    <div class="block-lib" id="blockLib"></div>
+  `;
   $('#blockLib').innerHTML = Object.entries(BLOCK_TYPES).map(([key,def])=>`
     <button class="block-opt" data-type="${key}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${def.icon}"/></svg>
@@ -1055,7 +1066,7 @@ function renderBlocksPanel(){
 }
 function addBlock(type){
   const p = currentPage();
-  if(!p) return;
+  if(!p){ showToast('Open a site first'); return; }
   const def = BLOCK_TYPES[type];
   const block = { id:'b'+Date.now(), type };
   def.fields.forEach(f=>{ block[f] = f.toLowerCase().includes('heading') ? 'New heading' : ''; });
@@ -1065,6 +1076,7 @@ function addBlock(type){
   pushHistory();
   renderCanvas();
   renderInspector();
+  showToast('Block added');
 }
 
 function renderDesignPanel(){
