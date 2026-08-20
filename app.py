@@ -3140,13 +3140,23 @@ def _editor_owns_or_404(biz_id):
         return None
     return biz
 
+def _editor_ui_status(bd):
+    """Map the business's real status ('draft'/'pending'/'approved') and
+    build_status ('idle'/'building'/'done'/'failed') onto the three states
+    the editor UI actually knows about: 'live', 'building', 'draft'."""
+    if bd.get('status') == 'approved':
+        return 'live'
+    if bd.get('build_status') == 'building':
+        return 'building'
+    return 'draft'
+
 def _editor_site_card(bd):
     pages_obj, design, _ = get_editor_state(bd)
     updated = bd.get('editor_updated_at') or bd.get('created_at')
     return {
         'id': bd['id'], 'name': bd.get('name') or 'Untitled', 'slug': bd.get('slug') or '',
-        'status': bd.get('status') or 'draft', 'accent': design.get('accent') or '#2b7a78',
-        'edited': updated,
+        'status': _editor_ui_status(bd), 'accent': design.get('accent') or '#2b7a78',
+        'edited': updated, 'hasSite': bool(bd.get('generated_html')),
     }
 
 @app.route('/api/editor/businesses')
@@ -3165,7 +3175,7 @@ def api_editor_business_get(biz_id):
     bd = biz_to_dict(biz)
     pages_obj, design, settings = get_editor_state(bd)
     return jsonify({
-        'id': bd['id'], 'name': bd.get('name'), 'slug': bd.get('slug'), 'status': bd.get('status'),
+        'id': bd['id'], 'name': bd.get('name'), 'slug': bd.get('slug'), 'status': _editor_ui_status(bd),
         'accent': design.get('accent'), 'secondaryColor': design.get('secondaryColor'),
         'font': design.get('font'), 'radius': design.get('radius'),
         'buttonStyle': design.get('buttonStyle'), 'density': design.get('density'),
