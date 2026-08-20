@@ -343,6 +343,20 @@ a{color:inherit;}
 .blk[draggable="true"]{cursor:grab;}
 .blk.dragging{opacity:.4;}
 .blk.drag-over{outline:2px dashed var(--brand) !important;outline-offset:-2px;}
+
+/* ===== DIRECT, CANVA-STYLE EDITING ===== */
+/* Any text you see on the page IS the editor — click it, type, done. */
+[data-field]{cursor:text;border-radius:4px;transition:box-shadow .12s ease,background .12s ease;outline:none;}
+[data-field]:hover{box-shadow:0 0 0 2px var(--brand-light);background:rgba(43,122,120,.06);}
+[data-field]:focus{box-shadow:0 0 0 2px var(--brand);background:rgba(43,122,120,.09);}
+/* Any photo is click-to-change — the whole image, not just the small icon. */
+[data-img-zone]{cursor:pointer;}
+[data-img-zone]:hover{filter:brightness(.92);}
+[data-img-zone]:hover .upload-btn{background:rgba(43,122,120,.9);}
+.img-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(13,28,26,.0);color:#fff;font-size:11px;font-weight:700;opacity:0;
+  transition:opacity .12s ease,background .12s ease;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.5);z-index:2;}
+[data-img-zone]:hover .img-hint{opacity:1;background:rgba(13,28,26,.28);}
 .drag-handle{cursor:grab;}
 
 /* per-block style controls */
@@ -1183,11 +1197,14 @@ function uploadBtn(kind, extra){
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.5-2h5L16 5"/></svg>
   </button>`;
 }
-function renderBtn(cls, label, solidBg, solidText, outlineColor, buttonStyle){
+function ed(field){ return `contenteditable="true" data-field="${field}" spellcheck="false"`; }
+function imgZone(kind, extra){ return `data-img-zone="${kind}" ${extra||''}`; }
+function renderBtn(cls, label, solidBg, solidText, outlineColor, buttonStyle, field){
+  const attrs = field ? ed(field) : '';
   if(buttonStyle==='outline'){
-    return `<span class="${cls}" style="background:transparent;border:2px solid ${outlineColor};color:${outlineColor};">${esc(label)}</span>`;
+    return `<span class="${cls}" ${attrs} style="background:transparent;border:2px solid ${outlineColor};color:${outlineColor};">${esc(label)}</span>`;
   }
-  return `<span class="${cls}" style="background:${solidBg};color:${solidText};">${esc(label)}</span>`;
+  return `<span class="${cls}" ${attrs} style="background:${solidBg};color:${solidText};">${esc(label)}</span>`;
 }
 function blockHTML(b, design, pages){
   const accent = design.accent;
@@ -1203,84 +1220,88 @@ function blockHTML(b, design, pages){
       return `
       <div class="b-nav" style="background:${bg||'#fff'};">
         <span class="logo" style="${b.logoImage?'display:flex;align-items:center;gap:8px;':''}">
-          ${b.logoImage ? `<span class="logo-img" style="${imgStyle(b.logoImage)}"></span>` : ''}
-          ${esc(b.navLogo)}
-          ${uploadBtn('logo','class="upload-mini"')}
+          ${b.logoImage ? `<span class="logo-img" ${imgZone('logo')} style="${imgStyle(b.logoImage)}position:relative;">${uploadBtn('logo')}</span>` : ''}
+          <span ${ed('navLogo')}>${esc(b.navLogo)}</span>
+          ${!b.logoImage ? uploadBtn('logo','class="upload-mini"') : ''}
         </span>
         <span class="links">${links.map(l=>`<span>${esc(l)}</span>`).join('')}</span>
-        ${renderBtn('cta', b.navCta||'Contact', accent, '#fff', accent, buttonStyle)}
+        ${renderBtn('cta', b.navCta||'Contact', accent, '#fff', accent, buttonStyle, 'navCta')}
       </div>`;
     }
     case 'hero': return `
-      <div class="b-hero" style="background:${bg||accent};${imgStyle(b.bgImage)}color:#fff;text-align:${align};padding:64px 48px;${align==='center'?'align-items:center;display:flex;flex-direction:column;':''}">
+      <div class="b-hero" ${imgZone('bg')} style="background:${bg||accent};${imgStyle(b.bgImage)}color:#fff;text-align:${align};padding:64px 48px;${align==='center'?'align-items:center;display:flex;flex-direction:column;':''}">
         ${b.bgImage ? '<div class="hero-overlay"></div>' : ''}
+        <span class="img-hint">${b.bgImage?'Click to change photo':'Click to add a background photo'}</span>
         <div class="hero-inner">
-          <h1>${esc(b.heading)}</h1><p>${esc(b.subheading)}</p>
-          ${renderBtn('cta', b.ctaText||'Learn more', '#fff', '#0d1c1c', '#fff', buttonStyle)}
+          <h1 ${ed('heading')}>${esc(b.heading)}</h1><p ${ed('subheading')}>${esc(b.subheading)}</p>
+          ${renderBtn('cta', b.ctaText||'Learn more', '#fff', '#0d1c1c', '#fff', buttonStyle, 'ctaText')}
         </div>
         ${uploadBtn('bg')}
       </div>`;
     case 'textimg': return `
       <div class="b-textimg" style="${b.layout==='left'?'flex-direction:row-reverse;':''}">
-        <div class="txt" style="padding:${pad};"><h2>${esc(b.heading)}</h2><p>${esc(b.body)}</p></div>
-        <div class="img" style="${imgStyle(b.imageUrl)}">${uploadBtn('img')}</div>
+        <div class="txt" style="padding:${pad};"><h2 ${ed('heading')}>${esc(b.heading)}</h2><p ${ed('body')}>${esc(b.body)}</p></div>
+        <div class="img" ${imgZone('img')} style="${imgStyle(b.imageUrl)}">
+          <span class="img-hint">${b.imageUrl?'Click to change photo':'Click to add a photo'}</span>
+          ${uploadBtn('img')}
+        </div>
       </div>`;
     case 'features': return `
       <div class="b-features" style="padding:${pad};">
-        <h2>${esc(b.heading)}</h2>
+        <h2 ${ed('heading')}>${esc(b.heading)}</h2>
         <div class="grid">
-          ${[b.item1,b.item2,b.item3].map(t=>`<div><div class="ic" style="background:${accent}22"></div><b>${esc(t||'Feature')}</b><span>Short description goes here.</span></div>`).join('')}
+          ${['item1','item2','item3'].map(f=>`<div><div class="ic" style="background:${accent}22"></div><b ${ed(f)}>${esc(b[f]||'Feature')}</b><span>Short description goes here.</span></div>`).join('')}
         </div>
       </div>`;
     case 'services': return `
       <div class="b-services" style="padding:${pad};">
-        <h2>${esc(b.heading)}</h2>
+        <h2 ${ed('heading')}>${esc(b.heading)}</h2>
         <div class="grid">
-          ${[b.item1,b.item2,b.item3].map(t=>`<div class="card"><div class="ic"></div><b>${esc(t||'Service')}</b><span>Short description goes here.</span></div>`).join('')}
+          ${['item1','item2','item3'].map(f=>`<div class="card"><div class="ic"></div><b ${ed(f)}>${esc(b[f]||'Service')}</b><span>Short description goes here.</span></div>`).join('')}
         </div>
       </div>`;
     case 'stats': return `
       <div class="b-stats" style="background:${bg||'#f5f8f8'};">
-        ${[[b.stat1n,b.stat1l],[b.stat2n,b.stat2l],[b.stat3n,b.stat3l]].map(([n,l])=>`<div><div class="n" style="color:${accent}">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join('')}
+        ${[['stat1n','stat1l'],['stat2n','stat2l'],['stat3n','stat3l']].map(([nf,lf])=>`<div><div class="n" ${ed(nf)} style="color:${accent}">${esc(b[nf])}</div><div class="l" ${ed(lf)}>${esc(b[lf])}</div></div>`).join('')}
       </div>`;
     case 'gallery': return `
-      <div class="b-gallery" style="padding:${pad};"><h2>${esc(b.heading)}</h2>
-        <div class="grid">${Array(8).fill(0).map((_,i)=>`<div class="ph" style="${imgStyle((b.images||[])[i])}">${uploadBtn('gallery', `data-idx="${i}"`)}</div>`).join('')}</div>
+      <div class="b-gallery" style="padding:${pad};"><h2 ${ed('heading')}>${esc(b.heading)}</h2>
+        <div class="grid">${Array(8).fill(0).map((_,i)=>`<div class="ph" ${imgZone('gallery',`data-idx="${i}"`)} style="${imgStyle((b.images||[])[i])}"><span class="img-hint">Click to add</span>${uploadBtn('gallery', `data-idx="${i}"`)}</div>`).join('')}</div>
       </div>`;
     case 'testi': return `
-      <div class="b-testi" style="background:${bg||'#fff'};"><q>“${esc(b.quote)}”</q><span>— ${esc(b.author)}</span></div>`;
+      <div class="b-testi" style="background:${bg||'#fff'};"><q>“<span ${ed('quote')}>${esc(b.quote)}</span>”</q><span>— <span ${ed('author')}>${esc(b.author)}</span></span></div>`;
     case 'team': return `
-      <div class="b-team" style="padding:${pad};"><h2>${esc(b.heading)}</h2>
+      <div class="b-team" style="padding:${pad};"><h2 ${ed('heading')}>${esc(b.heading)}</h2>
         <div class="grid">
-          <div><div class="av" style="${imgStyle(b.avatar1)}">${uploadBtn('avatar','data-idx="1"')}</div><b>${esc(b.person1)}</b><span>${esc(b.role1)}</span></div>
-          <div><div class="av" style="${imgStyle(b.avatar2)}">${uploadBtn('avatar','data-idx="2"')}</div><b>${esc(b.person2)}</b><span>${esc(b.role2)}</span></div>
+          <div><div class="av" ${imgZone('avatar',`data-idx="1"`)} style="${imgStyle(b.avatar1)}">${uploadBtn('avatar','data-idx="1"')}</div><b ${ed('person1')}>${esc(b.person1)}</b><span ${ed('role1')}>${esc(b.role1)}</span></div>
+          <div><div class="av" ${imgZone('avatar',`data-idx="2"`)} style="${imgStyle(b.avatar2)}">${uploadBtn('avatar','data-idx="2"')}</div><b ${ed('person2')}>${esc(b.person2)}</b><span ${ed('role2')}>${esc(b.role2)}</span></div>
         </div>
       </div>`;
     case 'faq': return `
-      <div class="b-faq" style="padding:${pad};"><h2>${esc(b.heading)}</h2>
-        <div class="q"><b>${esc(b.q1)}</b><span>${esc(b.a1)}</span></div>
-        <div class="q"><b>${esc(b.q2)}</b><span>${esc(b.a2)}</span></div>
+      <div class="b-faq" style="padding:${pad};"><h2 ${ed('heading')}>${esc(b.heading)}</h2>
+        <div class="q"><b ${ed('q1')}>${esc(b.q1)}</b><span ${ed('a1')}>${esc(b.a1)}</span></div>
+        <div class="q"><b ${ed('q2')}>${esc(b.q2)}</b><span ${ed('a2')}>${esc(b.a2)}</span></div>
       </div>`;
     case 'pricing': return `
-      <div class="b-pricing" style="padding:${pad};"><h2>${esc(b.heading)}</h2>
+      <div class="b-pricing" style="padding:${pad};"><h2 ${ed('heading')}>${esc(b.heading)}</h2>
         <div class="grid">
-          <div class="card"><b>${esc(b.plan1)}</b><div class="price" style="color:${accent}">${esc(b.price1)}</div></div>
-          <div class="card"><b>${esc(b.plan2)}</b><div class="price" style="color:${accent}">${esc(b.price2)}</div></div>
+          <div class="card"><b ${ed('plan1')}>${esc(b.plan1)}</b><div class="price" ${ed('price1')} style="color:${accent}">${esc(b.price1)}</div></div>
+          <div class="card"><b ${ed('plan2')}>${esc(b.plan2)}</b><div class="price" ${ed('price2')} style="color:${accent}">${esc(b.price2)}</div></div>
         </div>
       </div>`;
     case 'video': return `
-      <div class="b-video" style="padding:${pad};"><h2>${esc(b.heading)}</h2>
+      <div class="b-video" style="padding:${pad};"><h2 ${ed('heading')}>${esc(b.heading)}</h2>
         <div class="frame">${b.videoUrl ? `<span class="video-label">${esc(b.videoUrl)}</span>` : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4z" fill="currentColor" stroke="none"/></svg>`}</div>
       </div>`;
     case 'cta': return `
       <div class="b-cta" style="background:${bg||'#f5f8f8'};text-align:${align};">
-        <h2>${esc(b.heading)}</h2><p>${esc(b.body)}</p>
-        ${renderBtn('btn2', b.ctaText||'Get started', accent, '#fff', accent, buttonStyle)}
+        <h2 ${ed('heading')}>${esc(b.heading)}</h2><p ${ed('body')}>${esc(b.body)}</p>
+        ${renderBtn('btn2', b.ctaText||'Get started', accent, '#fff', accent, buttonStyle, 'ctaText')}
       </div>`;
     case 'contact': return `
       <div class="b-contact" style="padding:${pad};">
-        <div class="info"><h2>${esc(b.heading)}</h2><p>${esc(b.body)}</p>
-          <div class="row">📞 ${esc(b.phone)}</div><div class="row">✉️ ${esc(b.email)}</div>
+        <div class="info"><h2 ${ed('heading')}>${esc(b.heading)}</h2><p ${ed('body')}>${esc(b.body)}</p>
+          <div class="row">📞 <span ${ed('phone')}>${esc(b.phone)}</span></div><div class="row">✉️ <span ${ed('email')}>${esc(b.email)}</span></div>
         </div>
         <div class="form"><i></i><i></i><em></em></div>
       </div>`;
@@ -1360,10 +1381,8 @@ function renderCanvas(){
 
   $$('.blk').forEach(el=>{
     el.addEventListener('click', (e)=>{
-      if(e.target.closest('.blk-toolbar') || e.target.closest('.upload-btn')) return;
-      state.selectedBlockId = el.dataset.blockId;
-      renderCanvas();
-      renderInspector();
+      if(e.target.closest('.blk-toolbar')) return;
+      selectBlockEl(el);
     });
   });
   $$('.blk-toolbar button').forEach(btn=>{
@@ -1378,24 +1397,74 @@ function renderCanvas(){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       const blockId = btn.closest('.blk').dataset.blockId;
-      const kind = btn.dataset.uploadKind;
-      const idx = btn.dataset.idx;
-      const blk = p.blocks.find(x=>x.id===blockId);
-      if(!blk) return;
-      pickImage((dataUrl)=>{
-        if(kind==='img') blk.imageUrl = dataUrl;
-        if(kind==='bg') blk.bgImage = dataUrl;
-        if(kind==='logo') blk.logoImage = dataUrl;
-        if(kind==='avatar'){ blk['avatar'+idx] = dataUrl; }
-        if(kind==='gallery'){ blk.images = blk.images || []; blk.images[parseInt(idx,10)] = dataUrl; }
-        state.dirty = true;
-        pushHistory();
-        renderCanvas();
-        showToast('Image added');
-      });
+      openImagePicker(blockId, btn.dataset.uploadKind, btn.dataset.idx);
     });
   });
+  $$('[data-img-zone]').forEach(zone=>{
+    zone.addEventListener('click', (e)=>{
+      if(e.target.closest('.upload-btn')) return; // that button's own handler already fired and stopped this
+      const blockEl = zone.closest('.blk');
+      if(!blockEl) return;
+      openImagePicker(blockEl.dataset.blockId, zone.dataset.imgZone, zone.dataset.idx);
+    });
+  });
+  // Click any text on the page and type — commits when you click away or tab out.
+  frame.addEventListener('focusout', onFieldCommit);
+  frame.addEventListener('keydown', onFieldKeydown);
   wireBlockDragDrop();
+}
+
+function selectBlockEl(el){
+  const id = el.dataset.blockId;
+  if(state.selectedBlockId === id) return; // already selected — don't touch the DOM, might be mid-edit
+  state.selectedBlockId = id;
+  $$('.blk').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+  renderInspector();
+}
+
+function openImagePicker(blockId, kind, idx){
+  const p = currentPage();
+  if(!p) return;
+  const blk = p.blocks.find(x=>x.id===blockId);
+  if(!blk) return;
+  pickImage((dataUrl)=>{
+    if(kind==='img') blk.imageUrl = dataUrl;
+    if(kind==='bg') blk.bgImage = dataUrl;
+    if(kind==='logo') blk.logoImage = dataUrl;
+    if(kind==='avatar'){ blk['avatar'+idx] = dataUrl; }
+    if(kind==='gallery'){ blk.images = blk.images || []; blk.images[parseInt(idx,10)] = dataUrl; }
+    state.dirty = true;
+    pushHistory();
+    renderCanvas();
+    showToast('Photo updated');
+  });
+}
+
+function onFieldCommit(e){
+  const el = e.target.closest && e.target.closest('[data-field]');
+  if(!el) return;
+  const blockEl = el.closest('.blk');
+  const p = currentPage();
+  if(!blockEl || !p) return;
+  const blk = p.blocks.find(x=>x.id===blockEl.dataset.blockId);
+  if(!blk) return;
+  const field = el.dataset.field;
+  const newVal = el.innerText.replace(/\u00a0/g,' ').trim();
+  if((blk[field]||'') === newVal) return; // nothing actually changed, don't spam undo history
+  blk[field] = newVal;
+  state.dirty = true;
+  pushHistory();
+  renderInspector(); // keep the sidebar in sync if it's showing this same field
+}
+function onFieldKeydown(e){
+  const el = e.target.closest && e.target.closest('[data-field]');
+  if(!el) return;
+  if(e.key==='Escape'){ el.blur(); return; }
+  if(e.key==='Enter' && !LONG_FIELDS.has(el.dataset.field)){
+    e.preventDefault();
+    el.blur(); // one-line fields (headings, buttons, prices…) commit on Enter instead of adding a line break
+  }
 }
 
 function wireBlockDragDrop(){
