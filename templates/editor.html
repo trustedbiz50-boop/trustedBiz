@@ -94,7 +94,10 @@ a{color:inherit;}
   font-weight:600;color:var(--mid);}
 .site-menu button:hover{background:var(--bg);color:var(--text);}
 .site-menu button.danger:hover{color:var(--red);background:rgba(220,38,38,.06);}
-.site-thumb{aspect-ratio:4/3;background:var(--canvas-bg);position:relative;padding:9px;overflow:hidden;}
+.site-thumb{aspect-ratio:4/3;background:var(--canvas-bg);position:relative;overflow:hidden;}
+.site-thumb.placeholder{padding:9px;}
+.site-thumb-frame{position:absolute;top:0;left:0;width:400%;height:400%;transform:scale(.25);transform-origin:top left;
+  border:none;background:#fff;pointer-events:none;}
 .mini-page{background:var(--surface);border-radius:4px;height:100%;padding:6px 6px;display:flex;flex-direction:column;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
 .mini-nav{height:5px;display:flex;gap:3px;}
 .mini-nav i{width:9px;height:5px;border-radius:1px;background:var(--border);}
@@ -397,6 +400,31 @@ a{color:inherit;}
   .tool-panel.open{width:230px;}
   .inspector.open{width:250px;}
 }
+@media(max-width:640px){
+  .tool-panel.open,.tool-panel.wide.open{
+    position:fixed;top:0;bottom:0;left:var(--rail-w);width:calc(100vw - var(--rail-w));
+    z-index:45;box-shadow:14px 0 40px -14px rgba(0,0,0,.3);
+  }
+  .tool-panel-inner{width:100%;}
+  .inspector.open{
+    position:fixed;top:0;bottom:0;right:0;width:min(320px,88vw);
+    z-index:46;box-shadow:-14px 0 40px -14px rgba(0,0,0,.3);
+  }
+  .inspector-inner{width:100%;}
+  .rail{width:56px;}
+  .rail-btn{width:40px;height:40px;}
+  .rail-btn span{display:none;}
+  .topbar{height:auto;min-height:56px;padding:8px 10px;flex-wrap:wrap;row-gap:8px;}
+  .topbar-left{min-width:0;flex:1 1 auto;}
+  .tb-title .n{max-width:130px;font-size:12.5px;}
+  .topbar-right{flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+  .btn{padding:7px 11px;font-size:12px;}
+  .device-toggle{order:5;}
+  .canvas-scroll{padding:20px 10px 70px;}
+  .sites-head{padding:16px 16px 12px;}
+  .sites-body{padding:14px 16px 24px;}
+  .sites-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+}
 </style>
 </head>
 <body>
@@ -634,6 +662,7 @@ function siteFromDetail(d){
   return {
     id: d.id, name: d.name, slug: d.slug, status: d.status || 'draft',
     edited: d.edited || 'just now', accent: d.accent || '#2b7a78',
+    hasSite: !!d.hasSite,
     font: d.font || 'sans', secondaryColor: d.secondaryColor || null,
     radius: d.radius || 'rounded', buttonStyle: d.buttonStyle || 'solid',
     density: d.density || 'comfortable', settings: d.settings || {},
@@ -646,8 +675,8 @@ async function loadSitesList(){
     const data = await apiGet('/api/editor/businesses');
     (data.sites||[]).forEach(card=>{
       const existing = SITES.find(s=>s.id===card.id);
-      if(existing){ existing.name=card.name; existing.slug=card.slug; existing.status=card.status; existing.accent=card.accent; existing.edited=card.edited; }
-      else SITES.push({ id:card.id, name:card.name, slug:card.slug, status:card.status, accent:card.accent, edited:card.edited, pages:[], settings:{} });
+      if(existing){ existing.name=card.name; existing.slug=card.slug; existing.status=card.status; existing.accent=card.accent; existing.edited=card.edited; existing.hasSite=!!card.hasSite; }
+      else SITES.push({ id:card.id, name:card.name, slug:card.slug, status:card.status, accent:card.accent, edited:card.edited, hasSite:!!card.hasSite, pages:[], settings:{} });
     });
     const ids = new Set((data.sites||[]).map(c=>c.id));
     SITES = SITES.filter(s=>ids.has(s.id));
@@ -752,12 +781,13 @@ function renderSitesGrid(filter){
         <button data-menu-act="duplicate" data-site-id="${s.id}">Duplicate</button>
         <button data-menu-act="delete" data-site-id="${s.id}" class="danger">Delete</button>
       </div>
-      <div class="site-thumb">
+      <div class="site-thumb ${s.hasSite ? '' : 'placeholder'}">
+        ${s.hasSite ? `<iframe class="site-thumb-frame" src="/site/${encodeURIComponent(s.slug)}/index" loading="lazy" tabindex="-1" title="${escAttr(s.name)} preview"></iframe>` : `
         <div class="mini-page">
           <div class="mini-nav"><i></i><i></i><i></i></div>
           <div class="mini-hero" style="background:${s.accent}"><b></b><i></i><em></em></div>
           <div class="mini-rows"><i></i><i></i><i></i></div>
-        </div>
+        </div>`}
         <span class="site-status-dot ${s.status}"></span>
       </div>
       <div class="site-info">
