@@ -453,6 +453,7 @@ button{font-family:var(--font);}
         <div><h1>Sites</h1><p>// businesses running on TrustedBiz</p></div>
         <div style="display:flex;gap:8px;">
           <button class="btn" id="showDeployForm">Deploy your own HTML</button>
+          <a class="btn" href="/editor">+ Build in Editor</a>
           <button class="btn btn-solid" data-target="daisy">+ Build with Daisy</button>
         </div>
       </div>
@@ -507,6 +508,7 @@ button{font-family:var(--font);}
           <span class="btn" style="opacity:.6;">Building…</span>
           {% endif %}
           <button class="btn" data-target="daisy" onclick="startDaisyEdit({{ b.id }}, {{ b.name|tojson }});">Edit with Daisy</button>
+          <a class="btn" href="/editor/{{ b.id }}">Open Editor</a>
           {% if b.generated_html %}
           <a class="btn" href="/dashboard/edit-code/{{ b.id }}">View/Edit Code</a>
           {% endif %}
