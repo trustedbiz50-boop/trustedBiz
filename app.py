@@ -761,11 +761,50 @@ def _editor_json_loads(raw, default):
     except Exception:
         return default
 
+def _extract_head_styles(html):
+    """Pull every <style>...</style> block out of a full HTML document's
+    <head> so it can travel with imported body content — style tags are
+    valid inside <body> too, so this is enough to keep imported pages
+    looking right without a real head."""
+    if not html:
+        return ''
+    return ''.join(m.group(0) for m in re.finditer(r'<style[^>]*>.*?</style>', html, re.I | re.S))
+
+def _extract_body_content(html):
+    """Best-effort inner content of <body>...</body> from a full HTML
+    document. Falls back to the whole string if there's no <body> tag
+    (e.g. it's already a fragment) so nothing is ever silently dropped."""
+    if not html:
+        return ''
+    m = re.search(r'<body[^>]*>(.*)</body>', html, re.I | re.S)
+    return m.group(1) if m else html
+
+def _editor_pages_from_generated_site(bd):
+    """Imports a business's real Daisy-generated site (generated_html) into
+    the block-editor's shape the first time it's opened, one 'html' block
+    per real page, instead of the editor falling back to a blank nav-only
+    template and silently discarding the actual site."""
+    pages, order, labels = _decode_site(bd.get('generated_html'))
+    if not pages:
+        return None
+    out_pages, out_order = {}, []
+    for pid in (order or list(pages.keys())):
+        raw = pages.get(pid)
+        if not raw:
+            continue
+        imported = _extract_head_styles(raw) + _extract_body_content(raw)
+        out_pages[pid] = {'id': pid, 'name': labels.get(pid, pid.title()),
+                           'blocks': [{'id': 'imported-' + pid, 'type': 'html', 'rawHtml': imported}]}
+        out_order.append(pid)
+    if not out_pages:
+        return None
+    return {'order': out_order, 'pages': out_pages}
+
 def get_editor_state(bd):
     """(pages_obj, design, settings) for a business row (as dict)."""
     pages_obj = _editor_json_loads(bd.get('editor_pages'), None)
     if not pages_obj or not pages_obj.get('pages'):
-        pages_obj = default_editor_blocks(bd.get('name') or 'My Business', 'blank')
+        pages_obj = _editor_pages_from_generated_site(bd) or default_editor_blocks(bd.get('name') or 'My Business', 'blank')
     design = default_editor_design()
     design.update(_editor_json_loads(bd.get('editor_design'), {}))
     settings = default_editor_settings(bd.get('name') or '')
