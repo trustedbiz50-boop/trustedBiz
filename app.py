@@ -624,6 +624,316 @@ def _site_page_html(raw, page=None):
     return pages[order[0]] if order else next(iter(pages.values()))
 
 
+
+# ── VISUAL BLOCK EDITOR ──────────────────────────────────────────────────────
+# A separate, structured representation of a site (typed blocks: hero, nav,
+# services, gallery, ...) that a business owner edits directly, distinct from
+# the whole-HTML-blob sites Daisy generates. Stored in business.editor_pages /
+# editor_design / editor_settings (JSON). Saving compiles the blocks into real
+# HTML and writes it into business.generated_html via the SAME _encode_site()
+# envelope Daisy's multi-page sites use, so /site/<slug>/<page> and every
+# other route that already reads generated_html needs no changes at all.
+
+BLOCK_CSS = r"""
+.b-hero{padding:64px 48px;text-align:left;}
+.b-hero h1{font-size:32px;font-weight:800;margin-bottom:10px;line-height:1.15;font-family:var(--hf,'DM Sans',sans-serif);}
+.b-hero p{font-size:14.5px;opacity:.9;max-width:440px;margin-bottom:20px;}
+.b-hero .cta{display:inline-block;padding:10px 20px;border-radius:var(--radius,7px);font-weight:700;font-size:13px;}
+.b-textimg{display:flex;gap:0;}
+.b-textimg .txt{flex:1;padding:44px;display:flex;flex-direction:column;justify-content:center;}
+.b-textimg .img{flex:1;background:linear-gradient(135deg,#dfe9e8,#c7d8d6);min-height:220px;position:relative;}
+.b-textimg h2{font-size:22px;font-weight:800;margin-bottom:10px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-textimg p{font-size:13.5px;color:#43605f;line-height:1.6;}
+.b-services{padding:48px;}
+.b-services h2{font-size:22px;font-weight:800;margin-bottom:20px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-services .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.b-services .card{border:1px solid #e2ecea;border-radius:var(--radius,10px);padding:16px;}
+.b-services .card .ic{width:30px;height:30px;border-radius:calc(var(--radius,10px) * 0.8);background:#e9f3f2;margin-bottom:10px;}
+.b-services .card b{display:block;font-size:13.5px;margin-bottom:4px;}
+.b-services .card span{font-size:12px;color:#7a9694;}
+.b-gallery{padding:48px;}
+.b-gallery h2{font-size:22px;font-weight:800;margin-bottom:16px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-gallery .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.b-gallery .ph{aspect-ratio:1;border-radius:var(--radius,8px);background:linear-gradient(135deg,#e2ecea,#cfe0de);}
+.b-testi{padding:56px 48px;text-align:center;}
+.b-testi q{font-size:17px;font-weight:600;line-height:1.5;display:block;max-width:520px;margin:0 auto 14px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-testi span{font-size:12.5px;color:#7a9694;font-weight:600;}
+.b-contact{padding:48px;display:flex;gap:34px;}
+.b-contact .info{flex:1;}
+.b-contact h2{font-size:22px;font-weight:800;margin-bottom:8px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-contact p{font-size:13px;color:#43605f;margin-bottom:14px;}
+.b-contact .row{font-size:12.5px;color:#294a48;margin-bottom:6px;font-weight:600;}
+.b-contact .form{flex:1;background:#f5f8f8;border-radius:var(--radius,10px);padding:18px;display:flex;flex-direction:column;gap:10px;}
+.b-contact .form i{display:block;height:30px;background:#fff;border:1px solid #dde8e8;border-radius:calc(var(--radius,10px) * 0.6);}
+.b-contact .form em{display:block;height:60px;background:#fff;border:1px solid #dde8e8;border-radius:calc(var(--radius,10px) * 0.6);}
+.b-footer{padding:22px 48px;display:flex;align-items:center;justify-content:space-between;font-size:11.5px;}
+.b-nav{padding:16px 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eef2f1;}
+.b-nav .logo{font-weight:800;font-size:15px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-nav .links{display:flex;gap:22px;font-size:12.5px;font-weight:600;color:#43605f;}
+.b-nav .cta{padding:7px 16px;border-radius:var(--radius,6px);font-weight:700;font-size:12px;}
+.b-features{padding:48px;}
+.b-features h2{font-size:22px;font-weight:800;margin-bottom:20px;text-align:center;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-features .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;text-align:center;}
+.b-features .ic{width:38px;height:38px;border-radius:calc(var(--radius,10px) * 0.8);margin:0 auto 10px;}
+.b-features b{display:block;font-size:13.5px;margin-bottom:4px;}
+.b-features span{font-size:12px;color:#7a9694;}
+.b-stats{padding:44px 48px;display:flex;justify-content:space-around;text-align:center;}
+.b-stats .n{font-size:26px;font-weight:800;font-family:var(--hf,'DM Sans',sans-serif);}
+.b-stats .l{font-size:11.5px;color:#7a9694;font-weight:600;margin-top:2px;}
+.b-faq{padding:48px;}
+.b-faq h2{font-size:22px;font-weight:800;margin-bottom:16px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-faq .q{border-bottom:1px solid #eef2f1;padding:14px 0;}
+.b-faq .q b{display:block;font-size:13.5px;margin-bottom:5px;}
+.b-faq .q span{font-size:12.5px;color:#7a9694;}
+.b-pricing{padding:48px;}
+.b-pricing h2{font-size:22px;font-weight:800;text-align:center;margin-bottom:20px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-pricing .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.b-pricing .card{border:1px solid #e2ecea;border-radius:var(--radius,10px);padding:18px;text-align:center;}
+.b-pricing .card .price{font-size:22px;font-weight:800;margin:8px 0;}
+.b-pricing .card b{font-size:13px;}
+.b-cta{padding:48px;text-align:center;}
+.b-cta h2{font-size:22px;font-weight:800;margin-bottom:8px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-cta p{font-size:13px;color:#43605f;margin-bottom:16px;}
+.b-cta .btn2{display:inline-block;padding:10px 22px;border-radius:var(--radius,7px);font-weight:700;font-size:13px;}
+.b-team{padding:48px;}
+.b-team h2{font-size:22px;font-weight:800;margin-bottom:18px;text-align:center;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-team .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:center;}
+.b-team .av{width:56px;height:56px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,#dfe9e8,#c7d8d6);}
+.b-team b{display:block;font-size:12.5px;}
+.b-team span{font-size:11px;color:#7a9694;}
+.b-video{padding:48px;text-align:center;}
+.b-video h2{font-size:22px;font-weight:800;margin-bottom:14px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
+.b-video .frame{aspect-ratio:16/9;max-width:560px;margin:0 auto;border-radius:var(--radius,10px);background:#0d1c1c;
+  display:flex;align-items:center;justify-content:center;color:#fff;}
+.b-video .frame svg{width:34px;height:34px;}
+.b-html{padding:20px 48px;font-family:var(--mono);font-size:11.5px;color:#43605f;background:#f8fafa;white-space:pre-wrap;}
+.b-html-frame{width:100%;min-height:220px;border:none;display:block;}
+"""
+
+EDITOR_FONT_PAIRS = {
+    'sans':    ("'DM Sans',sans-serif",        "'DM Sans',sans-serif"),
+    'serif':   ("'Playfair Display',serif",    "'DM Sans',sans-serif"),
+    'mono':    ("'Space Mono',monospace",      "'DM Sans',sans-serif"),
+    'poppins': ("'Poppins',sans-serif",        "'Poppins',sans-serif"),
+    'classic': ("Georgia,serif",               "'DM Sans',sans-serif"),
+}
+EDITOR_RADIUS   = {'sharp': '3px', 'rounded': '10px', 'pill': '999px'}
+EDITOR_DENSITY  = {'compact': '32px', 'comfortable': '48px', 'spacious': '72px'}
+EDITOR_GOOGLE_FONTS_HREF = (
+    "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800"
+    "&family=DM+Mono:wght@400;500&family=Poppins:wght@400;500;600;700;800"
+    "&family=Playfair+Display:wght@500;600;700;800&family=Space+Mono:wght@400;700"
+    "&family=Georgia&display=swap"
+)
+
+def default_editor_design():
+    return {'accent': '#2b7a78', 'secondaryColor': None, 'font': 'sans',
+            'radius': 'rounded', 'buttonStyle': 'solid', 'density': 'comfortable'}
+
+def default_editor_settings(name=''):
+    return {'tagline': '', 'phone': '', 'whatsapp': '', 'email': '', 'address': '',
+            'instagram': '', 'facebook': '', 'seoTitle': name, 'seoDesc': '',
+            'logo': None, 'favicon': None}
+
+def default_editor_blocks(name, starter='blank'):
+    nav = {'id': 'nav1', 'type': 'nav', 'navLogo': name, 'navLinks': '', 'navCta': 'Contact us'}
+    if starter == 'basic':
+        blocks = [nav,
+            {'id': 'b1', 'type': 'hero', 'heading': name,
+             'subheading': 'Tell people what you do and why they should choose you.',
+             'ctaText': 'Get in touch', 'align': 'left'},
+            {'id': 'b2', 'type': 'services', 'heading': 'What we offer',
+             'item1': 'Service one', 'item2': 'Service two', 'item3': 'Service three'},
+            {'id': 'b3', 'type': 'contact', 'heading': 'Get in touch',
+             'body': 'Reach out any time.', 'phone': '', 'email': ''},
+            {'id': 'b4', 'type': 'footer', 'footerText': '\u00a9 ' + name},
+        ]
+    else:
+        blocks = [nav]
+    return {'order': ['index'], 'pages': {'index': {'id': 'index', 'name': 'Home', 'blocks': blocks}}}
+
+def _editor_json_loads(raw, default):
+    if not raw:
+        return default
+    try:
+        data = json.loads(raw)
+        return data if data is not None else default
+    except Exception:
+        return default
+
+def get_editor_state(bd):
+    """(pages_obj, design, settings) for a business row (as dict)."""
+    pages_obj = _editor_json_loads(bd.get('editor_pages'), None)
+    if not pages_obj or not pages_obj.get('pages'):
+        pages_obj = default_editor_blocks(bd.get('name') or 'My Business', 'blank')
+    design = default_editor_design()
+    design.update(_editor_json_loads(bd.get('editor_design'), {}))
+    settings = default_editor_settings(bd.get('name') or '')
+    settings.update(_editor_json_loads(bd.get('editor_settings'), {}))
+    return pages_obj, design, settings
+
+def _eesc(s):
+    s = '' if s is None else str(s)
+    return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+def _eesc_attr(s):
+    s = '' if s is None else str(s)
+    return s.replace('&', '&amp;').replace('"', '&quot;')
+
+def _eimg_style(url):
+    if not url:
+        return ''
+    return "background-image:url('" + url.replace("'", "") + "');background-size:cover;background-position:center;"
+
+def _ebtn(cls, label, solid_bg, solid_text, outline_color, button_style):
+    label = _eesc(label)
+    if button_style == 'outline':
+        return ('<span class="' + cls + '" style="background:transparent;border:2px solid ' + outline_color +
+                ';color:' + outline_color + ';">' + label + '</span>')
+    return ('<span class="' + cls + '" style="background:' + solid_bg + ';color:' + solid_text + ';">' + label + '</span>')
+
+def _editor_block_html(b, design, page_names):
+    accent = design.get('accent') or '#2b7a78'
+    button_style = design.get('buttonStyle') or 'solid'
+    density_px = EDITOR_DENSITY.get(design.get('density'), EDITOR_DENSITY['comfortable'])
+    pad = {'sm': '28px', 'md': '48px', 'lg': '72px'}.get(b.get('padding'), density_px)
+    align = b.get('align') or 'left'
+    bg = b.get('bg') or None
+    t = b.get('type')
+
+    if t == 'nav':
+        extra = [x.strip() for x in (b.get('navLinks') or '').split(',') if x.strip()]
+        links = list(dict.fromkeys(list(page_names) + extra))
+        logo_img = ('<span class="logo-img" style="' + _eimg_style(b.get('logoImage')) + '"></span>') if b.get('logoImage') else ''
+        return ('<div class="b-nav" style="background:' + (bg or '#fff') + ';">'
+                '<span class="logo">' + logo_img + _eesc(b.get('navLogo')) + '</span>'
+                '<span class="links">' + ''.join('<span>' + _eesc(l) + '</span>' for l in links) + '</span>'
+                + _ebtn('cta', b.get('navCta') or 'Contact', accent, '#fff', accent, button_style) + '</div>')
+
+    if t == 'hero':
+        wrap_style = ('align-items:center;display:flex;flex-direction:column;' if align == 'center' else '')
+        overlay = '<div class="hero-overlay"></div>' if b.get('bgImage') else ''
+        return ('<div class="b-hero" style="background:' + (bg or accent) + ';' + _eimg_style(b.get('bgImage')) +
+                'color:#fff;text-align:' + align + ';padding:64px 48px;' + wrap_style + '">' + overlay +
+                '<div class="hero-inner"><h1>' + _eesc(b.get('heading')) + '</h1><p>' + _eesc(b.get('subheading')) + '</p>'
+                + _ebtn('cta', b.get('ctaText') or 'Learn more', '#fff', '#0d1c1c', '#fff', button_style) +
+                '</div></div>')
+
+    if t == 'textimg':
+        flip = 'flex-direction:row-reverse;' if b.get('layout') == 'left' else ''
+        return ('<div class="b-textimg" style="' + flip + '">'
+                '<div class="txt" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2><p>' + _eesc(b.get('body')) + '</p></div>'
+                '<div class="img" style="' + _eimg_style(b.get('imageUrl')) + '"></div></div>')
+
+    if t == 'features':
+        items = [b.get('item1'), b.get('item2'), b.get('item3')]
+        cards = ''.join('<div><div class="ic" style="background:' + accent + '22"></div><b>' + _eesc(i or 'Feature') +
+                         '</b><span>Short description goes here.</span></div>' for i in items)
+        return '<div class="b-features" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2><div class="grid">' + cards + '</div></div>'
+
+    if t == 'services':
+        items = [b.get('item1'), b.get('item2'), b.get('item3')]
+        cards = ''.join('<div class="card"><div class="ic"></div><b>' + _eesc(i or 'Service') +
+                         '</b><span>Short description goes here.</span></div>' for i in items)
+        return '<div class="b-services" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2><div class="grid">' + cards + '</div></div>'
+
+    if t == 'stats':
+        rows = [(b.get('stat1n'), b.get('stat1l')), (b.get('stat2n'), b.get('stat2l')), (b.get('stat3n'), b.get('stat3l'))]
+        cells = ''.join('<div><div class="n" style="color:' + accent + '">' + _eesc(n) + '</div><div class="l">' + _eesc(l) + '</div></div>' for n, l in rows)
+        return '<div class="b-stats" style="background:' + (bg or '#f5f8f8') + ';">' + cells + '</div>'
+
+    if t == 'gallery':
+        images = b.get('images') or []
+        tiles = ''.join('<div class="ph" style="' + _eimg_style(images[i] if i < len(images) else None) + '"></div>' for i in range(8))
+        return '<div class="b-gallery" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2><div class="grid">' + tiles + '</div></div>'
+
+    if t == 'testi':
+        return ('<div class="b-testi" style="background:' + (bg or '#fff') + ';"><q>\u201c' + _eesc(b.get('quote')) +
+                '\u201d</q><span>\u2014 ' + _eesc(b.get('author')) + '</span></div>')
+
+    if t == 'team':
+        return ('<div class="b-team" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2><div class="grid">'
+                '<div><div class="av" style="' + _eimg_style(b.get('avatar1')) + '"></div><b>' + _eesc(b.get('person1')) + '</b><span>' + _eesc(b.get('role1')) + '</span></div>'
+                '<div><div class="av" style="' + _eimg_style(b.get('avatar2')) + '"></div><b>' + _eesc(b.get('person2')) + '</b><span>' + _eesc(b.get('role2')) + '</span></div>'
+                '</div></div>')
+
+    if t == 'faq':
+        return ('<div class="b-faq" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2>'
+                '<div class="q"><b>' + _eesc(b.get('q1')) + '</b><span>' + _eesc(b.get('a1')) + '</span></div>'
+                '<div class="q"><b>' + _eesc(b.get('q2')) + '</b><span>' + _eesc(b.get('a2')) + '</span></div></div>')
+
+    if t == 'pricing':
+        return ('<div class="b-pricing" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2><div class="grid">'
+                '<div class="card"><b>' + _eesc(b.get('plan1')) + '</b><div class="price" style="color:' + accent + '">' + _eesc(b.get('price1')) + '</div></div>'
+                '<div class="card"><b>' + _eesc(b.get('plan2')) + '</b><div class="price" style="color:' + accent + '">' + _eesc(b.get('price2')) + '</div></div>'
+                '</div></div>')
+
+    if t == 'video':
+        inner = ('<span class="video-label">' + _eesc(b.get('videoUrl')) + '</span>') if b.get('videoUrl') else (
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+            '<circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4z" fill="currentColor" stroke="none"/></svg>')
+        return '<div class="b-video" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2><div class="frame">' + inner + '</div></div>'
+
+    if t == 'cta':
+        return ('<div class="b-cta" style="background:' + (bg or '#f5f8f8') + ';text-align:' + align + ';">'
+                '<h2>' + _eesc(b.get('heading')) + '</h2><p>' + _eesc(b.get('body')) + '</p>'
+                + _ebtn('btn2', b.get('ctaText') or 'Get started', accent, '#fff', accent, button_style) + '</div>')
+
+    if t == 'contact':
+        return ('<div class="b-contact" style="padding:' + pad + ';"><div class="info"><h2>' + _eesc(b.get('heading')) + '</h2>'
+                '<p>' + _eesc(b.get('body')) + '</p><div class="row">\U0001f4de ' + _eesc(b.get('phone')) + '</div>'
+                '<div class="row">\u2709\ufe0f ' + _eesc(b.get('email')) + '</div></div>'
+                '<div class="form"><i></i><i></i><em></em></div></div>')
+
+    if t == 'html':
+        return '<div class="b-html-live">' + (b.get('rawHtml') or '') + '</div>'
+
+    if t == 'footer':
+        return ('<div class="b-footer" style="background:' + (bg or '#f5f8f8') + ';color:#43605f;">'
+                '<span>' + _eesc(b.get('footerText')) + '</span><span>Built with TrustedBiz</span></div>')
+
+    return ''
+
+def _compile_editor_page(business_name, page_label, blocks, design, page_names, settings):
+    fp = EDITOR_FONT_PAIRS.get(design.get('font'), EDITOR_FONT_PAIRS['sans'])
+    radius = EDITOR_RADIUS.get(design.get('radius'), EDITOR_RADIUS['rounded'])
+    secondary = design.get('secondaryColor') or '#0d1c1c'
+    body_html = ''.join(_editor_block_html(b, design, page_names) for b in blocks)
+    title = _eesc(settings.get('seoTitle') or (business_name + ' — ' + page_label))
+    desc = _eesc_attr(settings.get('seoDesc') or settings.get('tagline') or '')
+    favicon_tag = ('<link rel="icon" href="' + _eesc_attr(settings['favicon']) + '">') if settings.get('favicon') else ''
+    css_vars = (":root{--hf:" + fp[0] + ";--bf:" + fp[1] + ";--secondary:" + secondary + ";--radius:" + radius + ";}")
+    return (
+        '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        '<title>' + title + '</title>'
+        '<meta name="description" content="' + desc + '">' + favicon_tag +
+        '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+        '<link href="' + EDITOR_GOOGLE_FONTS_HREF + '" rel="stylesheet">'
+        '<style>*{box-sizing:border-box;margin:0;padding:0;}' +
+        css_vars +
+        'body{font-family:var(--bf);color:#0d1c1c;background:#fff;}img{max-width:100%;}\n' +
+        BLOCK_CSS +
+        '</style></head><body>' + body_html + '</body></html>'
+    )
+
+def compile_editor_site(bd, pages_obj, design, settings):
+    """Renders every editor page to full HTML and returns (pages_html, order, labels)
+    ready for _encode_site() / save_site_html()."""
+    order = pages_obj.get('order') or list(pages_obj.get('pages', {}).keys())
+    pages = pages_obj.get('pages') or {}
+    page_names = [pages[pid].get('name', pid) for pid in order if pid in pages]
+    business_name = bd.get('name') or 'My Business'
+    pages_html, labels = {}, {}
+    for pid in order:
+        page = pages.get(pid)
+        if not page:
+            continue
+        pages_html[pid] = _compile_editor_page(business_name, page.get('name', pid), page.get('blocks') or [], design, page_names, settings)
+        labels[pid] = page.get('name', pid)
+    return pages_html, order, labels
+
 _SAFE_SCRIPT_HOSTS = ('trustedbiz.co.ug', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net',
                       'fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com',
                       'www.googletagmanager.com', 'www.google-analytics.com')
@@ -2817,6 +3127,151 @@ def dashboard():
                            security=security, hosting_fee_monthly=HOSTING_FEE_MONTHLY,
                            hosting_fee_yearly=HOSTING_FEE_YEARLY)
 
+# ── VISUAL BLOCK EDITOR: PAGE + API ─────────────────────────────────────────
+@app.route('/editor')
+@app.route('/editor/<int:biz_id>')
+@login_required
+def editor_page(biz_id=None):
+    return render_template('editor.html', current_user=get_current_user(), open_biz_id=biz_id)
+
+def _editor_owns_or_404(biz_id):
+    biz = db_fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
+    if not biz or biz['owner_id'] != session['user_id']:
+        return None
+    return biz
+
+def _editor_site_card(bd):
+    pages_obj, design, _ = get_editor_state(bd)
+    updated = bd.get('editor_updated_at') or bd.get('created_at')
+    return {
+        'id': bd['id'], 'name': bd.get('name') or 'Untitled', 'slug': bd.get('slug') or '',
+        'status': bd.get('status') or 'draft', 'accent': design.get('accent') or '#2b7a78',
+        'edited': updated,
+    }
+
+@app.route('/api/editor/businesses')
+@login_required
+def api_editor_businesses():
+    rows = db_fetchall(q("SELECT * FROM business WHERE owner_id=? ORDER BY COALESCE(editor_updated_at, created_at) DESC"),
+                        (session['user_id'],))
+    return jsonify({'sites': [_editor_site_card(biz_to_dict(b)) for b in rows]})
+
+@app.route('/api/editor/business/<int:biz_id>')
+@login_required
+def api_editor_business_get(biz_id):
+    biz = _editor_owns_or_404(biz_id)
+    if not biz:
+        return jsonify({'error': 'not found'}), 404
+    bd = biz_to_dict(biz)
+    pages_obj, design, settings = get_editor_state(bd)
+    return jsonify({
+        'id': bd['id'], 'name': bd.get('name'), 'slug': bd.get('slug'), 'status': bd.get('status'),
+        'accent': design.get('accent'), 'secondaryColor': design.get('secondaryColor'),
+        'font': design.get('font'), 'radius': design.get('radius'),
+        'buttonStyle': design.get('buttonStyle'), 'density': design.get('density'),
+        'settings': settings,
+        'pages': [dict(pages_obj['pages'][pid], id=pid) for pid in pages_obj.get('order', [])
+                  if pid in pages_obj.get('pages', {})],
+    })
+
+@app.route('/api/editor/business', methods=['POST'])
+@login_required
+def api_editor_business_create():
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Business name is required'}), 400
+    starter = data.get('starter') if data.get('starter') in ('blank', 'basic') else 'blank'
+    slug = make_slug(name)
+    biz_id = db_insert(q("INSERT INTO business (name, slug, owner_id, status, plan) VALUES (?,?,?,?,?)"),
+                        (name, slug, session['user_id'], 'draft', 'free'))
+    pages_obj = default_editor_blocks(name, starter)
+    design = default_editor_design()
+    settings = default_editor_settings(name)
+    db_execute(q("UPDATE business SET editor_pages=?, editor_design=?, editor_settings=?, editor_updated_at=CURRENT_TIMESTAMP WHERE id=?"),
+               (json.dumps(pages_obj), json.dumps(design), json.dumps(settings), biz_id))
+    log_deploy_event(biz_id, session['user_id'], 'editor_create', f'Started "{name}" from scratch ({starter})')
+    return jsonify({
+        'id': biz_id, 'name': name, 'slug': slug, 'status': 'draft',
+        'accent': design['accent'], 'secondaryColor': design['secondaryColor'], 'font': design['font'],
+        'radius': design['radius'], 'buttonStyle': design['buttonStyle'], 'density': design['density'],
+        'settings': settings,
+        'pages': [dict(pages_obj['pages'][pid], id=pid) for pid in pages_obj['order']],
+    })
+
+@app.route('/api/editor/business/<int:biz_id>', methods=['PUT'])
+@login_required
+def api_editor_business_save(biz_id):
+    biz = _editor_owns_or_404(biz_id)
+    if not biz:
+        return jsonify({'error': 'not found'}), 404
+    data = request.get_json(force=True, silent=True) or {}
+
+    design = default_editor_design()
+    for k in ('accent', 'secondaryColor', 'font', 'radius', 'buttonStyle', 'density'):
+        if k in data:
+            design[k] = data[k]
+
+    settings = default_editor_settings(biz['name'] or '')
+    settings.update(data.get('settings') or {})
+
+    pages_list = data.get('pages') or []
+    order = [p.get('id') for p in pages_list if p.get('id')]
+    pages = {p['id']: {'id': p['id'], 'name': p.get('name', p['id']), 'blocks': p.get('blocks') or []} for p in pages_list if p.get('id')}
+    pages_obj = {'order': order, 'pages': pages}
+    if not pages:
+        pages_obj = default_editor_blocks(biz['name'] or 'My Business', 'blank')
+
+    bd = biz_to_dict(biz)
+    pages_html, html_order, labels = compile_editor_site(bd, pages_obj, design, settings)
+    compiled = _encode_site(pages_html, html_order, labels)
+
+    db_execute(q("UPDATE business SET editor_pages=?, editor_design=?, editor_settings=?, editor_updated_at=CURRENT_TIMESTAMP WHERE id=?"),
+               (json.dumps(pages_obj), json.dumps(design), json.dumps(settings), biz_id))
+    save_site_html(biz_id, compiled)
+    log_deploy_event(biz_id, session['user_id'], 'editor_save', f'Saved changes in the editor for "{biz["name"]}"')
+
+    return jsonify({'ok': True, 'edited': datetime.utcnow().isoformat()})
+
+@app.route('/api/editor/business/<int:biz_id>/duplicate', methods=['POST'])
+@login_required
+def api_editor_business_duplicate(biz_id):
+    biz = _editor_owns_or_404(biz_id)
+    if not biz:
+        return jsonify({'error': 'not found'}), 404
+    bd = biz_to_dict(biz)
+    new_name = (bd.get('name') or 'Untitled') + ' (copy)'
+    new_slug = make_slug(new_name)
+    new_id = db_insert(q("INSERT INTO business (name, slug, owner_id, status, plan, brand_color) VALUES (?,?,?,?,?,?)"),
+                        (new_name, new_slug, session['user_id'], 'draft', 'free', bd.get('brand_color') or '#2b7a78'))
+    db_execute(q("UPDATE business SET editor_pages=?, editor_design=?, editor_settings=?, editor_updated_at=CURRENT_TIMESTAMP WHERE id=?"),
+               (bd.get('editor_pages'), bd.get('editor_design'), bd.get('editor_settings'), new_id))
+    log_deploy_event(new_id, session['user_id'], 'editor_duplicate', f'Duplicated "{bd.get("name")}"')
+    return jsonify(_editor_site_card(biz_to_dict(db_fetchone(q("SELECT * FROM business WHERE id=?"), (new_id,)))))
+
+@app.route('/api/editor/business/<int:biz_id>', methods=['DELETE'])
+@login_required
+def api_editor_business_delete(biz_id):
+    biz = _editor_owns_or_404(biz_id)
+    if not biz:
+        return jsonify({'error': 'not found'}), 404
+    db_execute(q("DELETE FROM business WHERE id=?"), (biz_id,))
+    log_deploy_event(None, session['user_id'], 'editor_delete', f'Deleted "{biz["name"]}" from the editor')
+    return jsonify({'ok': True})
+
+@app.route('/api/editor/upload-image', methods=['POST'])
+@login_required
+def api_editor_upload_image():
+    data = request.get_json(force=True, silent=True) or {}
+    data_url = data.get('dataUrl')
+    if not data_url:
+        return jsonify({'error': 'No image supplied'}), 400
+    saved = save_photos_b64([data_url])
+    if not saved:
+        return jsonify({'error': 'Could not save that image'}), 400
+    return jsonify({'url': photo_url(saved[0])})
+
+
 # ── DASHBOARD SET COLOR ───────────────────────────────────────────────────────
 @app.route('/dashboard/set-template/<int:biz_id>', methods=['POST'])
 @login_required
@@ -3085,6 +3540,13 @@ def migrate_db():
             # see generate_site() for the actual gate.
             db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS regen_count INTEGER DEFAULT 0")
             db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS last_regen_at TIMESTAMP")
+            # Visual block editor: structured page/design/settings JSON,
+            # separate from the whole-HTML generated_html blob Daisy writes.
+            # See get_editor_state() / compile_editor_site() above.
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS editor_pages TEXT")
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS editor_design TEXT")
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS editor_settings TEXT")
+            db_execute("ALTER TABLE business ADD COLUMN IF NOT EXISTS editor_updated_at TIMESTAMP")
             if USE_POSTGRES:
                 db_execute("CREATE TABLE IF NOT EXISTS deploy_events (id SERIAL PRIMARY KEY, business_id INTEGER, user_id INTEGER, event_type TEXT, message TEXT, status TEXT DEFAULT 'ok', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
                 db_execute("CREATE TABLE IF NOT EXISTS site_backups (id SERIAL PRIMARY KEY, business_id INTEGER, html_snapshot TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
