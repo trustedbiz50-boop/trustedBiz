@@ -3156,7 +3156,7 @@ def _editor_site_card(bd):
     return {
         'id': bd['id'], 'name': bd.get('name') or 'Untitled', 'slug': bd.get('slug') or '',
         'status': _editor_ui_status(bd), 'accent': design.get('accent') or '#2b7a78',
-        'edited': updated, 'hasSite': bool(bd.get('generated_html')),
+        'edited': updated,
     }
 
 @app.route('/api/editor/businesses')
