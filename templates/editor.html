@@ -86,6 +86,18 @@ a{color:inherit;}
 .site-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px -14px rgba(15,40,38,.28);border-color:var(--brand-light);}
 .site-card.disabled{opacity:.55;cursor:not-allowed;}
 .site-card.disabled:hover{transform:none;box-shadow:none;border-color:var(--border);}
+.site-card.loading{pointer-events:none;}
+.site-card.loading .site-thumb{opacity:.45;}
+.site-card-spinner{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:6;background:rgba(255,255,255,.35);}
+.site-card.loading .site-card-spinner{display:flex;}
+.site-card-spinner svg{width:26px;height:26px;animation:tb-spin .8s linear infinite;color:var(--brand);}
+@keyframes tb-spin{to{transform:rotate(360deg);}}
+.site-card-error{position:absolute;inset:0;z-index:7;display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;background:rgba(255,255,255,.96);text-align:center;padding:10px;}
+.site-card.error .site-card-error{display:flex;}
+.site-card-error p{font-size:11.5px;font-weight:600;color:var(--text);margin:0;}
+.site-card-error button{font-size:11.5px;font-weight:700;color:#fff;background:var(--brand);border:none;
+  padding:6px 14px;border-radius:8px;cursor:pointer;}
 .site-menu-btn{position:absolute;top:8px;right:8px;z-index:4;width:24px;height:24px;border-radius:6px;border:none;
   background:rgba(255,255,255,.85);color:var(--mid);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
 .site-menu-btn:hover{background:#fff;color:var(--text);}
@@ -428,9 +440,9 @@ a{color:inherit;}
     z-index:46;box-shadow:-14px 0 40px -14px rgba(0,0,0,.3);
   }
   .inspector-inner{width:100%;}
-  .rail{width:56px;}
-  .rail-btn{width:40px;height:40px;}
-  .rail-btn span{display:none;}
+  .rail{width:60px;}
+  .rail-btn{width:52px;height:44px;}
+  .rail-btn span{display:block;font-size:8px;margin-top:1px;}
   .topbar{height:auto;min-height:56px;padding:8px 10px;flex-wrap:wrap;row-gap:8px;overflow:hidden;}
   .topbar-left{min-width:0;flex:1 1 auto;}
   .tb-title .n{max-width:130px;font-size:12.5px;}
@@ -819,14 +831,30 @@ function renderSitesGrid(filter){
           <span class="site-edited">${esc(formatRelativeTime(s.edited))}</span>
         </div>
       </div>
+      <div class="site-card-spinner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 3a9 9 0 019 9"/></svg></div>
+      <div class="site-card-error">
+        <p>Couldn't open this site</p>
+        <button data-retry-site-id="${s.id}">Try again</button>
+      </div>
     </div>
   `).join('') || '<div class="insp-empty">No sites match that search.</div>';
 
+  // Tapping a card opens it in place: the card shows its own spinner and
+  // the drawer only closes once the site has actually loaded, so a slow
+  // or dropped connection never looks like "nothing happened."
   $$('.site-card[data-site-id]').forEach(card=>{
     card.addEventListener('click', (e)=>{
-      if(card.classList.contains('disabled')) return;
+      if(card.classList.contains('disabled') || card.classList.contains('loading')) return;
       if(e.target.closest('.site-menu-btn') || e.target.closest('.site-menu')) return;
-      openSite(parseInt(card.dataset.siteId,10));
+      if(e.target.closest('.site-card-error')) return; // handled by its own retry button
+      openSiteFromCard(card, parseInt(card.dataset.siteId,10));
+    });
+  });
+  $$('[data-retry-site-id]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const card = btn.closest('.site-card');
+      openSiteFromCard(card, parseInt(btn.dataset.retrySiteId,10));
     });
   });
   $$('.site-menu-btn').forEach(btn=>{
@@ -877,7 +905,13 @@ function toggleSitesDrawer(force){
   if(state.sitesOpen){
     closeToolPanel();
     renderSitesGrid($('#sitesSearch').value);
-    loadSitesList().then(()=>renderSitesGrid($('#sitesSearch').value));
+    // Refresh from the server in the background, but only re-render if the
+    // list actually changed — rebuilding the grid mid-tap was dropping clicks
+    // on slow connections because the card under the user's finger got replaced.
+    const before = JSON.stringify(SITES);
+    loadSitesList().then(()=>{
+      if(JSON.stringify(SITES) !== before) renderSitesGrid($('#sitesSearch').value);
+    });
   }
 }
 
@@ -889,9 +923,23 @@ $('.sites-body').addEventListener('click', (e)=>{
   if(!e.target.closest('.site-menu-btn')) $$('.site-menu').forEach(m=>m.hidden = true);
 });
 
+// Opens a site given the card the user tapped. The card owns the loading /
+// error state so feedback stays right where the person is looking, instead
+// of only a toast that's easy to miss on a small screen or slow connection.
+async function openSiteFromCard(card, id){
+  card.classList.remove('error');
+  card.classList.add('loading');
+  try{
+    await openSite(id);
+    card.classList.remove('loading');
+    toggleSitesDrawer(false);
+  }catch(e){
+    card.classList.remove('loading');
+    card.classList.add('error');
+  }
+}
+
 async function openSite(id){
-  toggleSitesDrawer(false);
-  showToast('Opening…');
   try{
     const s = await loadSiteDetail(id);
     state.currentSiteId = id;
@@ -907,9 +955,14 @@ async function openSite(id){
     state.redoStack = [];
     updateUndoRedoButtons();
     renderAll();
+    // Refresh the card's screenshot every time the site is actually opened,
+    // not only after a manual save, so the picture in "Your websites" never
+    // goes stale or stays a placeholder for sites that were never explicitly saved.
+    setTimeout(()=>captureThumbnail(s), 700);
   }catch(e){
     console.error('Failed to open site', e);
-    showToast('Could not open that site');
+    showToast('Could not open that site — check your connection');
+    throw e;
   }
 }
 
@@ -957,6 +1010,7 @@ $('#newSiteCreateBtn').addEventListener('click', async ()=>{
     renderAll();
     openToolPanel('blocks'); // straight into "add your first block" for the blank case
     showToast('Created ' + name + ' — start adding blocks');
+    setTimeout(()=>captureThumbnail(s), 700); // real screenshot from the first render, not a placeholder
   }catch(e){
     console.error('Failed to create site', e);
     showToast('Could not create that site — try again');
@@ -1801,7 +1855,7 @@ $('.tb-back').addEventListener('click', ()=>{ window.location.href = '/dashboard
   await loadSitesList();
   renderSitesGrid('');
   if(OPEN_BIZ_ID){
-    openSite(OPEN_BIZ_ID);
+    openSite(OPEN_BIZ_ID).catch(()=>{}); // error already surfaced to the user inside openSite()
   }
 })();
 
