@@ -327,7 +327,7 @@ a{color:inherit;}
   display:flex;align-items:center;justify-content:center;color:#fff;}
 .b-video .frame svg{width:34px;height:34px;}
 .b-html{padding:20px 48px;font-family:var(--mono);font-size:11.5px;color:#43605f;background:#f8fafa;white-space:pre-wrap;}
-.b-html-frame{width:100%;min-height:220px;border:none;display:block;}
+.b-html-frame{width:100%;min-height:120px;border:none;display:block;}
 
 /* upload affordances */
 .upload-btn{position:absolute;width:30px;height:30px;border-radius:8px;border:none;background:rgba(13,28,26,.55);
@@ -1360,13 +1360,163 @@ function blockHTML(b, design, pages){
         <div class="form"><i></i><i></i><em></em></div>
       </div>`;
     case 'html':
-      return b.previewMode
-        ? `<iframe class="b-html-frame" sandbox="allow-scripts" srcdoc="${escAttr(b.rawHtml||'')}"></iframe>`
-        : `<div class="b-html">${esc(b.rawHtml || '<!-- your custom HTML/embed code — use the toggle on this block to preview it live -->')}</div>`;
+      return b.codeView
+        ? `<div class="b-html">${esc(b.rawHtml || '<!-- your custom HTML/embed code — use the toggle on this block to edit it visually -->')}</div>`
+        : `<iframe class="b-html-frame" data-html-block-id="${b.id}" sandbox="allow-scripts" srcdoc="${escAttr(injectHtmlEditScript(b.rawHtml||'', b.id))}"></iframe>`;
     case 'footer': return `<div class="b-footer" style="background:${bg||'#f5f8f8'};color:#43605f;"><span>${esc(b.footerText)}</span><span>Built with TrustedBiz</span></div>`;
     default: return '';
   }
 }
+/* ---------- LIVE-EDITABLE CUSTOM CODE BLOCKS ----------
+   Daisy-generated sites land in a single 'html' block (a fragment of
+   <style> + markup) instead of the normal structured fields above. This
+   makes that fragment behave like every other block: click any text on
+   the page and type, click a photo to replace it — by running inside the
+   iframe as an injected script that talks back to the parent via
+   postMessage. No raw code shown unless the user asks for it. */
+const HTML_EDIT_SCRIPT = `
+<style id="tb-inject-style">
+  [data-tb-edit]{outline:2px dashed transparent;outline-offset:2px;cursor:text;transition:outline-color .12s;}
+  [data-tb-edit]:hover{outline-color:rgba(43,122,120,.55);}
+  [data-tb-edit]:focus{outline:2px solid #2b7a78;outline-offset:2px;}
+  [data-tb-img]{cursor:pointer;}
+  [data-tb-img]:hover{outline:2px dashed rgba(43,122,120,.65);outline-offset:-2px;}
+</style>
+<script id="tb-inject-script">
+(function(){
+  var BLOCK_ID = "__BLOCK_ID__";
+  // Everything this script adds (this tag, the style tag above, the
+  // contenteditable/data-tb-* markers) must never be saved back into the
+  // site — this strips it all out before reporting HTML to the parent,
+  // so the real published site never contains editor internals.
+  function cleanHtml(){
+    var clone = document.body.cloneNode(true);
+    var junk = clone.querySelectorAll('#tb-inject-style, #tb-inject-script');
+    junk.forEach(function(el){ el.remove(); });
+    clone.querySelectorAll('[data-tb-edit]').forEach(function(el){
+      el.removeAttribute('data-tb-edit');
+      el.removeAttribute('contenteditable');
+      el.removeAttribute('spellcheck');
+    });
+    clone.querySelectorAll('[data-tb-img]').forEach(function(el){
+      el.removeAttribute('data-tb-img');
+    });
+    return clone.innerHTML;
+  }
+  function isLeafText(el){
+    if(!el || el.nodeType!==1) return false;
+    var tag = el.tagName.toLowerCase();
+    if(['script','style','svg','path','img','br','input','textarea','button','html','body','head'].indexOf(tag)!==-1) return false;
+    var hasElChild = false;
+    for(var i=0;i<el.childNodes.length;i++){ if(el.childNodes[i].nodeType===1) hasElChild = true; }
+    var txt = (el.textContent||'').trim();
+    return !hasElChild && txt.length>0;
+  }
+  function markEditable(){
+    document.querySelectorAll('*').forEach(function(el){
+      if(isLeafText(el) && !el.hasAttribute('data-tb-edit')){
+        el.setAttribute('contenteditable','true');
+        el.setAttribute('data-tb-edit','1');
+        el.setAttribute('spellcheck','false');
+      }
+    });
+  }
+  markEditable();
+  var sendTimer=null;
+  function sendUpdate(){
+    clearTimeout(sendTimer);
+    sendTimer = setTimeout(function(){
+      parent.postMessage({ tbEdit:true, type:'update', blockId:BLOCK_ID, html: cleanHtml() }, '*');
+    }, 300);
+  }
+  function reportHeight(){
+    parent.postMessage({ tbEdit:true, type:'height', blockId:BLOCK_ID, height: document.documentElement.scrollHeight }, '*');
+  }
+  document.addEventListener('input', function(e){ if(e.target && e.target.hasAttribute && e.target.hasAttribute('data-tb-edit')){ sendUpdate(); reportHeight(); } }, true);
+  document.addEventListener('blur', function(e){ if(e.target && e.target.hasAttribute && e.target.hasAttribute('data-tb-edit')) sendUpdate(); }, true);
+  document.addEventListener('keydown', function(e){
+    if(e.target && e.target.hasAttribute && e.target.hasAttribute('data-tb-edit') && e.key==='Escape'){ e.target.blur(); }
+  }, true);
+  var imgSeq = 0;
+  function wireImages(){
+    document.querySelectorAll('img:not([data-tb-img])').forEach(function(el){
+      var id = 'tbimg'+(imgSeq++);
+      el.setAttribute('data-tb-img', id);
+      el.addEventListener('click', function(ev){
+        ev.preventDefault();
+        parent.postMessage({ tbEdit:true, type:'pickImage', blockId:BLOCK_ID, targetId:id, kind:'img' }, '*');
+      });
+    });
+    document.querySelectorAll('[style*="background-image"]:not([data-tb-img])').forEach(function(el){
+      var id = 'tbimg'+(imgSeq++);
+      el.setAttribute('data-tb-img', id);
+      el.addEventListener('click', function(ev){
+        if(ev.target.closest('[data-tb-edit]')) return;
+        parent.postMessage({ tbEdit:true, type:'pickImage', blockId:BLOCK_ID, targetId:id, kind:'bg' }, '*');
+      });
+    });
+  }
+  wireImages();
+  window.addEventListener('message', function(e){
+    var m = e.data;
+    if(!m || !m.tbEdit) return;
+    if(m.type==='setImage'){
+      var el = document.querySelector('[data-tb-img="'+m.targetId+'"]');
+      if(el){
+        if(m.kind==='img') el.setAttribute('src', m.url);
+        else {
+          var s = el.getAttribute('style')||'';
+          s = s.replace(/background-image:\\s*url\\([^)]*\\)/i, "background-image:url('"+m.url+"')");
+          el.setAttribute('style', s);
+        }
+        sendUpdate();
+      }
+    }
+  });
+  window.addEventListener('load', reportHeight);
+  setTimeout(reportHeight, 250);
+  new MutationObserver(function(){ markEditable(); wireImages(); }).observe(document.body, {childList:true, subtree:true});
+})();
+<\/script>`;
+
+function injectHtmlEditScript(fragmentContent, blockId){
+  const script = HTML_EDIT_SCRIPT.replace(/__BLOCK_ID__/g, blockId);
+  // srcdoc documents don't inherit a real base URL, so root-relative image
+  // paths like /static/images/... would silently 404 without this — the
+  // exact kind of thing that made these blocks look "broken" before.
+  return '<!DOCTYPE html><html><head><meta charset="utf-8">'
+    + '<base href="' + window.location.origin + '/">'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+    + '<style>*{box-sizing:border-box;}html,body{margin:0;padding:0;}img{max-width:100%;}</style>'
+    + '</head><body>' + (fragmentContent || '') + script + '</body></html>';
+}
+
+function extractRootColors(rawHtml){
+  const m = (rawHtml||'').match(/:root\s*{([^}]*)}/i);
+  if(!m) return [];
+  const body = m[1];
+  const out = [];
+  const re = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g;
+  let mm;
+  while((mm = re.exec(body)) && out.length < 8){
+    out.push({ name: mm[1], value: mm[2] });
+  }
+  return out;
+}
+function colorVarLabel(name){
+  return name.replace(/-/g,' ').replace(/\b\w/g, c=>c.toUpperCase());
+}
+function setRootColorVar(rawHtml, name, hex){
+  const m = (rawHtml||'').match(/:root\s*{([^}]*)}/i);
+  if(!m) return rawHtml;
+  const rootBlock = m[0];
+  const escaped = name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const re = new RegExp('(--' + escaped + '\\s*:\\s*)(#[0-9a-fA-F]{3,8})(\\s*;)', 'i');
+  if(!re.test(rootBlock)) return rawHtml;
+  const newRootBlock = rootBlock.replace(re, (all,p1,p2,p3)=>p1+hex+p3);
+  return rawHtml.slice(0, m.index) + newRootBlock + rawHtml.slice(m.index + rootBlock.length);
+}
+
 function esc(s){ return (s||'').replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
 function formatRelativeTime(value){
   if(!value) return '';
@@ -1425,7 +1575,7 @@ function renderCanvas(){
         <button data-act="drag" class="drag-handle" title="Drag to reorder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg></button>
         <button data-act="up" title="Move up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
         <button data-act="down" title="Move down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
-        ${b.type==='html' ? `<button data-act="togglePreview" title="Toggle code/preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>` : ''}
+        ${b.type==='html' ? `<button data-act="togglePreview" title="${b.codeView ? 'Switch to visual editing' : 'View raw code'}">${b.codeView ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"/></svg>'}</button>` : ''}
         <button data-act="dup" title="Duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M8 21h11a2 2 0 002-2V8"/></svg></button>
         <button data-act="del" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
       </div>
@@ -1563,7 +1713,7 @@ function runBlockAction(act, id){
   if(act==='down' && idx<p.blocks.length-1){ [p.blocks[idx+1],p.blocks[idx]] = [p.blocks[idx],p.blocks[idx+1]]; }
   if(act==='dup'){ const copy = JSON.parse(JSON.stringify(p.blocks[idx])); copy.id='b'+Date.now(); p.blocks.splice(idx+1,0,copy); }
   if(act==='del'){ p.blocks.splice(idx,1); if(state.selectedBlockId===id) state.selectedBlockId=null; }
-  if(act==='togglePreview'){ p.blocks[idx].previewMode = !p.blocks[idx].previewMode; }
+  if(act==='togglePreview'){ p.blocks[idx].codeView = !p.blocks[idx].codeView; }
   pushHistory();
   renderCanvas();
   renderInspector();
@@ -1607,11 +1757,13 @@ function renderInspector(){
       </div>
     `).join('')}
     ${['nav','textimg','services','features','gallery','team'].includes(b.type) ? `<div class="field"><label>Image</label><div class="imgpick">📷 Click to replace image<div class="hint">Upload wiring pending — placeholder for now</div></div></div>` : ''}
-    ${renderStyleSection(b, def)}
+    ${b.type==='html' ? `<div class="tool-sub" style="margin:-6px 0 12px;">Click any text or photo directly on the page to edit it. The fields below are for advanced changes only.</div>` : ''}
+    ${b.type==='html' ? renderHtmlColorSection(b) : renderStyleSection(b, def)}
     <button class="insp-danger" id="inspDelete">Delete this block</button>
   `;
   $('#inspClose').addEventListener('click', ()=>{ state.selectedBlockId=null; renderCanvas(); renderInspector(); });
   $('#inspDelete').addEventListener('click', ()=>runBlockAction('del', b.id));
+  if(b.type==='html') wireHtmlColorControls(b);
   $$('#inspectorInner [data-field]').forEach(input=>{
     input.addEventListener('input', ()=>{
       b[input.dataset.field] = input.value;
@@ -1674,6 +1826,29 @@ function wireStyleControls(b){
   $$('#alignSeg button').forEach(btn=>btn.addEventListener('click', ()=>{ b.align = btn.dataset.align; state.dirty=true; pushHistory(); renderCanvas(); renderInspector(); }));
   $$('#paddingSeg button').forEach(btn=>btn.addEventListener('click', ()=>{ b.padding = btn.dataset.padding; state.dirty=true; pushHistory(); renderCanvas(); renderInspector(); }));
   $$('#layoutSeg button').forEach(btn=>btn.addEventListener('click', ()=>{ b.layout = btn.dataset.layout; state.dirty=true; pushHistory(); renderCanvas(); renderInspector(); }));
+}
+
+function renderHtmlColorSection(b){
+  const vars = extractRootColors(b.rawHtml);
+  if(!vars.length) return '';
+  return `<div class="style-section">
+    <div class="tool-h" style="margin-bottom:12px;">Colors</div>
+    ${vars.map(v=>`
+      <div class="field colorfield-row" style="display:flex;align-items:center;justify-content:space-between;">
+        <label style="margin:0;">${esc(colorVarLabel(v.name))}</label>
+        <input type="color" data-htmlcolor="${esc(v.name)}" value="${esc(v.value)}" title="${esc(colorVarLabel(v.name))}" />
+      </div>`).join('')}
+  </div>`;
+}
+function wireHtmlColorControls(b){
+  $$('#inspectorInner [data-htmlcolor]').forEach(input=>{
+    input.addEventListener('input', ()=>{
+      b.rawHtml = setRootColorVar(b.rawHtml, input.dataset.htmlcolor, input.value);
+      state.dirty = true;
+      renderCanvas();
+    });
+    input.addEventListener('change', pushHistory);
+  });
 }
 
 /* ---------- SITE SETTINGS PANEL ---------- */
@@ -1851,6 +2026,33 @@ $('#previewBtn').addEventListener('click', ()=>{
 $('.tb-back').addEventListener('click', ()=>{ window.location.href = '/dashboard'; });
 
 /* ---------- INIT: LOAD SITES + AUTO-OPEN ---------- */
+window.addEventListener('message', (e)=>{
+  const m = e.data;
+  if(!m || !m.tbEdit) return;
+  const p = currentPage();
+  if(!p) return;
+  const blk = p.blocks.find(x=>x.id===m.blockId);
+  if(!blk) return;
+  if(m.type==='update'){
+    if(blk.rawHtml === m.html) return;
+    blk.rawHtml = m.html;
+    state.dirty = true;
+    pushHistory();
+    if(state.selectedBlockId===blk.id) renderInspector();
+  } else if(m.type==='height'){
+    const frame = document.querySelector(`.b-html-frame[data-html-block-id="${m.blockId}"]`);
+    if(frame && m.height) frame.style.height = Math.max(80, m.height) + 'px';
+  } else if(m.type==='pickImage'){
+    pickImage((dataUrl)=>{
+      const frame = document.querySelector(`.b-html-frame[data-html-block-id="${m.blockId}"]`);
+      if(frame && frame.contentWindow){
+        frame.contentWindow.postMessage({ tbEdit:true, type:'setImage', targetId:m.targetId, kind:m.kind, url:dataUrl }, '*');
+      }
+      showToast('Photo updated');
+    });
+  }
+});
+
 (async function initEditor(){
   await loadSitesList();
   renderSitesGrid('');
