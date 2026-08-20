@@ -94,14 +94,13 @@ a{color:inherit;}
   font-weight:600;color:var(--mid);}
 .site-menu button:hover{background:var(--bg);color:var(--text);}
 .site-menu button.danger:hover{color:var(--red);background:rgba(220,38,38,.06);}
-.site-thumb{aspect-ratio:4/3;background:var(--canvas-bg);position:relative;overflow:hidden;}
-.site-thumb.placeholder{padding:9px;}
-.site-thumb-frame{position:absolute;top:0;left:0;width:400%;height:400%;transform:scale(.25);transform-origin:top left;
-  border:none;background:#fff;pointer-events:none;}
+.site-thumb{aspect-ratio:4/3;background:var(--canvas-bg);position:relative;padding:9px;overflow:hidden;}
 .mini-page{background:var(--surface);border-radius:4px;height:100%;padding:6px 6px;display:flex;flex-direction:column;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
 .mini-nav{height:5px;display:flex;gap:3px;}
 .mini-nav i{width:9px;height:5px;border-radius:1px;background:var(--border);}
-.mini-hero{flex:1;border-radius:3px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:3px;padding:8px;}
+.mini-hero{flex:1;border-radius:3px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:3px;padding:8px;position:relative;}
+.mini-monogram{position:absolute;right:8px;top:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.9);
+  color:#0d1c1c;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:var(--mono);}
 .mini-hero b{display:block;width:60%;height:6px;border-radius:2px;background:rgba(255,255,255,.9);}
 .mini-hero i{display:block;width:38%;height:4px;border-radius:2px;background:rgba(255,255,255,.6);margin-top:2px;}
 .mini-hero em{display:block;width:26%;height:9px;border-radius:3px;background:#fff;margin-top:5px;}
@@ -396,7 +395,7 @@ a{color:inherit;}
 .toast svg{width:14px;height:14px;color:var(--green-light,#4ade80);}
 
 @media(max-width:900px){
-  :root{--sites-w:100vw;}
+  :root{--sites-w:calc(100vw - var(--rail-w));}
   .tool-panel.open{width:230px;}
   .inspector.open{width:250px;}
 }
@@ -662,7 +661,6 @@ function siteFromDetail(d){
   return {
     id: d.id, name: d.name, slug: d.slug, status: d.status || 'draft',
     edited: d.edited || 'just now', accent: d.accent || '#2b7a78',
-    hasSite: !!d.hasSite,
     font: d.font || 'sans', secondaryColor: d.secondaryColor || null,
     radius: d.radius || 'rounded', buttonStyle: d.buttonStyle || 'solid',
     density: d.density || 'comfortable', settings: d.settings || {},
@@ -675,8 +673,8 @@ async function loadSitesList(){
     const data = await apiGet('/api/editor/businesses');
     (data.sites||[]).forEach(card=>{
       const existing = SITES.find(s=>s.id===card.id);
-      if(existing){ existing.name=card.name; existing.slug=card.slug; existing.status=card.status; existing.accent=card.accent; existing.edited=card.edited; existing.hasSite=!!card.hasSite; }
-      else SITES.push({ id:card.id, name:card.name, slug:card.slug, status:card.status, accent:card.accent, edited:card.edited, hasSite:!!card.hasSite, pages:[], settings:{} });
+      if(existing){ existing.name=card.name; existing.slug=card.slug; existing.status=card.status; existing.accent=card.accent; existing.edited=card.edited; }
+      else SITES.push({ id:card.id, name:card.name, slug:card.slug, status:card.status, accent:card.accent, edited:card.edited, pages:[], settings:{} });
     });
     const ids = new Set((data.sites||[]).map(c=>c.id));
     SITES = SITES.filter(s=>ids.has(s.id));
@@ -781,13 +779,15 @@ function renderSitesGrid(filter){
         <button data-menu-act="duplicate" data-site-id="${s.id}">Duplicate</button>
         <button data-menu-act="delete" data-site-id="${s.id}" class="danger">Delete</button>
       </div>
-      <div class="site-thumb ${s.hasSite ? '' : 'placeholder'}">
-        ${s.hasSite ? `<iframe class="site-thumb-frame" src="/site/${encodeURIComponent(s.slug)}/index" loading="lazy" tabindex="-1" title="${escAttr(s.name)} preview"></iframe>` : `
+      <div class="site-thumb">
         <div class="mini-page">
           <div class="mini-nav"><i></i><i></i><i></i></div>
-          <div class="mini-hero" style="background:${s.accent}"><b></b><i></i><em></em></div>
+          <div class="mini-hero" style="background:${s.accent}">
+            <span class="mini-monogram">${esc((s.name||'?').trim().charAt(0).toUpperCase())}</span>
+            <b></b><i></i><em></em>
+          </div>
           <div class="mini-rows"><i></i><i></i><i></i></div>
-        </div>`}
+        </div>
         <span class="site-status-dot ${s.status}"></span>
       </div>
       <div class="site-info">
