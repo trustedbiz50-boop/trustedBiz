@@ -199,12 +199,9 @@ a{color:inherit;}
 .page-card.active{border-color:var(--brand);background:rgba(43,122,120,.06);}
 .page-card.dragging{opacity:.4;}
 .page-card.drag-over{border-color:var(--brand);box-shadow:0 0 0 2px rgba(43,122,120,.2) inset;}
-.page-card-thumb{aspect-ratio:4/3;background:var(--canvas-bg);border-radius:6px;padding:5px;margin-bottom:6px;cursor:pointer;}
-.page-card-schematic{background:var(--surface);border-radius:4px;height:100%;padding:4px 4px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;}
-.page-card-schematic .sc-nav{height:4px;flex-shrink:0;display:flex;gap:2px;}
-.page-card-schematic .sc-nav i{width:7px;height:4px;border-radius:1px;background:var(--border);}
-.page-card-schematic .sc-hero{border-radius:2px;flex-shrink:0;height:14px;}
-.page-card-schematic .sc-row{border-radius:2px;height:5px;background:var(--bg);border:1px solid var(--border);flex-shrink:0;}
+.page-card-thumb{aspect-ratio:4/3;background:var(--canvas-bg);border-radius:6px;margin-bottom:6px;cursor:pointer;overflow:hidden;position:relative;}
+.page-card-thumb img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
+.page-card-thumb-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--dim);text-align:center;padding:8px;line-height:1.4;}
 .page-card-foot{display:flex;align-items:center;justify-content:space-between;gap:4px;}
 .page-card-name{font-size:11.5px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 4px;border-radius:4px;}
 .page-card-name[contenteditable="true"]{background:var(--surface);outline:1.5px solid var(--brand);white-space:normal;}
@@ -1026,6 +1023,9 @@ async function openSite(id){
     // you see when a site loads — matches how Publisher/PowerPoint always
     // show their page/slide panel rather than hiding it behind a toggle.
     openToolPanel('pages');
+    // Real screenshot for whichever page is showing first — every other
+    // page's card fills in only once the user actually clicks onto it.
+    setTimeout(captureCurrentPageThumbnail, 700);
     // Refresh the card's screenshot every time the site is actually opened,
     // not only after a manual save, so the picture in "Your websites" never
     // goes stale or stays a placeholder for sites that were never explicitly saved.
@@ -1116,16 +1116,33 @@ function closeToolPanel(){
   state.activePanel = null;
 }
 
-// Mini schematic thumbnail for a page: one strip per block, built from its
-// actual block list (not a fixed mock), so the card genuinely reflects what
-// the page contains — nav/hero get their own look, everything else is a row.
-function pageThumbHTML(p, accent){
-  const rows = (p.blocks||[]).map(b=>{
-    if(b.type==='nav') return '<div class="sc-nav"><i></i><i></i><i></i></div>';
-    if(b.type==='hero') return `<div class="sc-hero" style="background:${accent||'#2b7a78'}"></div>`;
-    return '<div class="sc-row"></div>';
-  }).join('');
-  return `<div class="page-card-schematic">${rows || '<div class="sc-row"></div>'}</div>`;
+// Real screenshot thumbnails, same technique as the site-card picture
+// (html2canvas of #pageFrame) — captured lazily the moment a page is
+// actually viewed, not precomputed for every page up front.
+function pageThumbHTML(p){
+  if(p.thumb) return `<img src="${p.thumb}" alt="${esc(p.name)}" />`;
+  return `<div class="page-card-thumb-empty">${p.id===state.currentPageId ? 'Capturing preview…' : 'Click to preview'}</div>`;
+}
+async function captureCurrentPageThumbnail(){
+  const s = currentSite();
+  const p = s && s.pages.find(pg=>pg.id===state.currentPageId);
+  const frame = $('#pageFrame');
+  if(!p || !frame || typeof html2canvas === 'undefined') return;
+  try{
+    const shot = await html2canvas(frame, {
+      backgroundColor: '#ffffff', useCORS: true, logging: false,
+      width: frame.scrollWidth, height: Math.min(frame.scrollHeight, frame.scrollWidth * 0.75 * 1.4),
+      windowWidth: frame.scrollWidth,
+    });
+    const outW = 360, outH = Math.round(outW * (shot.height / shot.width));
+    const out = document.createElement('canvas');
+    out.width = outW; out.height = outH;
+    out.getContext('2d').drawImage(shot, 0, 0, outW, outH);
+    p.thumb = out.toDataURL('image/jpeg', 0.6);
+    if(state.activePanel === 'pages') renderPagesPanel();
+  }catch(e){
+    console.error('[page thumbnail] capture failed', e);
+  }
 }
 let dragPageId = null;
 function renderPagesPanel(){
@@ -1134,7 +1151,7 @@ function renderPagesPanel(){
   if(!s){ wrap.innerHTML = '<div class="insp-empty">Open a site first.</div>'; return; }
   wrap.innerHTML = s.pages.map((p,i)=>`
     <div class="page-card ${p.id===state.currentPageId?'active':''}" data-page-id="${p.id}" draggable="true">
-      <div class="page-card-thumb page-select" data-page-id="${p.id}">${pageThumbHTML(p, s.accent)}</div>
+      <div class="page-card-thumb page-select" data-page-id="${p.id}">${pageThumbHTML(p)}</div>
       <div class="page-card-foot">
         <span class="page-card-name" data-page-id="${p.id}" title="Click to rename">${esc(p.name)}</span>
         <span class="page-card-actions">
@@ -1146,9 +1163,13 @@ function renderPagesPanel(){
 
   $$('.page-select').forEach(el=>{
     el.addEventListener('click', ()=>{
+      const wasAlready = state.currentPageId === el.dataset.pageId;
       state.currentPageId = el.dataset.pageId;
       state.selectedBlockId = null;
       renderAll();
+      // Capture a fresh preview for whichever page is now on screen —
+      // thumbnails are built up one click at a time, not all upfront.
+      if(!wasAlready) setTimeout(captureCurrentPageThumbnail, 350);
     });
   });
   $$('.page-mini-btn[data-act="del"]').forEach(btn=>{
@@ -1287,6 +1308,7 @@ $('#addPageCreateBtn').addEventListener('click', ()=>{
   closeAddPageModal();
   renderAll();
   renderPagesPanel();
+  setTimeout(captureCurrentPageThumbnail, 350);
 });
 
 function renderBlocksPanel(){
@@ -2317,6 +2339,7 @@ $('#saveBtn').addEventListener('click', async ()=>{
     state.dirty = false;
     showToast('Changes saved');
     captureThumbnail(s); // fire-and-forget: updates the site card picture in the background
+    captureCurrentPageThumbnail(); // keep the open page's card in sync with what was just saved
   }catch(e){
     console.error('Save failed', e);
     btn.textContent = 'Save changes';
