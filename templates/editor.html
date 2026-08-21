@@ -192,6 +192,35 @@ a{color:inherit;}
 .add-page{width:100%;margin-top:8px;border:1.5px dashed var(--border);border-radius:8px;background:none;
   padding:10px;font-size:12.5px;font-weight:600;color:var(--dim);}
 .add-page:hover{border-color:var(--brand-light);color:var(--brand);}
+
+.pages-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.page-card{border:1.5px solid var(--border);border-radius:10px;padding:8px;background:none;cursor:grab;position:relative;}
+.page-card:hover{border-color:var(--brand-light);}
+.page-card.active{border-color:var(--brand);background:rgba(43,122,120,.06);}
+.page-card.dragging{opacity:.4;}
+.page-card.drag-over{border-color:var(--brand);box-shadow:0 0 0 2px rgba(43,122,120,.2) inset;}
+.page-card-thumb{aspect-ratio:4/3;background:var(--canvas-bg);border-radius:6px;padding:5px;margin-bottom:6px;cursor:pointer;}
+.page-card-schematic{background:var(--surface);border-radius:4px;height:100%;padding:4px 4px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;}
+.page-card-schematic .sc-nav{height:4px;flex-shrink:0;display:flex;gap:2px;}
+.page-card-schematic .sc-nav i{width:7px;height:4px;border-radius:1px;background:var(--border);}
+.page-card-schematic .sc-hero{border-radius:2px;flex-shrink:0;height:14px;}
+.page-card-schematic .sc-row{border-radius:2px;height:5px;background:var(--bg);border:1px solid var(--border);flex-shrink:0;}
+.page-card-foot{display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.page-card-name{font-size:11.5px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 4px;border-radius:4px;}
+.page-card-name[contenteditable="true"]{background:var(--surface);outline:1.5px solid var(--brand);white-space:normal;}
+.page-card-actions{display:flex;gap:0;flex-shrink:0;}
+.page-card.active .page-card-name{color:var(--brand);}
+
+.link-field select,.link-field input[type=text]{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 9px;
+  font-size:12.5px;font-family:inherit;background:var(--surface);color:var(--text);margin-top:6px;}
+.link-field select:first-of-type{margin-top:0;}
+.navlinks-note{font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:10px;}
+.navlink-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+.navlink-row input{flex:1;border:1px solid var(--border);border-radius:7px;padding:8px 9px;font-size:12.5px;font-family:inherit;}
+.navlink-block{border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;background:var(--bg);}
+.navlink-add{width:100%;margin-top:2px;border:1.5px dashed var(--border);border-radius:8px;background:none;
+  padding:8px;font-size:11.5px;font-weight:700;color:var(--mid);cursor:pointer;}
+.navlink-add:hover{border-color:var(--brand-light);color:var(--brand);}
 .swatch-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
 .swatch{width:30px;height:30px;border-radius:8px;border:2px solid transparent;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);}
 .swatch.active{border-color:var(--text);}
@@ -561,9 +590,47 @@ a{color:inherit;}
     <div class="tool-panel-inner">
       <div class="tool-h">Pages</div>
 
-      <div class="tool-sub">Every page on this site</div>
-      <div id="pagesList"></div>
+      <div class="tool-sub">Drag to reorder · click a name to rename</div>
+      <div id="pagesList" class="pages-grid"></div>
       <button class="add-page" id="addPageBtn">+ New page</button>
+    </div>
+  </div>
+
+  <!-- ADD PAGE MODAL -->
+  <div class="modal-backdrop" id="addPageBackdrop"></div>
+  <div class="modal" id="addPageModal">
+    <div class="modal-head">
+      <h3>Add a page</h3>
+      <button class="sites-close" id="addPageCloseBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="field">
+      <label>Page name</label>
+      <input type="text" id="addPageName" placeholder="e.g. Menu, Gallery, About" />
+    </div>
+    <div class="field">
+      <label>Start from</label>
+      <div class="starter-grid" id="addPageStarterGrid">
+        <button class="starter-card active" data-page-starter="blank">
+          <div class="starter-thumb"><div class="mini-page"><div class="mini-nav"><i></i><i></i><i></i></div></div></div>
+          <b>Blank</b><span>Just the header. Add blocks yourself.</span>
+        </button>
+        <button class="starter-card" data-page-starter="about">
+          <div class="starter-thumb"><div class="mini-page"><div class="mini-nav"><i></i><i></i><i></i></div><div class="mini-hero" style="background:#2b7a78"><b></b><i></i></div><div class="mini-rows"><i></i><i></i></div></div></div>
+          <b>About</b><span>Header, story section, team.</span>
+        </button>
+        <button class="starter-card" data-page-starter="menu">
+          <div class="starter-thumb"><div class="mini-page"><div class="mini-nav"><i></i><i></i><i></i></div><div class="mini-rows"><i></i><i></i><i></i></div><div class="mini-rows"><i></i><i></i><i></i></div></div></div>
+          <b>Menu / Services</b><span>Header, pricing grid, contact.</span>
+        </button>
+        <button class="starter-card" data-page-starter="contact">
+          <div class="starter-thumb"><div class="mini-page"><div class="mini-nav"><i></i><i></i><i></i></div><div class="mini-hero" style="background:#2b7a78"><b></b><em></em></div></div></div>
+          <b>Contact</b><span>Header, contact details, map-ready.</span>
+        </button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="addPageCancelBtn">Cancel</button>
+      <button class="btn btn-save" id="addPageCreateBtn">Add page</button>
     </div>
   </div>
 
@@ -646,8 +713,8 @@ window.__OPEN_BIZ_ID = {{ open_biz_id|tojson }};
    ========================================================================= */
 
 const BLOCK_TYPES = {
-  nav:      { label:'Header / Nav',  icon:'M4 6h16M4 12h10M4 18h16', fields:['navLogo','navLinks','navCta'], style:['bg'] },
-  hero:     { label:'Hero',          icon:'M4 5h16v10H4z M8 19h8', fields:['heading','subheading','ctaText'], style:['bg','align'] },
+  nav:      { label:'Header / Nav',  icon:'M4 6h16M4 12h10M4 18h16', fields:['navLogo','navLinks','navCta','navCtaTarget'], style:['bg'] },
+  hero:     { label:'Hero',          icon:'M4 5h16v10H4z M8 19h8', fields:['heading','subheading','ctaText','ctaTarget'], style:['bg','align'] },
   textimg:  { label:'Text + Image',  icon:'M4 4h7v16H4z M14 4h6v16h-6z', fields:['heading','body'], style:['layout','padding'] },
   features: { label:'Features',      icon:'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z', fields:['heading','item1','item2','item3'], style:['padding'] },
   services: { label:'Services grid', icon:'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z', fields:['heading','item1','item2','item3'], style:['padding'] },
@@ -658,7 +725,7 @@ const BLOCK_TYPES = {
   faq:      { label:'FAQ',           icon:'M9 9a3 3 0 116 0c0 2-3 2-3 5 M12 17h.01', fields:['heading','q1','a1','q2','a2'], style:['padding'] },
   pricing:  { label:'Pricing',       icon:'M4 8h16M9 4v16M4 16h16', fields:['heading','plan1','price1','plan2','price2'], style:['padding'] },
   video:    { label:'Video',         icon:'M4 5h16v14H4z M10 9l6 3-6 3z', fields:['heading','videoUrl'], style:['padding'] },
-  cta:      { label:'CTA banner',    icon:'M4 12h16M12 4v16', fields:['heading','body','ctaText'], style:['bg','align'] },
+  cta:      { label:'CTA banner',    icon:'M4 12h16M12 4v16', fields:['heading','body','ctaText','ctaTarget'], style:['bg','align'] },
   contact:  { label:'Contact',       icon:'M4 4h16v14H4z M4 4l8 7 8-7', fields:['heading','body','phone','email'], style:['padding'] },
   html:     { label:'Custom code',   icon:'M8 6l-5 6 5 6M16 6l5 6-5 6', fields:['rawHtml'], style:[] },
   footer:   { label:'Footer',        icon:'M4 18h16 M4 6h16 M4 12h10', fields:['footerText'], style:['bg'] },
@@ -955,6 +1022,10 @@ async function openSite(id){
     state.redoStack = [];
     updateUndoRedoButtons();
     renderAll();
+    // Open the Pages panel by default so the page rail is the first thing
+    // you see when a site loads — matches how Publisher/PowerPoint always
+    // show their page/slide panel rather than hiding it behind a toggle.
+    openToolPanel('pages');
     // Refresh the card's screenshot every time the site is actually opened,
     // not only after a manual save, so the picture in "Your websites" never
     // goes stale or stays a placeholder for sites that were never explicitly saved.
@@ -1045,23 +1116,34 @@ function closeToolPanel(){
   state.activePanel = null;
 }
 
+// Mini schematic thumbnail for a page: one strip per block, built from its
+// actual block list (not a fixed mock), so the card genuinely reflects what
+// the page contains — nav/hero get their own look, everything else is a row.
+function pageThumbHTML(p, accent){
+  const rows = (p.blocks||[]).map(b=>{
+    if(b.type==='nav') return '<div class="sc-nav"><i></i><i></i><i></i></div>';
+    if(b.type==='hero') return `<div class="sc-hero" style="background:${accent||'#2b7a78'}"></div>`;
+    return '<div class="sc-row"></div>';
+  }).join('');
+  return `<div class="page-card-schematic">${rows || '<div class="sc-row"></div>'}</div>`;
+}
+let dragPageId = null;
 function renderPagesPanel(){
   const s = currentSite();
   const wrap = $('#pagesList');
   if(!s){ wrap.innerHTML = '<div class="insp-empty">Open a site first.</div>'; return; }
   wrap.innerHTML = s.pages.map((p,i)=>`
-    <div class="page-item ${p.id===state.currentPageId?'active':''}" data-page-id="${p.id}">
-      <span class="page-item-left page-select" data-page-id="${p.id}"><span class="page-dot"></span>
-        <span class="page-name" data-page-id="${p.id}">${esc(p.name)}</span>
-      </span>
-      <span class="page-item-actions">
-        <button class="page-mini-btn" data-act="rename" data-page-id="${p.id}" title="Rename"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
-        <button class="page-mini-btn" data-act="up" data-page-id="${p.id}" ${i===0?'disabled':''} title="Move up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
-        <button class="page-mini-btn" data-act="down" data-page-id="${p.id}" ${i===s.pages.length-1?'disabled':''} title="Move down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
-        ${s.pages.length>1 ? `<button class="page-mini-btn danger" data-act="del" data-page-id="${p.id}" title="Delete page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
-      </span>
+    <div class="page-card ${p.id===state.currentPageId?'active':''}" data-page-id="${p.id}" draggable="true">
+      <div class="page-card-thumb page-select" data-page-id="${p.id}">${pageThumbHTML(p, s.accent)}</div>
+      <div class="page-card-foot">
+        <span class="page-card-name" data-page-id="${p.id}" title="Click to rename">${esc(p.name)}</span>
+        <span class="page-card-actions">
+          ${s.pages.length>1 ? `<button class="page-mini-btn danger" data-act="del" data-page-id="${p.id}" title="Delete page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
+        </span>
+      </div>
     </div>
   `).join('');
+
   $$('.page-select').forEach(el=>{
     el.addEventListener('click', ()=>{
       state.currentPageId = el.dataset.pageId;
@@ -1069,10 +1151,59 @@ function renderPagesPanel(){
       renderAll();
     });
   });
-  $$('.page-mini-btn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
+  $$('.page-mini-btn[data-act="del"]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); pageAction('del', btn.dataset.pageId); });
+  });
+
+  // Inline rename: click the name to edit it in place, no dialog.
+  $$('.page-card-name').forEach(nameEl=>{
+    nameEl.addEventListener('click', (e)=>{
       e.stopPropagation();
-      pageAction(btn.dataset.act, btn.dataset.pageId);
+      if(nameEl.isContentEditable) return;
+      nameEl.contentEditable = 'true';
+      nameEl.focus();
+      document.execCommand('selectAll', false, null);
+    });
+    const commit = ()=>{
+      if(!nameEl.isContentEditable) return;
+      nameEl.contentEditable = 'false';
+      const val = nameEl.textContent.trim();
+      const s2 = currentSite();
+      const p = s2 && s2.pages.find(pg=>pg.id===nameEl.dataset.pageId);
+      if(p && val && val!==p.name){ p.name = val; state.dirty = true; pushHistory(); renderCanvas(); }
+      renderPagesPanel();
+    };
+    nameEl.addEventListener('blur', commit);
+    nameEl.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){ e.preventDefault(); nameEl.blur(); }
+      if(e.key==='Escape'){ nameEl.textContent = s.pages.find(pg=>pg.id===nameEl.dataset.pageId).name; nameEl.blur(); }
+    });
+    nameEl.addEventListener('click', (e)=>e.stopPropagation());
+  });
+
+  // Drag to reorder.
+  $$('.page-card').forEach(card=>{
+    card.addEventListener('dragstart', (e)=>{
+      dragPageId = card.dataset.pageId;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); $$('.page-card').forEach(c=>c.classList.remove('drag-over')); });
+    card.addEventListener('dragover', (e)=>{ e.preventDefault(); if(card.dataset.pageId!==dragPageId) card.classList.add('drag-over'); });
+    card.addEventListener('dragleave', ()=>card.classList.remove('drag-over'));
+    card.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const s2 = currentSite();
+      const fromIdx = s2.pages.findIndex(p=>p.id===dragPageId);
+      const toIdx = s2.pages.findIndex(p=>p.id===card.dataset.pageId);
+      if(fromIdx<0 || toIdx<0 || fromIdx===toIdx) return;
+      const [moved] = s2.pages.splice(fromIdx,1);
+      s2.pages.splice(toIdx,0,moved);
+      state.dirty = true;
+      pushHistory();
+      renderPagesPanel();
+      renderCanvas();
     });
   });
 }
@@ -1081,16 +1212,9 @@ function pageAction(act, pageId){
   if(!s) return;
   const idx = s.pages.findIndex(p=>p.id===pageId);
   if(idx<0) return;
-  if(act==='rename'){
-    const name = prompt('Rename page:', s.pages[idx].name);
-    if(!name) return;
-    s.pages[idx].name = name;
-  }
-  if(act==='up' && idx>0){ [s.pages[idx-1],s.pages[idx]]=[s.pages[idx],s.pages[idx-1]]; }
-  if(act==='down' && idx<s.pages.length-1){ [s.pages[idx+1],s.pages[idx]]=[s.pages[idx],s.pages[idx+1]]; }
   if(act==='del'){
     if(s.pages.length<=1) return;
-    if(!confirm('Delete "'+s.pages[idx].name+'"? This can\'t be undone with the undo button once you navigate away.')) return;
+    if(!confirm('Remove "'+s.pages[idx].name+'" from the site? You can undo this with Ctrl+Z until you save.')) return;
     s.pages.splice(idx,1);
     if(state.currentPageId===pageId){ state.currentPageId = s.pages[0].id; state.selectedBlockId=null; }
   }
@@ -1099,20 +1223,68 @@ function pageAction(act, pageId){
   renderPagesPanel();
   renderCanvas();
 }
-$('#addPageBtn').addEventListener('click', ()=>{
+
+/* ---------- ADD PAGE MODAL ---------- */
+const PAGE_STARTERS = {
+  blank: (name, siteName)=>[
+    { id:'nav'+Date.now(), type:'nav', navLogo:siteName, navLinks:[], navCta:'Contact', navCtaTarget:'' },
+  ],
+  about: (name, siteName)=>[
+    { id:'nav'+Date.now(), type:'nav', navLogo:siteName, navLinks:[], navCta:'Contact', navCtaTarget:'' },
+    { id:'b'+Date.now(), type:'hero', heading:name, subheading:'Tell visitors your story.', ctaText:'Get in touch', ctaTarget:'', align:'left' },
+    { id:'t'+Date.now(), type:'team', heading:'Meet the team', person1:'', role1:'', person2:'', role2:'' },
+    { id:'f'+Date.now(), type:'footer', footerText:'© '+siteName },
+  ],
+  menu: (name, siteName)=>[
+    { id:'nav'+Date.now(), type:'nav', navLogo:siteName, navLinks:[], navCta:'Contact', navCtaTarget:'' },
+    { id:'p'+Date.now(), type:'pricing', heading:name, plan1:'', price1:'', plan2:'', price2:'' },
+    { id:'c'+Date.now(), type:'contact', heading:'Get in touch', body:'Reach out any time.', phone:'', email:'' },
+    { id:'f'+Date.now(), type:'footer', footerText:'© '+siteName },
+  ],
+  contact: (name, siteName)=>[
+    { id:'nav'+Date.now(), type:'nav', navLogo:siteName, navLinks:[], navCta:'Contact', navCtaTarget:'' },
+    { id:'h'+Date.now(), type:'hero', heading:name, subheading:'We would love to hear from you.', ctaText:'WhatsApp us', ctaTarget:'', align:'left' },
+    { id:'c'+Date.now(), type:'contact', heading:'Contact details', body:'', phone:'', email:'' },
+    { id:'f'+Date.now(), type:'footer', footerText:'© '+siteName },
+  ],
+};
+let pickedPageStarter = 'blank';
+function openAddPageModal(){
+  if(!currentSite()) return;
+  $('#addPageName').value = '';
+  pickedPageStarter = 'blank';
+  $$('#addPageStarterGrid .starter-card').forEach(c=>c.classList.toggle('active', c.dataset.pageStarter==='blank'));
+  $('#addPageBackdrop').classList.add('open');
+  $('#addPageModal').classList.add('open');
+  setTimeout(()=>$('#addPageName').focus(), 50);
+}
+function closeAddPageModal(){
+  $('#addPageBackdrop').classList.remove('open');
+  $('#addPageModal').classList.remove('open');
+}
+$('#addPageBtn').addEventListener('click', openAddPageModal);
+$('#addPageCloseBtn').addEventListener('click', closeAddPageModal);
+$('#addPageCancelBtn').addEventListener('click', closeAddPageModal);
+$('#addPageBackdrop').addEventListener('click', closeAddPageModal);
+$$('#addPageStarterGrid .starter-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    pickedPageStarter = card.dataset.pageStarter;
+    $$('#addPageStarterGrid .starter-card').forEach(c=>c.classList.toggle('active', c===card));
+  });
+});
+$('#addPageCreateBtn').addEventListener('click', ()=>{
   const s = currentSite();
   if(!s) return;
-  const name = prompt('Name this page (e.g. "Menu", "Gallery"):');
-  if(!name) return;
-  const id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || ('page-'+(s.pages.length+1));
-  s.pages.push({ id, name, blocks:[
-    { id:'nav'+Date.now(), type:'nav', navLogo:s.name, navLinks:'Home, ' + name, navCta:'Contact' },
-    { id:'b'+Date.now(), type:'hero', heading:name, subheading:'Tell visitors what this page is about.', ctaText:'Get in touch', align:'left' },
-    { id:'f'+Date.now(), type:'footer', footerText:'© '+s.name },
-  ] });
+  const name = $('#addPageName').value.trim();
+  if(!name){ $('#addPageName').focus(); return; }
+  let id = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || ('page-'+(s.pages.length+1));
+  if(s.pages.some(p=>p.id===id)) id = id + '-' + Date.now();
+  const build = PAGE_STARTERS[pickedPageStarter] || PAGE_STARTERS.blank;
+  s.pages.push({ id, name, blocks: build(name, s.name) });
   state.currentPageId = id;
   state.dirty = true;
   pushHistory();
+  closeAddPageModal();
   renderAll();
   renderPagesPanel();
 });
@@ -1269,7 +1441,7 @@ function blockHTML(b, design, pages){
   switch(b.type){
     case 'nav': {
       const pageLinks = (pages||[]).map(p=>p.name);
-      const extra = (b.navLinks||'').split(',').map(s=>s.trim()).filter(Boolean);
+      const extra = Array.isArray(b.navLinks) ? b.navLinks.map(it=>it.label).filter(Boolean) : [];
       const links = [...new Set([...pageLinks, ...extra])];
       return `
       <div class="b-nav" style="background:${bg||'#fff'};">
@@ -1724,14 +1896,142 @@ const FIELD_LABELS = {
   heading:'Heading', subheading:'Subheading', ctaText:'Button text', body:'Body text',
   item1:'Item 1', item2:'Item 2', item3:'Item 3', quote:'Quote', author:'Attributed to',
   phone:'Phone', email:'Email', footerText:'Footer text',
-  navLogo:'Logo text', navLinks:'Menu links (comma separated)', navCta:'Button text',
+  navLogo:'Logo text', navLinks:'Extra menu links', navCta:'Button text', navCtaTarget:'Button link', ctaTarget:'Button link',
   stat1n:'Stat 1 number', stat1l:'Stat 1 label', stat2n:'Stat 2 number', stat2l:'Stat 2 label', stat3n:'Stat 3 number', stat3l:'Stat 3 label',
   person1:'Person 1 name', role1:'Person 1 role', person2:'Person 2 name', role2:'Person 2 role',
   q1:'Question 1', a1:'Answer 1', q2:'Question 2', a2:'Answer 2',
   plan1:'Plan 1 name', price1:'Plan 1 price', plan2:'Plan 2 name', price2:'Plan 2 price',
   videoUrl:'Video URL', rawHtml:'HTML / embed code',
 };
-const LONG_FIELDS = new Set(['body','quote','subheading','a1','a2','rawHtml','navLinks']);
+const LONG_FIELDS = new Set(['body','quote','subheading','a1','a2','rawHtml']);
+// These two field kinds get a custom control instead of a plain input —
+// handled separately in renderInspector, never through the generic loop.
+const LINK_FIELDS = new Set(['navCtaTarget','ctaTarget']);
+const REPEATER_FIELDS = new Set(['navLinks']);
+
+/* ---------- LINK TARGET PICKER (used by any button/nav-link field) ----------
+   Stored format is a scheme-prefixed string: "page:<id>" | "url:<...>" |
+   "wa:<digits>" | "tel:<num>" | "mail:<addr>" | "" (no link). Mirrors
+   _resolve_editor_link() in app.py exactly, so what's picked here is what
+   actually renders as a real href on the published site. */
+function parseLinkTarget(t){
+  const m = typeof t==='string' ? t.match(/^(page|url|wa|tel|mail):([\s\S]*)$/) : null;
+  return m ? {type:m[1], value:m[2]} : {type:'', value:''};
+}
+function buildLinkTarget(type, value){
+  return (type && value) ? (type+':'+value) : '';
+}
+let __linkFieldHandlers = {};
+function renderLinkField(keyId, label, targetValue){
+  const cur = parseLinkTarget(targetValue);
+  const s = currentSite();
+  const pageOpts = (s?s.pages:[]).map(p=>`<option value="${p.id}" ${cur.type==='page'&&cur.value===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
+  const placeholders = { wa:'2567xxxxxxxx (no + or spaces)', tel:'+2567xxxxxxxx', mail:'name@business.com', url:'https://…' };
+  let valueControl = '';
+  if(cur.type==='page'){
+    valueControl = `<select data-linkval="${keyId}"><option value="">Choose a page…</option>${pageOpts}</select>`;
+  } else if(cur.type){
+    valueControl = `<input type="text" data-linkval="${keyId}" value="${esc(cur.value)}" placeholder="${placeholders[cur.type]||''}" />`;
+  }
+  return `<div class="field link-field">
+    ${label?`<label>${label}</label>`:''}
+    <select class="link-type" data-linktype="${keyId}">
+      <option value="" ${!cur.type?'selected':''}>No link</option>
+      <option value="page" ${cur.type==='page'?'selected':''}>Link to a page</option>
+      <option value="wa" ${cur.type==='wa'?'selected':''}>WhatsApp</option>
+      <option value="tel" ${cur.type==='tel'?'selected':''}>Phone call</option>
+      <option value="mail" ${cur.type==='mail'?'selected':''}>Email</option>
+      <option value="url" ${cur.type==='url'?'selected':''}>Web address</option>
+    </select>
+    ${valueControl}
+  </div>`;
+}
+function wireLinkFields(handlers){
+  // Merge, don't replace — a block (e.g. nav) can have both a repeater
+  // and a plain link field on screen at once, each wiring its own subset.
+  Object.assign(__linkFieldHandlers, handlers);
+  $$('.link-type[data-linktype]').forEach(sel=>{
+    if(sel.__wired) return;
+    sel.__wired = true;
+    sel.addEventListener('change', ()=>{
+      const h = __linkFieldHandlers[sel.dataset.linktype];
+      if(!h) return;
+      h.set(buildLinkTarget(sel.value, ''));
+      state.dirty = true; pushHistory();
+      renderInspector();
+      renderCanvas();
+    });
+  });
+  $$('[data-linkval]').forEach(el=>{
+    if(el.__wired) return;
+    el.__wired = true;
+    const h = __linkFieldHandlers[el.dataset.linkval];
+    if(!h) return;
+    const evt = el.tagName==='SELECT' ? 'change' : 'input';
+    el.addEventListener(evt, ()=>{
+      const cur = parseLinkTarget(h.get());
+      h.set(buildLinkTarget(cur.type, el.value));
+      state.dirty = true;
+      renderCanvas();
+      if(evt==='change') pushHistory();
+    });
+    if(evt==='input') el.addEventListener('change', pushHistory);
+  });
+}
+
+/* ---------- NAV EXTRA-LINKS REPEATER ----------
+   Every real page is linked automatically (see backend) — this only edits
+   the handful of custom extras (WhatsApp, phone, an external site, etc). */
+function renderNavLinksRepeater(b){
+  const s = currentSite();
+  const pageNames = (s?s.pages:[]).map(p=>esc(p.name)).join(', ');
+  const items = Array.isArray(b.navLinks) ? b.navLinks : [];
+  return `<div class="field">
+    <label>Extra menu links</label>
+    <div class="navlinks-note">Every page (${pageNames||'—'}) is already in the menu automatically. Add extra links below — WhatsApp, a phone number, or another website.</div>
+    <div id="navLinksRepeater">
+      ${items.map((it,i)=>`
+        <div class="navlink-block" data-idx="${i}">
+          <div class="navlink-row">
+            <input type="text" data-navlink-label="${i}" placeholder="Label, e.g. WhatsApp" value="${esc(it.label||'')}" />
+            <button class="page-mini-btn danger" data-navlink-del="${i}" title="Remove link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          </div>
+          ${renderLinkField('navlink:'+i, null, it.target||'')}
+        </div>
+      `).join('')}
+    </div>
+    <button class="navlink-add" id="navLinkAddBtn" type="button">+ Add extra link</button>
+  </div>`;
+}
+function wireNavLinksRepeater(b){
+  if(!Array.isArray(b.navLinks)) b.navLinks = [];
+  const handlers = {};
+  b.navLinks.forEach((it,i)=>{
+    handlers['navlink:'+i] = { get: ()=>it.target||'', set: (v)=>{ it.target = v; } };
+  });
+  wireLinkFields(handlers);
+  $$('[data-navlink-label]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      b.navLinks[+inp.dataset.navlinkLabel].label = inp.value;
+      state.dirty = true;
+      renderCanvas();
+    });
+    inp.addEventListener('change', pushHistory);
+  });
+  $$('[data-navlink-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      b.navLinks.splice(+btn.dataset.navlinkDel, 1);
+      state.dirty = true; pushHistory();
+      renderInspector(); renderCanvas();
+    });
+  });
+  const addBtn = $('#navLinkAddBtn');
+  if(addBtn) addBtn.addEventListener('click', ()=>{
+    b.navLinks.push({ label:'', target:'' });
+    state.dirty = true; pushHistory();
+    renderInspector(); renderCanvas();
+  });
+}
 
 function renderInspector(){
   const inspector = $('#inspector');
@@ -1741,6 +2041,7 @@ function renderInspector(){
     return;
   }
   inspector.classList.add('open');
+  __linkFieldHandlers = {};
   const def = BLOCK_TYPES[b.type];
   const inner = $('#inspectorInner');
   inner.innerHTML = `
@@ -1748,14 +2049,17 @@ function renderInspector(){
       <span class="tag">${def.label}</span>
       <button class="insp-close" id="inspClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    ${def.fields.map(f=>`
+    ${def.fields.map(f=>{
+      if(REPEATER_FIELDS.has(f)) return renderNavLinksRepeater(b);
+      if(LINK_FIELDS.has(f)) return renderLinkField('field:'+f, FIELD_LABELS[f]||f, b[f]);
+      return `
       <div class="field">
         <label>${FIELD_LABELS[f]||f}</label>
         ${LONG_FIELDS.has(f)
           ? `<textarea data-field="${f}">${esc(b[f])}</textarea>`
           : `<input type="text" data-field="${f}" value="${esc(b[f])}" />`}
-      </div>
-    `).join('')}
+      </div>`;
+    }).join('')}
     ${['nav','textimg','services','features','gallery','team'].includes(b.type) ? `<div class="field"><label>Image</label><div class="imgpick">📷 Click to replace image<div class="hint">Upload wiring pending — placeholder for now</div></div></div>` : ''}
     ${b.type==='html' ? `<div class="tool-sub" style="margin:-6px 0 12px;">Click any text or photo directly on the page to edit it. The fields below are for advanced changes only.</div>` : ''}
     ${b.type==='html' ? renderHtmlColorSection(b) : renderStyleSection(b, def)}
@@ -1778,6 +2082,13 @@ function renderInspector(){
     input.addEventListener('change', pushHistory);
   });
   wireStyleControls(b);
+  if(def.fields.includes('navLinks')) wireNavLinksRepeater(b);
+  const plainLinkFields = def.fields.filter(f=>LINK_FIELDS.has(f));
+  if(plainLinkFields.length){
+    const handlers = {};
+    plainLinkFields.forEach(f=>{ handlers['field:'+f] = { get: ()=>b[f]||'', set: (v)=>{ b[f]=v; } }; });
+    wireLinkFields(handlers);
+  }
 }
 
 function renderStyleSection(b, def){
