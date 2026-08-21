@@ -670,6 +670,8 @@ BLOCK_CSS = r"""
 .b-nav{padding:16px 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eef2f1;}
 .b-nav .logo{font-weight:800;font-size:15px;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
 .b-nav .links{display:flex;gap:22px;font-size:12.5px;font-weight:600;color:#43605f;}
+.b-nav .links a{color:inherit;text-decoration:none;}
+.b-nav .links a:hover{color:var(--secondary,#0d1c1c);}
 .b-nav .cta{padding:7px 16px;border-radius:var(--radius,6px);font-weight:700;font-size:12px;}
 .b-features{padding:48px;}
 .b-features h2{font-size:22px;font-weight:800;margin-bottom:20px;text-align:center;font-family:var(--hf,'DM Sans',sans-serif);color:var(--secondary,#0d1c1c);}
@@ -736,12 +738,12 @@ def default_editor_settings(name=''):
             'logo': None, 'favicon': None}
 
 def default_editor_blocks(name, starter='blank'):
-    nav = {'id': 'nav1', 'type': 'nav', 'navLogo': name, 'navLinks': '', 'navCta': 'Contact us'}
+    nav = {'id': 'nav1', 'type': 'nav', 'navLogo': name, 'navLinks': [], 'navCta': 'Contact us', 'navCtaTarget': ''}
     if starter == 'basic':
         blocks = [nav,
             {'id': 'b1', 'type': 'hero', 'heading': name,
              'subheading': 'Tell people what you do and why they should choose you.',
-             'ctaText': 'Get in touch', 'align': 'left'},
+             'ctaText': 'Get in touch', 'ctaTarget': '', 'align': 'left'},
             {'id': 'b2', 'type': 'services', 'heading': 'What we offer',
              'item1': 'Service one', 'item2': 'Service two', 'item3': 'Service three'},
             {'id': 'b3', 'type': 'contact', 'heading': 'Get in touch',
@@ -824,14 +826,69 @@ def _eimg_style(url):
         return ''
     return "background-image:url('" + url.replace("'", "") + "');background-size:cover;background-position:center;"
 
-def _ebtn(cls, label, solid_bg, solid_text, outline_color, button_style):
-    label = _eesc(label)
-    if button_style == 'outline':
-        return ('<span class="' + cls + '" style="background:transparent;border:2px solid ' + outline_color +
-                ';color:' + outline_color + ';">' + label + '</span>')
-    return ('<span class="' + cls + '" style="background:' + solid_bg + ';color:' + solid_text + ';">' + label + '</span>')
+def _resolve_editor_link(target, slug):
+    """Turns a stored link target into a real href, or None if it shouldn't
+    be a link at all. Target strings are scheme-prefixed:
+      'page:<page_id>' -> /site/<slug>/<page_id>
+      'url:<url>'      -> the url as typed (external link)
+      'wa:<number>'    -> https://wa.me/<digits>
+      'tel:<number>'   -> tel:<number>
+      'mail:<email>'   -> mailto:<email>
+    Anything empty, malformed, or unrecognized resolves to None so the
+    caller falls back to a plain (non-clickable) label instead of a
+    broken href like "#" or the raw target string.
+    """
+    if not target or not isinstance(target, str):
+        return None
+    if target.startswith('page:'):
+        pid = target[5:].strip()
+        return ('/site/' + slug + '/' + pid) if (slug and pid) else None
+    if target.startswith('url:'):
+        u = target[4:].strip()
+        return u or None
+    if target.startswith('wa:'):
+        digits = re.sub(r'\D', '', target[3:])
+        return ('https://wa.me/' + digits) if digits else None
+    if target.startswith('tel:'):
+        num = target[4:].strip()
+        return ('tel:' + num) if num else None
+    if target.startswith('mail:'):
+        addr = target[5:].strip()
+        return ('mailto:' + addr) if addr else None
+    return None
 
-def _editor_block_html(b, design, page_names):
+def _ebtn(cls, label, solid_bg, solid_text, outline_color, button_style, href=None):
+    label = _eesc(label)
+    tag = 'a' if href else 'span'
+    href_attr = (' href="' + _eesc_attr(href) + '"') if href else ''
+    if button_style == 'outline':
+        return ('<' + tag + href_attr + ' class="' + cls + '" style="background:transparent;border:2px solid ' + outline_color +
+                ';color:' + outline_color + ';text-decoration:none;display:inline-block;">' + label + '</' + tag + '>')
+    return ('<' + tag + href_attr + ' class="' + cls + '" style="background:' + solid_bg + ';color:' + solid_text +
+            ';text-decoration:none;display:inline-block;">' + label + '</' + tag + '>')
+
+def _editor_nav_links(b, nav_pages, slug):
+    """Builds the resolved (label, href) pairs for a nav block: every real
+    page on the site first (auto-linked, no configuration needed), then any
+    custom extra links the owner added. Tolerates the legacy navLinks
+    format (a plain comma-separated string) by treating those as
+    non-clickable labels rather than dropping them or crashing."""
+    out = [(p.get('name') or p.get('id'), _resolve_editor_link('page:' + p.get('id', ''), slug)) for p in (nav_pages or [])]
+    raw = b.get('navLinks')
+    extra = []
+    if isinstance(raw, list):
+        extra = [(item.get('label') or '', _resolve_editor_link(item.get('target'), slug)) for item in raw if item.get('label')]
+    elif isinstance(raw, str) and raw.strip():
+        extra = [(s.strip(), None) for s in raw.split(',') if s.strip()]
+    seen, merged = set(), []
+    for label, href in out + extra:
+        if label in seen:
+            continue
+        seen.add(label)
+        merged.append((label, href))
+    return merged
+
+def _editor_block_html(b, design, nav_pages, slug=None):
     accent = design.get('accent') or '#2b7a78'
     button_style = design.get('buttonStyle') or 'solid'
     density_px = EDITOR_DENSITY.get(design.get('density'), EDITOR_DENSITY['comfortable'])
@@ -841,21 +898,26 @@ def _editor_block_html(b, design, page_names):
     t = b.get('type')
 
     if t == 'nav':
-        extra = [x.strip() for x in (b.get('navLinks') or '').split(',') if x.strip()]
-        links = list(dict.fromkeys(list(page_names) + extra))
+        links = _editor_nav_links(b, nav_pages, slug)
+        link_html = ''.join(
+            ('<a href="' + _eesc_attr(href) + '">' + _eesc(label) + '</a>') if href else ('<span>' + _eesc(label) + '</span>')
+            for label, href in links
+        )
         logo_img = ('<span class="logo-img" style="' + _eimg_style(b.get('logoImage')) + '"></span>') if b.get('logoImage') else ''
+        cta_href = _resolve_editor_link(b.get('navCtaTarget'), slug)
         return ('<div class="b-nav" style="background:' + (bg or '#fff') + ';">'
                 '<span class="logo">' + logo_img + _eesc(b.get('navLogo')) + '</span>'
-                '<span class="links">' + ''.join('<span>' + _eesc(l) + '</span>' for l in links) + '</span>'
-                + _ebtn('cta', b.get('navCta') or 'Contact', accent, '#fff', accent, button_style) + '</div>')
+                '<span class="links">' + link_html + '</span>'
+                + _ebtn('cta', b.get('navCta') or 'Contact', accent, '#fff', accent, button_style, cta_href) + '</div>')
 
     if t == 'hero':
         wrap_style = ('align-items:center;display:flex;flex-direction:column;' if align == 'center' else '')
         overlay = '<div class="hero-overlay"></div>' if b.get('bgImage') else ''
+        cta_href = _resolve_editor_link(b.get('ctaTarget'), slug)
         return ('<div class="b-hero" style="background:' + (bg or accent) + ';' + _eimg_style(b.get('bgImage')) +
                 'color:#fff;text-align:' + align + ';padding:64px 48px;' + wrap_style + '">' + overlay +
                 '<div class="hero-inner"><h1>' + _eesc(b.get('heading')) + '</h1><p>' + _eesc(b.get('subheading')) + '</p>'
-                + _ebtn('cta', b.get('ctaText') or 'Learn more', '#fff', '#0d1c1c', '#fff', button_style) +
+                + _ebtn('cta', b.get('ctaText') or 'Learn more', '#fff', '#0d1c1c', '#fff', button_style, cta_href) +
                 '</div></div>')
 
     if t == 'textimg':
@@ -914,9 +976,10 @@ def _editor_block_html(b, design, page_names):
         return '<div class="b-video" style="padding:' + pad + ';"><h2>' + _eesc(b.get('heading')) + '</h2><div class="frame">' + inner + '</div></div>'
 
     if t == 'cta':
+        cta_href = _resolve_editor_link(b.get('ctaTarget'), slug)
         return ('<div class="b-cta" style="background:' + (bg or '#f5f8f8') + ';text-align:' + align + ';">'
                 '<h2>' + _eesc(b.get('heading')) + '</h2><p>' + _eesc(b.get('body')) + '</p>'
-                + _ebtn('btn2', b.get('ctaText') or 'Get started', accent, '#fff', accent, button_style) + '</div>')
+                + _ebtn('btn2', b.get('ctaText') or 'Get started', accent, '#fff', accent, button_style, cta_href) + '</div>')
 
     if t == 'contact':
         return ('<div class="b-contact" style="padding:' + pad + ';"><div class="info"><h2>' + _eesc(b.get('heading')) + '</h2>'
@@ -933,11 +996,11 @@ def _editor_block_html(b, design, page_names):
 
     return ''
 
-def _compile_editor_page(business_name, page_label, blocks, design, page_names, settings):
+def _compile_editor_page(business_name, page_label, blocks, design, nav_pages, settings, slug=None):
     fp = EDITOR_FONT_PAIRS.get(design.get('font'), EDITOR_FONT_PAIRS['sans'])
     radius = EDITOR_RADIUS.get(design.get('radius'), EDITOR_RADIUS['rounded'])
     secondary = design.get('secondaryColor') or '#0d1c1c'
-    body_html = ''.join(_editor_block_html(b, design, page_names) for b in blocks)
+    body_html = ''.join(_editor_block_html(b, design, nav_pages, slug) for b in blocks)
     title = _eesc(settings.get('seoTitle') or (business_name + ' — ' + page_label))
     desc = _eesc_attr(settings.get('seoDesc') or settings.get('tagline') or '')
     favicon_tag = ('<link rel="icon" href="' + _eesc_attr(settings['favicon']) + '">') if settings.get('favicon') else ''
@@ -962,14 +1025,15 @@ def compile_editor_site(bd, pages_obj, design, settings):
     ready for _encode_site() / save_site_html()."""
     order = pages_obj.get('order') or list(pages_obj.get('pages', {}).keys())
     pages = pages_obj.get('pages') or {}
-    page_names = [pages[pid].get('name', pid) for pid in order if pid in pages]
+    nav_pages = [{'id': pid, 'name': pages[pid].get('name', pid)} for pid in order if pid in pages]
     business_name = bd.get('name') or 'My Business'
+    slug = bd.get('slug')
     pages_html, labels = {}, {}
     for pid in order:
         page = pages.get(pid)
         if not page:
             continue
-        pages_html[pid] = _compile_editor_page(business_name, page.get('name', pid), page.get('blocks') or [], design, page_names, settings)
+        pages_html[pid] = _compile_editor_page(business_name, page.get('name', pid), page.get('blocks') or [], design, nav_pages, settings, slug)
         labels[pid] = page.get('name', pid)
     return pages_html, order, labels
 
