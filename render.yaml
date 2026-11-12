@@ -7,5 +7,11 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
-      - key: ADMIN_PASS
-        value: changeme123
+      # app.py reads ADMIN_PASSWORD (not ADMIN_PASS). Set the real value in the
+      # Render dashboard; it is deliberately not stored in this file.
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Master switch for running customer Python/Node apps. Leave false until
+      # an app server exists. Uploads are stored either way.
+      - key: APP_HOSTING_ENABLED
+        value: "false"

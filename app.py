@@ -232,6 +232,7 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 
 from payments import payments_bp
+import hosting
 app.register_blueprint(payments_bp)
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
@@ -248,6 +249,12 @@ def handle_subdomain():
             # the About page, etc. Nav links inside generated pages are
             # relative slugs (see DAISY_WEBSITE_SYSTEM), so they resolve
             # correctly here without ever needing the main app's routes.
+            # Python/Node apps: proxy to the running app, or show the honest
+            # "coming online soon" page while app hosting is off. Static sites
+            # return None here and continue exactly as before.
+            _app_resp = hosting.subdomain_app_response(slug)
+            if _app_resp is not None:
+                return _app_resp
             page = request.path.strip('/') or 'index'
             if '/' not in page and '.' not in page:  # skip static-asset-looking paths
                 return site(slug, page=page)
@@ -2668,83 +2675,13 @@ def api_build_status(biz_id):
 # ── HOME ──────────────────────────────────────────────────────────────────────
 @app.route('/')
 def home():
-    query    = request.args.get('query','').strip()
-    user_lat = request.args.get('lat', type=float)
-    user_lng = request.args.get('lng', type=float)
-
-    all_biz = db_fetchall(
-        q("SELECT * FROM business WHERE status='approved' ORDER BY is_premium DESC, id DESC"))
-
-    if query:
-        ql = query.lower()
-        scored = []
-        for b in all_biz:
-            bd = biz_to_dict(b)
-            s = max(similar(ql,(bd.get('name') or '').lower()),
-                    similar(ql,(bd.get('category') or '').lower()))
-            if ql in (bd.get('name') or '').lower() or \
-               ql in (bd.get('category') or '').lower() or s > 0.45:
-                scored.append((b,s))
-        scored.sort(key=lambda x:x[1],reverse=True)
-        filtered = [b for b,_ in scored]
-    else:
-        filtered = list(all_biz)
-
-    results = []
-    for b in filtered:
-        bd = biz_to_dict(b)
-        dist = 9999.0
-        if user_lat and user_lng and bd.get('lat') and bd.get('lng'):
-            try: dist = haversine(user_lat,user_lng,float(bd['lat']),float(bd['lng']))
-            except: pass
-        rv = db_fetchone(
-            q("SELECT AVG(rating) as avg_rating, COUNT(*) as cnt FROM reviews WHERE business_id=?"),
-            (bd['id'],))
-        bd['avg_rating']   = round(float(rv['avg_rating']),1) if rv and rv['avg_rating'] else 0
-        bd['review_count'] = rv['cnt'] if rv else 0
-        results.append((bd, round(dist,2)))
-
-    if user_lat and user_lng:
-        results.sort(key=lambda x:(0 if x[0].get('is_premium') else 1, x[1]))
-
-    notifications = []
-    if 'user_id' in session:
-        rows = db_fetchall(
-            q("SELECT * FROM notifications WHERE user_id=? AND seen=0 ORDER BY created_at DESC LIMIT 5"),
-            (session['user_id'],))
-        notifications = [dict(r) for r in rows]
-        if notifications:
-            db_execute(q("UPDATE notifications SET seen=1 WHERE user_id=?"), (session['user_id'],))
-
-    # ── WEB SEARCH ─────────────────────────────────────────────────────────────
-    web_results = []
-    if query:
-        try:
-            import urllib.request, urllib.parse, json as _json
-            search_query = urllib.parse.quote(f"{query} Uganda business")
-            url = f"https://api.duckduckgo.com/?q={search_query}&format=json&no_html=1&skip_disambig=1"
-            req = urllib.request.Request(url, headers={'User-Agent': 'TrustedBiz/1.0'})
-            with urllib.request.urlopen(req, timeout=5) as r:
-                data = _json.loads(r.read().decode())
-            for item in (data.get('RelatedTopics') or [])[:10]:
-                if isinstance(item, dict) and item.get('Text') and item.get('FirstURL'):
-                    icon = (item.get('Icon') or {}).get('URL', '')
-                    domain = item['FirstURL'].split('/')[2] if '//' in item['FirstURL'] else ''
-                    web_results.append({
-                        'title': item['Text'].split(' - ')[0][:90],
-                        'snippet': item['Text'][:220],
-                        'url': item['FirstURL'],
-                        'image': ('https://duckduckgo.com' + icon) if icon and icon.startswith('/') else icon,
-                        'source': domain,
-                    })
-        except Exception as e:
-            print(f"Web search error: {e}")
-
+    # TrustedBiz is a hosting platform now. The old business-directory search
+    # (name/category/distance/reviews/web search) was removed from this page.
     return render_template('home.html',
-        results=results,
-        web_results=web_results,
         current_user=get_current_user(),
-        notifications=notifications)
+        hosting_fee_monthly=HOSTING_FEE_MONTHLY,
+        hosting_fee_yearly=HOSTING_FEE_YEARLY,
+        hosting_trial_days=HOSTING_TRIAL_DAYS)
 
 # ── PRICE GUARD API ───────────────────────────────────────────────────────────
 @app.route('/portfolio')
@@ -2828,6 +2765,11 @@ def site(slug=None, page=None):
     is_admin = bool(session.get('admin_auth'))
     if bd.get('status') != 'approved' and not (is_owner or is_admin):
         return render_template('404.html', current_user=get_current_user()), 404
+
+    # Python/Node app sites never fall through to Daisy's builder.
+    _gate = hosting.app_gate_response(bd)
+    if _gate is not None:
+        return _gate
 
     if bd.get('status') == 'approved':
         db_execute(q("UPDATE business SET views=views+1 WHERE id=?"), (biz['id'],))
@@ -3137,6 +3079,9 @@ def generate_site(biz_id):
     biz = db_fetchone(q("SELECT * FROM business WHERE id=? AND owner_id=?"), (biz_id,session['user_id']))
     if not biz: flash("Not found."); return redirect('/dashboard#sites')
     bd = biz_to_dict(biz)
+    if (bd.get('app_kind') or 'none') in ('python', 'node'):
+        flash("This is a code project, so Daisy can't rebuild it. Upload a new ZIP to update it.", 'error')
+        return redirect('/dashboard#sites')
 
     # THE LIMIT: the first build (when a business is created) is always
     # free — that's not touched here. But every click of Redeploy after
@@ -3689,6 +3634,7 @@ def migrate_db():
                 db_execute("CREATE TABLE IF NOT EXISTS contact_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, name TEXT, email TEXT, message TEXT, seen INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
         except Exception as e:
             print(f"Migration (hosting/security) error: {e}")
+        hosting.ensure_schema()
         return "Migration done! All columns added."
     except Exception as e:
         return f"Migration error: {e}"
@@ -3765,13 +3711,15 @@ def check_payments():
 
 @app.route('/about')
 def about():
-    return render_template('landing.html')
+    return render_template('landing.html', current_user=get_current_user(),
+                           hosting_trial_days=HOSTING_TRIAL_DAYS)
 
 @app.route('/pricing')
 def pricing():
     # Public — no login required, so people can see prices before committing.
     return render_template('pricing.html', hosting_fee_monthly=HOSTING_FEE_MONTHLY,
-                            hosting_fee_yearly=HOSTING_FEE_YEARLY, hosting_trial_days=HOSTING_TRIAL_DAYS)
+                            hosting_fee_yearly=HOSTING_FEE_YEARLY, hosting_trial_days=HOSTING_TRIAL_DAYS,
+                            current_user=get_current_user())
 
 @app.route('/daisy')
 def daisy_page():
@@ -3839,16 +3787,11 @@ def sitemap():
     urls = [
         'https://trustedbiz.co.ug/',
         'https://trustedbiz.co.ug/about',
+        'https://trustedbiz.co.ug/pricing',
+        'https://trustedbiz.co.ug/docs',
         'https://trustedbiz.co.ug/privacy',
         'https://trustedbiz.co.ug/terms'
     ]
-
-    businesses = db_fetchall(
-        q("SELECT slug FROM business WHERE status='approved'")
-    )
-
-    for biz in businesses:
-        urls.append(f"https://{biz['slug']}.trustedbiz.co.ug")
 
     xml = '<?xml version="1.0" encoding="UTF-8"?>'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -3900,6 +3843,17 @@ def deploy_site():
     html_file   = request.files.get('html_file')
     github_url  = request.form.get('github_url','').strip()
 
+    # New: ZIP (static site, Python app, Node app) or a single .html file.
+    # Detection, inlining and storage live in hosting.py.
+    project_file = request.files.get('project_file')
+    if project_file and project_file.filename:
+        res = hosting.deploy_project(user, name, category, whatsapp, brand_color, description, project_file,
+                                     phone=request.form.get('payment_phone', ''))
+        flash(res['message'], 'success' if res['ok'] else 'error')
+        if res.get('warnings'):
+            flash('Heads up: ' + ' · '.join(res['warnings'][:4]), 'success')
+        return redirect('/dashboard#sites')
+
     if html_file and html_file.filename.endswith('.html'):
         custom_html = html_file.read().decode('utf-8')
 
@@ -3936,11 +3890,17 @@ def deploy_site():
     if not custom_html:
         flash('Please upload HTML, paste it, or link a public GitHub repo.', 'error')
         return redirect('/dashboard#sites')
+    phone = hosting.clean_phone(request.form.get('payment_phone', ''))
+    if not phone:
+        flash('Enter your mobile money number (MTN or Airtel) so we can bill you after the free trial.', 'error')
+        return redirect('/dashboard#sites')
     slug   = make_slug(name)
     biz_id = db_insert(
         q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
         (name, category, whatsapp, description, brand_color, slug, user['id'], 'approved', 'free', 0, custom_html)
     )
+    db_execute(q("UPDATE business SET app_kind='static', app_status='none', app_runtime='static' WHERE id=?"), (biz_id,))
+    hosting.start_trial(biz_id, phone)
     ping_google(slug)
     snapshot_site_html(biz_id, custom_html)
     log_deploy_event(biz_id, user['id'], 'deploy', f'"{name}" deployed successfully', 'ok')
@@ -4444,18 +4404,8 @@ def contact_submit(slug):
 
 @app.route('/search')
 def search_page():
-    q_str = request.args.get('q','')
-    results = []
-    if q_str:
-        import re as _re
-        pattern = '%' + q_str + '%'
-        results = db_fetchall(
-            q("SELECT name,slug,category,description,whatsapp FROM business WHERE status=\'approved\' AND (name LIKE ? OR category LIKE ? OR description LIKE ?) LIMIT 30"),
-            (pattern, pattern, pattern)
-        )
-    return render_template('search.html',
-        results=results, query=q_str,
-        current_user=get_current_user())
+    # The business directory search was removed when TrustedBiz became a hosting platform.
+    return redirect('/', code=301)
 
 
 
@@ -4936,3 +4886,17 @@ def migrate_agents():
     except: pass
     return "Agent migration done!"
 
+
+# ── HOSTING LAYER (hosting.py) ────────────────────────────────────────────────
+# Registers /docs, /hosting/*, /admin/hosting and creates the app_* columns.
+hosting.init_hosting(app, {
+    "q": q, "db_fetchone": db_fetchone, "db_fetchall": db_fetchall,
+    "db_execute": db_execute, "db_insert": db_insert,
+    "login_required": login_required, "admin_required": admin_required,
+    "make_slug": make_slug, "ping_google": ping_google,
+    "save_site_html": save_site_html, "snapshot_site_html": snapshot_site_html,
+    "log_deploy_event": log_deploy_event,
+    "_encode_site": _encode_site, "_decode_site": _decode_site,
+    "USE_POSTGRES": USE_POSTGRES, "HOSTING_TRIAL_DAYS": HOSTING_TRIAL_DAYS,
+    "HOSTING_FEE_MONTHLY": HOSTING_FEE_MONTHLY, "HOSTING_FEE_YEARLY": HOSTING_FEE_YEARLY,
+})
