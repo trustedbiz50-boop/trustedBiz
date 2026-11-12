@@ -4,78 +4,72 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pricing | TrustedBiz</title>
+<meta name="description" content="One flat price per site: UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }} per month or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} per year, first {{ hosting_trial_days or 30 }} days free. Pay with MTN or Airtel Money.">
+<link rel="canonical" href="https://trustedbiz.co.ug/pricing">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include '_platform_css.html' %}
 <style>
-:root{
-  --brand:#2b7a78;--bg:#f5f8f8;--surface:#fff;--border:#d8e4e4;
-  --text:#0d1c1c;--mid:#43605f;--dim:#8aa5a4;
-  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
-}
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#0d1412;--surface:#141d1b;--border:#233230;--text:#eef5f4;--mid:#a9c4c1;--dim:#5f7d7a; }
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;}
-a{text-decoration:none;color:inherit;}
-.btn{display:inline-flex;padding:12px 24px;border-radius:4px;font-weight:600;font-size:13.5px;border:1.5px solid var(--border);color:var(--mid);}
-.btn-solid{background:var(--text);color:var(--bg);border-color:var(--text);}
-header{border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;}
-.logo{font-family:var(--mono);font-weight:500;font-size:15px;}
-.logo span{color:var(--brand);}
-.wrap{max-width:900px;margin:0 auto;padding:56px 24px 80px;}
-h1{font-size:30px;font-weight:800;letter-spacing:-.7px;text-align:center;margin-bottom:10px;}
-.sub{text-align:center;color:var(--mid);font-size:14.5px;margin-bottom:40px;}
-.plan-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border);border:1px solid var(--border);max-width:640px;margin:0 auto;}
-.plan-tier{background:var(--surface);padding:26px 22px;display:flex;flex-direction:column;}
-.plan-tier.mid{background:var(--bg);}
-.tier-name{font-size:16px;font-weight:800;margin-bottom:4px;}
-.tier-price{font-family:var(--mono);font-size:22px;font-weight:700;margin-bottom:2px;}
-.tier-price span{font-size:12px;font-weight:500;color:var(--dim);}
-.tier-sub{font-size:12px;color:var(--dim);margin-bottom:18px;}
-.tier-features{list-style:none;flex:1;margin-bottom:20px;}
-.tier-features li{font-size:13px;color:var(--mid);padding:6px 0;}
-.tier-btn{width:100%;text-align:center;padding:11px;border-radius:4px;font-size:13px;font-weight:600;border:1.5px solid var(--border);color:var(--mid);}
-.tier-btn.solid{background:var(--text);color:var(--bg);border-color:var(--text);}
-@media(max-width:760px){.plan-grid{grid-template-columns:1fr;}}
+.page{padding:60px 0 56px}
+.plans{display:grid;grid-template-columns:1.15fr .85fr;gap:0;margin-top:34px;border:1px solid var(--line);background:var(--surface)}
+.plan{padding:28px 26px}
+.plan + .plan{border-left:1px solid var(--line)}
+.plan h2{font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.amt{font-size:38px;font-weight:800;letter-spacing:-1.2px;margin-top:14px;line-height:1}
+.amt small{font-size:15px;font-weight:500;color:var(--mid);letter-spacing:0}
+.alt{font-size:14px;color:var(--mid);margin-top:8px}
+.plan ul{list-style:none;margin-top:20px;display:grid;gap:10px}
+.plan li{font-size:14.5px;color:var(--mid);padding-left:22px;position:relative}
+.plan li::before{content:"";position:absolute;left:2px;top:.55em;width:9px;height:5px;border-left:2px solid var(--live);border-bottom:2px solid var(--live);transform:rotate(-45deg)}
+.plan li.later::before{border-color:var(--soon);border-left-style:dashed;border-bottom-style:dashed}
+.plan .btn{margin-top:24px;width:100%}
+.notes{margin-top:30px;max-width:64ch;font-size:14px;color:var(--mid);line-height:1.7}
+.notes a{text-decoration:underline}
+@media(max-width:760px){.plans{grid-template-columns:1fr}.plan + .plan{border-left:none;border-top:1px solid var(--line)}}
 </style>
 </head>
 <body>
-<header>
-  <a href="/" class="logo">Trusted<span>Biz</span></a>
-  <a href="/" class="btn">← Home</a>
-</header>
-<div class="wrap">
-  <h1>Simple pricing, no plans to pick</h1>
-  <p class="sub">Building with Daisy is free, always. Hosting your site live is one flat fee. Pay by MTN or Airtel Money.</p>
+{% include '_platform_nav.html' %}
+<main>
+<section class="page">
+  <div class="wrap">
+    <h1 class="display">Simple pricing.</h1>
+    <p class="lede">One flat price per site. Pay in UGX with MTN or Airtel Money.</p>
 
-  <div class="plan-grid">
-    <div class="plan-tier">
-      <div class="tier-name">Build</div>
-      <div class="tier-price">UGX 0</div>
-      <div class="tier-sub">Build, preview, and edit with Daisy</div>
-      <ul class="tier-features">
-        <li>✓ 1 real website built by Daisy</li>
-        <li>✓ Full multi-page site, not a template</li>
-        <li>✓ Unlimited edits &amp; regenerates before you go live</li>
-        <li>✓ WhatsApp contact button</li>
-        <li>✓ Photo gallery, reviews &amp; ratings</li>
-      </ul>
-      <a class="tier-btn" href="/register">Get started</a>
+    <div class="plans">
+      <div class="plan">
+        <h2>Site hosting <span class="tag live">Live</span></h2>
+        <div class="amt">UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}<small> / month</small></div>
+        <p class="alt">or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} / year. First {{ hosting_trial_days or 30 }} days free.</p>
+        <ul>
+          <li>Deploy a static site from a ZIP or one HTML file</li>
+          <li>Live at yourname.trustedbiz.co.ug</li>
+          <li>Connect your own domain</li>
+          <li>Deploy history and one-click rollback</li>
+          <li>Submitted to Google for indexing</li>
+        </ul>
+        <a class="btn solid" href="/register">Start free for {{ hosting_trial_days or 30 }} days</a>
+      </div>
+      <div class="plan">
+        <h2>Web apps <span class="tag soon">Coming soon</span></h2>
+        <div class="amt" style="font-size:22px;letter-spacing:-.4px">Priced at launch</div>
+        <p class="alt">Python (Flask, Django) and Node.</p>
+        <ul>
+          <li>Upload your app today. It is stored safely.</li>
+          <li class="later">Runs automatically when app hosting launches</li>
+          <li class="later">Background workers and scheduled tasks</li>
+          <li class="later">Managed databases</li>
+          <li class="later">API and command-line deploys</li>
+        </ul>
+        <a class="btn" href="/docs">Read the docs</a>
+      </div>
     </div>
-    <div class="plan-tier mid">
-      <div class="tier-name">Hosting</div>
-      <div class="tier-price">UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}<span>/month</span></div>
-      <div class="tier-sub">or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }}/year &middot; first {{ hosting_trial_days or 30 }} days free</div>
-      <ul class="tier-features">
-        <li>✓ Everything in Build</li>
-        <li>✓ Live at yourbiz.trustedbiz.co.ug</li>
-        <li>✓ Listed in the TrustedBiz directory</li>
-        <li>✓ Indexed on Google search</li>
-        <li>✓ Ongoing hosting &amp; uptime</li>
-      </ul>
-      <a class="tier-btn solid" href="/register">Get started</a>
-    </div>
+
+    <p class="notes">A mobile money number is needed to go live, so we know where to send payment reminders. Sites that stay unpaid after the free period can be suspended. All payments are non-refundable unless stated otherwise at purchase. See the <a href="/terms">Terms</a>.</p>
   </div>
-</div>
+</section>
+</main>
+{% include '_platform_foot.html' %}
 </body>
 </html>

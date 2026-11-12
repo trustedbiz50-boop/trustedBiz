@@ -350,7 +350,7 @@ button{font-family:var(--font);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
     <div class="side-logo">Trusted<span>Biz</span></div>
-    <button class="side-new" data-target="sites"><span class="side-label">+ New site</span></button>
+    <button class="side-new" data-target="sites"><span class="side-label">+ New project</span></button>
 
     <div class="side-group">Workspace</div>
     <button class="side-link active" data-target="overview">
@@ -361,7 +361,7 @@ button{font-family:var(--font);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18a14 14 0 010-18"/></svg>
       <span class="side-label">Sites</span>
     </button>
-    <button class="side-link" data-target="daisy">
+    <button class="side-link" data-target="daisy" hidden style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>
       <span class="side-label">Daisy builder</span>
     </button>
@@ -401,19 +401,18 @@ button{font-family:var(--font);}
     <div class="panel" data-panel="overview">
       <div class="topbar" style="margin:-28px -30px 26px;">
         <div><h1>Overview</h1><p>// everything running on your workspace</p></div>
-        <button class="btn btn-solid" data-target="sites">+ New site</button>
+        <button class="btn btn-solid" data-target="sites">+ New project</button>
       </div>
 
       <div class="stats-row">
         <div class="stat-card"><div class="stat-num">{{ live_count }}</div><div class="stat-lbl">live sites</div></div>
         <div class="stat-card"><div class="stat-num">{{ total_views }}</div><div class="stat-lbl">total views</div></div>
-        <div class="stat-card"><div class="stat-num">{{ total_listings }}</div><div class="stat-lbl">total listings</div></div>
-        <div class="stat-card"><div class="stat-num">{{ hosted_count }}</div><div class="stat-lbl">hosting active</div></div>
+                <div class="stat-card"><div class="stat-num">{{ hosted_count }}</div><div class="stat-lbl">hosting active</div></div>
       </div>
 
       <div class="label">Quick actions</div>
       <div class="tiles">
-        <button class="tile" data-target="daisy">
+        <button class="tile" data-target="daisy" hidden style="display:none">
           <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></span>
           <span class="tile-label">Build with Daisy</span>
         </button>
@@ -442,7 +441,7 @@ button{font-family:var(--font);}
           </div>
           {% endfor %}
         {% else %}
-          <div class="activity-row"><span class="act-text">No sites yet — build one with Daisy, or deploy your own code above.</span></div>
+          <div class="activity-row"><span class="act-text">No projects yet. Deploy a site or app to get started.</span></div>
         {% endif %}
       </div>
     </div>
@@ -450,24 +449,31 @@ button{font-family:var(--font);}
     <!-- SITES -->
     <div class="panel" data-panel="sites" hidden>
       <div class="topbar" style="margin:-28px -30px 26px;">
-        <div><h1>Sites</h1><p>// businesses running on TrustedBiz</p></div>
+        <div><h1>Projects</h1><p>// sites and apps running on TrustedBiz</p></div>
         <div style="display:flex;gap:8px;">
-          <button class="btn" id="showDeployForm">Deploy your own HTML</button>
-          <a class="btn" href="/editor">+ Build in Editor</a>
-          <button class="btn btn-solid" data-target="daisy">+ Build with Daisy</button>
+          <button class="btn btn-solid" id="showDeployForm">+ Deploy site or app</button>
         </div>
       </div>
 
       <form id="deployForm" method="POST" action="/deploy" enctype="multipart/form-data"
             style="display:none;border:1px solid var(--border);padding:18px;margin-bottom:18px;background:var(--surface);">
         <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:10px;">
-          <input name="name" placeholder="Site name" required
+          <input name="name" placeholder="Project name" required
                  style="padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;">
-          <input name="category" placeholder="Category (e.g. Portfolio)"
+          <input name="category" placeholder="Type (e.g. Portfolio, API, Blog)"
                  style="padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;">
         </div>
+        <input name="payment_phone" placeholder="Mobile money number for billing (MTN or Airtel, e.g. 2567...)" required inputmode="tel"
+               style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:inherit;margin-bottom:6px;">
+        <div style="font-size:12px;color:var(--dim);margin-bottom:12px;">Your first 30 days are free. We use this number for payment reminders after that. Python and Node apps start billing only when app hosting launches.</div>
         <div style="margin-bottom:10px;">
-          <input type="file" name="html_file" accept=".html">
+          <input type="file" name="project_file" accept=".zip,.html">
+          <div style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5;">
+            Upload a <b>.zip</b> (static site with index.html at the top) or a single <b>.html</b> file.
+            Python and Node apps can be uploaded too: they are stored safely and
+            <b>start running when app hosting launches</b> (coming soon).
+            Max 8 MB. <a href="/docs" target="_blank" style="color:var(--brand);">Read the docs</a>
+          </div>
           <span style="font-size:12px;color:var(--dim);">— or paste HTML below, or link a public GitHub repo</span>
         </div>
         <input name="github_url" placeholder="https://github.com/you/your-repo"
@@ -496,7 +502,8 @@ button{font-family:var(--font);}
           <div class="site-name">{{ b.name }}</div>
           <div class="site-url">{{ b.slug }}.trustedbiz.co.ug</div>
         </div>
-        <span class="site-status {{ 'live' if b.status=='approved' else 'building' }}">{{ 'Live' if b.status=='approved' else 'Draft — preview it, then go live' if b.status=='draft' else b.status|capitalize }}</span>
+        {% set _is_app = b.app_kind in ('python','node') %}
+        <span class="site-status {{ 'live' if (b.status=='approved' and (not _is_app or app_live(b))) else 'building' }}">{% if _is_app %}{{ 'App · running' if app_live(b) else 'App · waiting for server' }}{% else %}{{ 'Live' if b.status=='approved' else 'Draft — preview it, then go live' if b.status=='draft' else b.status|capitalize }}{% endif %}</span>
         <span class="site-plan">{{ 'Hosting active' if b.is_premium else 'Free trial' if b.free_trial_end else 'Not hosted' }}</span>
         <div class="site-actions">
           {% if b.status=='approved' %}
@@ -507,23 +514,9 @@ button{font-family:var(--font);}
           {% elif b.build_status == 'building' %}
           <span class="btn" style="opacity:.6;">Building…</span>
           {% endif %}
-          <button class="btn" data-target="daisy" onclick="startDaisyEdit({{ b.id }}, {{ b.name|tojson }});">Edit with Daisy</button>
-          <a class="btn" href="/editor/{{ b.id }}">Open Editor</a>
-          {% if b.generated_html %}
+          <a class="btn" href="/hosting/site/{{ b.id }}">Manage</a>
+          {% if not _is_app and b.generated_html %}
           <a class="btn" href="/dashboard/edit-code/{{ b.id }}">View/Edit Code</a>
-          {% endif %}
-          {% if b.build_status == 'building' %}
-          <span class="btn" style="opacity:.6;" title="A build is already running for this site">Redeploy (building…)</span>
-          {% else %}
-          <form method="POST" action="/generate-site/{{ b.id }}" style="display:inline;" class="regen-form" data-biz-id="{{ b.id }}">
-            <button type="submit" class="btn">Redeploy</button>
-          </form>
-          {% endif %}
-          {% if not b.is_premium %}
-          <span style="font-size:11px;color:var(--dim);align-self:center;">
-            {% if (b.regen_count or 0) < 2 %}{{ 2 - (b.regen_count or 0) }} free rebuild{{ 's' if (2 - (b.regen_count or 0)) != 1 else '' }} left
-            {% else %}Free rebuilds used — pay for hosting or wait 24h between rebuilds{% endif %}
-          </span>
           {% endif %}
         </div>
         <div class="build-progress" data-biz-id="{{ b.id }}" style="display:{{ 'block' if b.build_status == 'building' else 'none' }};width:100%;margin-top:8px;">
@@ -711,7 +704,7 @@ button{font-family:var(--font);}
           </div>
           {% endfor %}
         {% else %}
-          <div class="activity-row"><span class="act-text">No deploys yet — build a site with Daisy or deploy your own HTML to see activity here.</span></div>
+          <div class="activity-row"><span class="act-text">No deploys yet. Deploy a site or app to see activity here.</span></div>
         {% endif %}
       </div>
 
@@ -747,11 +740,11 @@ button{font-family:var(--font);}
         <select name="biz_id" required style="border:1.5px solid var(--border);border-radius:4px;padding:0 10px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;">
           {% for b in businesses %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
         </select>
-        <input class="dns-input" name="domain" type="text" placeholder="yourbusiness.co.ug" required />
+        <input class="dns-input" name="domain" type="text" placeholder="yourdomain.co.ug" required />
         <button class="btn btn-solid" type="submit">Connect</button>
       </form>
       {% else %}
-      <p style="font-size:12.5px;color:var(--dim);">Build or deploy a site first, then come back to connect a domain.</p>
+      <p style="font-size:12.5px;color:var(--dim);">Deploy a site first, then come back to connect a domain.</p>
       {% endif %}
     </div>
 
@@ -835,12 +828,12 @@ button{font-family:var(--font);}
         <div><h1>Billing</h1><p>// your plan, no surprises</p></div>
       </div>
 
-      <p class="plan-reassure" style="margin:0 0 22px;text-align:left;">Building with Daisy is free, always — no plan to pick, no card needed. Hosting a site live is UGX {{ hosting_fee_monthly or 15000 }}/month (or UGX {{ hosting_fee_yearly or 150000 }}/year), and your first month on every business is free automatically.</p>
+      <p class="plan-reassure" style="margin:0 0 22px;text-align:left;">Hosting a site live is UGX {{ hosting_fee_monthly or 15000 }}/month (or UGX {{ hosting_fee_yearly or 150000 }}/year), and your first month on every site is free automatically.</p>
 
-      <div class="label">Your businesses</div>
+      <div class="label">Your projects</div>
 
       {% if not businesses %}
-      <p style="font-size:13px;color:var(--dim);">No businesses yet — build one with Daisy to see its hosting status here.</p>
+      <p style="font-size:13px;color:var(--dim);">No projects yet. Deploy one to see its hosting status here.</p>
       {% endif %}
 
       {% for b in businesses %}
@@ -859,7 +852,7 @@ button{font-family:var(--font);}
           {% elif b.free_trial_end %}
           <p>Free trial — hosted until {{ b.free_trial_end[:10] if b.free_trial_end is string else b.free_trial_end }}. Pay before then to keep it live without interruption.</p>
           {% else %}
-          <p>Built and ready to preview — go live from the site's Publish button to start your free month of hosting.</p>
+          <p>Not hosted yet. Deploy it to start your free trial.</p>
           {% endif %}
         </div>
         {% if not b.is_premium %}

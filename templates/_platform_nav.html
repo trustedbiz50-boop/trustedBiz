@@ -1,0 +1,16 @@
+<header class="top">
+  <div class="wrap">
+    <a href="/" class="logo">Trusted<span>Biz</span></a>
+    <nav class="main" aria-label="Main">
+      <a href="/docs" class="hide-sm">Docs</a>
+      <a href="/pricing" class="hide-sm">Pricing</a>
+      <a href="/about" class="hide-sm">About</a>
+      {% if current_user %}
+      <a href="/dashboard" class="btn solid sm">Dashboard</a>
+      {% else %}
+      <a href="/login">Log in</a>
+      <a href="/register" class="btn solid sm">Sign up</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
