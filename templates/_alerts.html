@@ -1,0 +1,127 @@
+{# SweetAlert-style messages for the whole dashboard. No external library.
+   • Server flash messages become toasts (success / info / warning) or a modal (errors).
+   • <form data-confirm="Title" data-confirm-text="…" data-confirm-button="Delete" data-confirm-danger> shows a confirm dialog.
+   • JS API: tbToast(msg, type), tbAlert({title,text,icon}), tbConfirm({title,text,confirmText,danger}) -> Promise<boolean>. #}
+<style>
+.tb-toasts{position:fixed;top:14px;right:14px;z-index:10050;display:grid;gap:10px;width:min(390px,calc(100vw - 28px));pointer-events:none}
+.tb-toast{pointer-events:auto;position:relative;overflow:hidden;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;background:var(--surface);color:var(--text);border:1px solid var(--line);border-left:4px solid var(--c,var(--live));box-shadow:0 12px 32px rgba(0,0,0,.18);padding:14px 12px 17px 14px;animation:tbSlide .28s cubic-bezier(.2,.8,.2,1)}
+.tb-toast.success{--c:var(--live)}.tb-toast.error{--c:#dc2626}.tb-toast.warning{--c:var(--soon)}.tb-toast.info{--c:var(--teal)}
+.tb-toast .ti{width:22px;height:22px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font:700 13px var(--font);margin-top:1px}
+.tb-toast .tm{font-size:14.5px;line-height:1.5;word-break:break-word}
+.tb-toast .tx{background:none;border:none;color:var(--dim);font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
+.tb-toast .tx:hover{color:var(--text)}
+.tb-toast .tbar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--c);opacity:.45;transform-origin:left;animation:tbBar var(--d,4500ms) linear forwards}
+.tb-toast.out{animation:tbOut .2s ease forwards}
+.tb-ov{position:fixed;inset:0;z-index:10100;display:grid;place-items:center;padding:20px;background:rgba(6,14,13,.58);backdrop-filter:blur(3px);animation:tbFade .18s ease}
+.tb-modal{width:min(430px,100%);background:var(--surface);color:var(--text);border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.35);padding:30px 26px 24px;text-align:center;animation:tbPop .24s cubic-bezier(.2,.9,.3,1.2)}
+.tb-ic{width:78px;height:78px;margin:0 auto 18px;border-radius:50%;border:4px solid var(--c);color:var(--c);display:grid;place-items:center;font:700 38px var(--font);line-height:1}
+.tb-ic.warning{--c:var(--soon)}.tb-ic.error{--c:#dc2626}.tb-ic.success{--c:var(--live)}.tb-ic.info{--c:var(--teal)}.tb-ic.question{--c:var(--teal)}
+.tb-ic svg{width:40px;height:40px;stroke:currentColor;fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.tb-ic.success svg path{stroke-dasharray:60;stroke-dashoffset:60;animation:tbDraw .5s .15s ease forwards}
+.tb-modal h2{font-size:23px;font-weight:700;letter-spacing:-.4px;line-height:1.25}
+.tb-modal p{margin-top:10px;font-size:15px;color:var(--mid);line-height:1.6;word-break:break-word}
+.tb-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+.tb-btns button{min-width:120px;padding:12px 22px;font:600 15px var(--font);border-radius:4px;cursor:pointer;border:1.5px solid var(--line);background:transparent;color:var(--text)}
+.tb-btns button:hover{border-color:var(--text)}
+.tb-btns .ok{background:var(--text);color:var(--paper);border-color:var(--text)}
+.tb-btns a.ok{display:inline-block;min-width:120px;padding:12px 22px;font:600 15px var(--font);border-radius:4px;border:1.5px solid var(--text);text-decoration:none;text-align:center}
+.tb-btns .ok.danger{background:#dc2626;border-color:#dc2626;color:#fff}
+.tb-btns button:focus-visible{outline:3px solid color-mix(in srgb,var(--teal) 55%,transparent);outline-offset:2px}
+@keyframes tbSlide{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes tbOut{to{opacity:0;transform:translateX(24px)}}
+@keyframes tbBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@keyframes tbFade{from{opacity:0}to{opacity:1}}
+@keyframes tbPop{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:none}}
+@keyframes tbDraw{to{stroke-dashoffset:0}}
+@media(max-width:560px){.tb-toasts{top:auto;bottom:14px;right:14px;left:14px;width:auto}.tb-toast{animation-name:tbUp}@keyframes tbUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}}
+@media (prefers-reduced-motion:reduce){.tb-toast,.tb-ov,.tb-modal,.tb-ic svg path{animation:none!important;stroke-dashoffset:0!important}.tb-toast .tbar{display:none}}
+</style>
+<div class="tb-toasts" id="tb-toasts" aria-live="polite" aria-atomic="false"></div>
+<script>
+(function(){
+  var ICONS={success:'<svg viewBox="0 0 52 52"><path d="M14 27l8 8 16-17"/></svg>',error:'×',warning:'!',info:'i',question:'?'};
+  var SMALL={success:'✓',error:'×',warning:'!',info:'i'};
+  function esc(el,t){el.textContent=t;return el}
+  function box(){return document.getElementById('tb-toasts')}
+
+  window.tbToast=function(msg,type,ms){
+    type=SMALL[type]?type:'info'; ms=ms||(type==='warning'?8000:4500);
+    var t=document.createElement('div');t.className='tb-toast '+type;t.style.setProperty('--d',ms+'ms');
+    t.setAttribute('role',type==='error'?'alert':'status');
+    var i=document.createElement('div');i.className='ti';i.textContent=SMALL[type];
+    var m=document.createElement('div');m.className='tm';esc(m,msg);
+    var x=document.createElement('button');x.className='tx';x.type='button';x.setAttribute('aria-label','Dismiss');x.textContent='×';
+    var bar=document.createElement('div');bar.className='tbar';
+    t.appendChild(i);t.appendChild(m);t.appendChild(x);t.appendChild(bar);box().appendChild(t);
+    var gone=false,timer;
+    function close(){if(gone)return;gone=true;clearTimeout(timer);t.classList.add('out');setTimeout(function(){t.remove()},200)}
+    x.onclick=close;timer=setTimeout(close,ms);
+    t.addEventListener('mouseenter',function(){clearTimeout(timer);bar.style.animationPlayState='paused'});
+    t.addEventListener('mouseleave',function(){bar.style.animationPlayState='running';timer=setTimeout(close,1800)});
+    return close;
+  };
+
+  var queue=Promise.resolve();
+  function modal(o){
+    return new Promise(function(resolve){
+      var prev=document.activeElement;
+      var ov=document.createElement('div');ov.className='tb-ov';
+      var d=document.createElement('div');d.className='tb-modal';d.setAttribute('role',o.cancel?'alertdialog':'dialog');d.setAttribute('aria-modal','true');
+      var icon=o.icon||'info';
+      var ic=document.createElement('div');ic.className='tb-ic '+icon;
+      if(ICONS[icon].charAt(0)==='<')ic.innerHTML=ICONS[icon];else ic.textContent=ICONS[icon];
+      var h=document.createElement('h2');h.id='tb-t'+Date.now();esc(h,o.title||'');
+      d.setAttribute('aria-labelledby',h.id);
+      d.appendChild(ic);d.appendChild(h);
+      if(o.text){var p=document.createElement('p');esc(p,o.text);d.appendChild(p)}
+      var b=document.createElement('div');b.className='tb-btns';
+      var ok=document.createElement(o.href?'a':'button');
+      if(o.href){ok.href=o.href;ok.target='_blank';ok.rel='noopener'}else ok.type='button';
+      ok.className='ok'+(o.danger?' danger':'');ok.textContent=o.href?(o.hrefText||'Open'):(o.confirmText||'OK');
+      var no=null;
+      if(o.cancel||o.href){no=document.createElement('button');no.type='button';no.textContent=o.href?(o.confirmText||'Close'):(o.cancelText||'Cancel');b.appendChild(no)}
+      b.appendChild(ok);d.appendChild(b);ov.appendChild(d);document.body.appendChild(ov);
+      document.body.style.overflow='hidden';
+      (o.danger&&no?no:ok).focus();
+      function done(v){document.removeEventListener('keydown',key,true);ov.remove();document.body.style.overflow='';if(prev&&prev.focus)try{prev.focus()}catch(e){}resolve(v)}
+      function key(e){
+        if(e.key==='Escape'){e.preventDefault();done(false)}
+        else if(e.key==='Tab'){var f=[no,ok].filter(Boolean);var i=f.indexOf(document.activeElement);e.preventDefault();f[(i+(e.shiftKey?-1:1)+f.length)%f.length].focus()}
+      }
+      document.addEventListener('keydown',key,true);
+      ok.onclick=function(){done(true)};if(no)no.onclick=function(){done(false)};
+      ov.addEventListener('mousedown',function(e){if(e.target===ov&&o.cancel)done(false)});
+    });
+  }
+  window.tbAlert=function(o){queue=queue.then(function(){return modal(o)});return queue};
+  window.tbConfirm=function(o){o.cancel=true;o.icon=o.icon||'warning';var p=queue.then(function(){return modal(o)});queue=p.catch(function(){});return p};
+
+  /* data-confirm on forms: <form data-confirm="Delete project?" data-confirm-text="…" data-confirm-button="Delete" data-confirm-danger> */
+  document.addEventListener('submit',function(e){
+    var f=e.target;
+    if(!f||!f.dataset||!f.dataset.confirm||f._tbOk)return;
+    e.preventDefault();
+    var sub=e.submitter;
+    tbConfirm({title:f.dataset.confirm,text:f.dataset.confirmText||'',confirmText:f.dataset.confirmButton||'Yes, continue',danger:f.hasAttribute('data-confirm-danger')}).then(function(ok){
+      if(!ok)return;
+      f._tbOk=true;
+      try{ if(f.requestSubmit){try{f.requestSubmit(sub||undefined)}catch(x){f.submit()}}else f.submit(); }
+      finally{ f._tbOk=false; }
+    });
+  },true);
+
+  /* Server flash messages */
+  var FL={{ (get_flashed_messages(with_categories=true) or [])|tojson }};
+  function show(){
+    FL.forEach(function(p){
+      var cat=p[0],msg=String(p[1]||'');
+      var live=msg.match(/is LIVE at ([a-z0-9\-]+\.trustedbiz\.co\.ug)/i);
+      if(cat==='error'){tbAlert({title:'Something needs your attention',text:msg,icon:'error',confirmText:'Got it'})}
+      else if(live){tbAlert({title:'Your site is live!',text:msg.replace(/^[^A-Za-z0-9"]+/,''),icon:'success',href:'https://'+live[1],hrefText:'Open site',confirmText:'Close'})}
+      else if(/^Heads up:/.test(msg)){tbToast(msg.replace(/^Heads up:\s*/,''),'warning')}
+      else{tbToast(msg,'success')}
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show);else show();
+})();
+</script>

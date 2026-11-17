@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>{{ b.name }} | TrustedBiz</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include '_platform_css.html' %}
+{% include '_app_css.html' %}
+</head>
+<body class="app">
+{% include '_app_bar.html' %}
+<main class="shell">
+
+  <div class="crumbs"><a href="/dashboard">Projects</a><span>›</span><span>{{ b.name }}</span></div>
+
+  <noscript><div class="flashes">
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}
+    <div class="banner {{ 'bad' if cat == 'error' else '' }}"><span class="i">i</span><div>{{ msg }}</div></div>
+  {% endfor %}{% endwith %}
+  </div></noscript>
+
+  <div class="page-title">
+    <div>
+      <div class="kind">{{ kind_label }}</div>
+      <h1 class="ptitle">{{ b.name }}</h1>
+    </div>
+  </div>
+
+  <div class="badges">
+    {% if is_app %}<span class="chip">{{ 'Python 3' if b.app_kind == 'python' else 'Node' }}</span>{% else %}<span class="chip">Static</span>{% endif %}
+    <span class="chip {{ 'accent' if limits.plan == 'paid' else '' }}">{{ limits.plan|capitalize }}</span>
+    {% if limits.plan == 'free' %}<a class="link" href="/hosting/site/{{ b.id }}?tab=settings#plan">Upgrade your project →</a>{% endif %}
+  </div>
+
+  <div class="actions">
+    {% if git %}
+    <details class="drop">
+      <summary class="btn">Connect ⌄</summary>
+      <div class="menu-panel">
+        <div class="lbl">Repository</div>
+        <a href="{{ git.repo_url }}" target="_blank" rel="noopener">{{ git.repo }}</a>
+        <a href="/hosting/site/{{ b.id }}?tab=settings#build">Change branch or folder</a>
+      </div>
+    </details>
+    {% else %}
+    <a class="btn" href="/git/import">Connect Git</a>
+    {% endif %}
+    <details class="drop">
+      <summary class="btn dark">Manual deploy ⌄</summary>
+      <div class="menu-panel">
+        {% if git %}<form method="POST" action="/git/redeploy/{{ b.id }}"><button class="item" type="submit">Deploy latest commit</button></form>{% endif %}
+        <a href="/hosting/site/{{ b.id }}?tab=settings#update">Deploy a ZIP</a>
+        <a href="/hosting/site/{{ b.id }}?tab=events#snapshots">Roll back to a snapshot</a>
+      </div>
+    </details>
+  </div>
+
+  <div class="meta">
+    <div class="row"><span>Project ID:</span><span class="mono">site-{{ b.id }}</span><button class="copy" type="button" onclick="tbCopy(this,'site-{{ b.id }}')">Copy</button></div>
+    {% if git %}<div class="row"><span>⎇</span><a class="link" href="{{ git.repo_url }}" target="_blank" rel="noopener">{{ git.repo }}</a><span class="mono">{{ git.branch }}</span></div>
+    <div class="row">{% if git.commit %}<span class="mono">● {{ git.commit }}</span>{% endif %}<span class="chip {{ status.cls }}"><span class="dotx {{ status.cls }}"></span>{{ status.label }}</span></div>
+    {% else %}<div class="row"><span class="chip {{ status.cls }}"><span class="dotx {{ status.cls }}"></span>{{ status.label }}</span></div>{% endif %}
+    <div class="row"><a class="link mono" href="{{ url }}" target="_blank" rel="noopener">{{ url }}</a><button class="copy" type="button" onclick="tbCopy(this,'{{ url }}')">Copy</button></div>
+  </div>
+
+  {% if paused_owner %}
+  <div class="banner warn"><span class="i" style="color:var(--soon)">!</span><div>You paused this project. Visitors see a paused page. <a href="/hosting/site/{{ b.id }}?tab=settings#danger">Resume it in Settings</a>.</div></div>
+  {% elif maint_on %}
+  <div class="banner warn"><span class="i" style="color:var(--soon)">!</span><div>Maintenance mode is on. Visitors see a maintenance page. <a href="/hosting/site/{{ b.id }}?tab=settings#maintenance">Turn it off</a>.</div></div>
+  {% elif limits.plan == 'free' %}
+  <div class="banner"><span class="i">i</span><div>
+    This project is on the Free plan and stays live while you open your dashboard{% if b.renew_by %} (next renewal by {{ b.renew_by[:10] }}){% endif %}.
+    {% if is_app %}Free apps sleep after {{ limits.sleep_after_minutes }} minutes without visits and wake on the next one, once app hosting launches.{% endif %}
+    <a href="/hosting/site/{{ b.id }}?tab=settings#plan">Upgrade now</a></div></div>
+  {% endif %}
+  {% if is_app and not live %}
+  <div class="banner"><span class="i">i</span><div>Your app is uploaded and stored safely. App hosting hasn't launched yet, so it isn't serving visitors. It starts automatically when it does.</div></div>
+  {% endif %}
+
+  <nav class="tabs" aria-label="Project sections">
+    <a href="?tab=events" class="{{ 'on' if tab == 'events' else '' }}">Events</a>
+    {% if is_app %}<a href="?tab=logs" class="{{ 'on' if tab == 'logs' else '' }}">Logs</a>
+    <a href="?tab=env" class="{{ 'on' if tab == 'env' else '' }}">Environment</a>{% endif %}
+    <a href="?tab=settings" class="{{ 'on' if tab == 'settings' else '' }}">Settings</a>
+  </nav>
+
+{# ───────────────────────── EVENTS ───────────────────────── #}
+{% if tab == 'events' %}
+  <section class="panel events">
+    {% for e in events %}
+    <div class="ev">
+      <div class="evi {{ 'bad' if e.status == 'failed' else ('pending' if e.status == 'pending' else ('info' if e.status not in ('ok',) else '')) }}">{{ '✓' if e.status == 'ok' else ('!' if e.status == 'failed' else '…') }}</div>
+      <div><div class="t">{{ e.message }}</div><div class="when">{{ e.when }} EAT</div></div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No events yet</h3>Deploys, rollbacks and domain changes will show up here.</div>
+    {% endfor %}
+  </section>
+
+  {% if not is_app %}
+  <section class="panel" id="snapshots">
+    <header><h2>Snapshots</h2><p class="desc" style="margin-top:6px">A snapshot is saved on every change. Roll back to any of the last 5 in one click.</p></header>
+    {% for s in backups %}
+    <div class="sec" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><b>{{ s.created_at }} EAT</b><div class="note" style="margin-top:2px">{{ '< 1' if s.size < 1024 else (s.size // 1024) }} KB{% if loop.first %} · current version{% endif %}</div></div>
+      {% if not loop.first %}<form method="POST" action="/hosting/rollback/{{ b.id }}/{{ s.id }}" data-confirm="Roll back to this version?" data-confirm-text="Your site will show the version from {{ s.created_at }} EAT. Your current version stays in the snapshots, so you can roll forward again." data-confirm-button="Yes, roll back"><button class="btn sm" type="submit">↺ Rollback</button></form>{% endif %}
+    </div>
+    {% else %}<div class="empty">No snapshots yet.</div>{% endfor %}
+  </section>
+  {% endif %}
+
+{# ───────────────────────── LOGS (apps) ───────────────────────── #}
+{% elif tab == 'logs' and is_app %}
+  <section class="panel">
+    <div class="empty"><h3>No logs yet</h3>Your app isn't running, so it has no logs. Application and request logs appear here when app hosting launches.</div>
+  </section>
+
+{# ───────────────────────── ENVIRONMENT (apps) ───────────────────────── #}
+{% elif tab == 'env' and is_app %}
+  <section class="panel">
+    <header><h2>Environment variables</h2>
+      <p class="desc" style="margin-top:6px">Values are encrypted when stored and are given to your app when it runs. They are never shown again after you save them. Never put secrets in your ZIP or repository.</p></header>
+    <div class="scroll-x"><table class="tbl">
+      <thead><tr><th>Name</th><th>Value</th><th></th></tr></thead>
+      <tbody>
+      {% for n in env_names %}
+        <tr><td class="mono">{{ n }}</td><td class="mono">••••••••</td>
+          <td style="text-align:right;white-space:nowrap">
+            <form method="POST" action="/hosting/env/{{ b.id }}/delete" data-confirm="Delete {{ n }}?" data-confirm-text="Your app will no longer receive this variable." data-confirm-button="Yes, delete" data-confirm-danger style="display:inline"><input type="hidden" name="name" value="{{ n }}"><button class="btn sm ghost-danger" type="submit">Delete</button></form>
+          </td></tr>
+      {% else %}
+        <tr><td colspan="3" style="color:var(--dim);font-weight:400">No variables yet.</td></tr>
+      {% endfor %}
+      </tbody></table></div>
+    <div class="sec">
+      <h3>Add or replace a variable</h3>
+      <form method="POST" action="/hosting/env/{{ b.id }}" class="field mono">
+        <input name="name" required placeholder="NAME" autocapitalize="characters" autocomplete="off" spellcheck="false">
+        <input name="value" type="password" placeholder="value" autocomplete="off">
+        <button class="btn solid" type="submit">Save</button>
+      </form>
+      <p class="note">Saving a name that already exists replaces its value.</p>
+    </div>
+  </section>
+
+{# ───────────────────────── SETTINGS ───────────────────────── #}
+{% else %}
+  <section class="panel" id="general">
+    <header><h2>General</h2></header>
+    <div class="sec">
+      <h3>Name</h3><p class="desc">A name for this project. Its address stays the same.</p>
+      <form method="POST" action="/hosting/rename/{{ b.id }}" class="field"><input name="name" value="{{ b.name }}" required maxlength="100"><button class="btn sm" type="submit">Save</button></form>
+    </div>
+    <div class="sec">
+      <h3>Address</h3><p class="desc">Your project is served at:</p>
+      <div class="kv"><b>URL</b><span class="mono">{{ url }}</span></div>
+    </div>
+    <div class="sec" id="plan">
+      <h3>Plan</h3>
+      {% if limits.plan == 'paid' %}
+        <p class="desc">You're on the <b>Paid</b> plan: your own domain, always on, and no renewal needed.</p>
+      {% else %}
+        <p class="desc">You're on the <b>Free</b> plan: it stays live while you open your dashboard at least every {{ limits.renew_every_days }} days.</p>
+        {% if b.upgrade_requested_at %}
+          <p class="desc"><b>Upgrade requested.</b> Pay on WhatsApp and we'll switch your plan on as soon as we see the payment.</p>
+          <a class="btn solid" href="{{ wa_link }}" target="_blank" rel="noopener">Pay on WhatsApp</a>
+        {% else %}
+          <form method="POST" action="/hosting/upgrade/{{ b.id }}" class="field">
+            <input name="phone" required placeholder="Mobile money number" inputmode="tel">
+            <select name="period"><option value="monthly">UGX {{ monthly }} / month</option><option value="yearly">UGX {{ yearly }} / year</option></select>
+            <button class="btn solid" type="submit">Upgrade to Paid</button>
+          </form>
+          <p class="note">You'll pay by MTN or Airtel Money on WhatsApp. We switch the plan on when we see the payment.</p>
+        {% endif %}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel" id="build">
+    <header><h2>Build and deploy</h2></header>
+    {% if git %}
+    <div class="sec">
+      <h3>Source</h3><p class="desc">Connected to <a class="link" href="{{ git.repo_url }}" target="_blank" rel="noopener">{{ git.provider }}: {{ git.repo }}</a>.</p>
+      <form method="POST" action="/git/settings/{{ b.id }}">
+        <h3 style="margin-top:14px">Branch</h3><p class="desc">The Git branch to deploy.</p>
+        <div class="field mono"><input name="branch" value="{{ git.branch }}" required></div>
+        <h3 style="margin-top:16px">Root directory <span class="tag">Optional</span></h3>
+        <p class="desc">If set, only this folder of the repository is deployed (useful when your site is in a sub-folder like <code>dist</code> or <code>web</code>).</p>
+        <div class="field mono"><input name="root_dir" value="{{ git.root_dir }}" placeholder="e.g. dist"></div>
+        <h3 style="margin-top:16px">Auto-deploy</h3>
+        <label class="switch" style="margin-top:6px"><input type="checkbox" name="auto_deploy" {{ 'checked' if git.auto_deploy else '' }}> Deploy automatically on every push</label>
+        <p class="note">{% if git.hook_active %}A webhook is installed on the repository.{% else %}No webhook is installed (public imports can't auto-deploy). Use the deploy hook below or Manual deploy.{% endif %}</p>
+        <div class="field"><button class="btn solid sm" type="submit">Save changes</button></div>
+      </form>
+    </div>
+    <div class="sec">
+      <h3>Deploy hook</h3>
+      <p class="desc">Your private URL to trigger a deploy of this project. Keep it secret.</p>
+      <div class="field mono"><input id="hook" type="password" readonly value="{{ git.deploy_hook_url }}"></div>
+      <div class="field">
+        <button class="btn sm" type="button" onclick="var i=document.getElementById('hook');i.type=i.type==='password'?'text':'password'">Show</button>
+        <button class="btn sm" type="button" onclick="tbCopy(this,'{{ git.deploy_hook_url }}')">Copy</button>
+        <form method="POST" action="/git/hook/regenerate/{{ b.id }}" data-confirm="Regenerate the deploy hook?" data-confirm-text="The old URL stops working immediately. Anything that calls it will need the new one." data-confirm-button="Yes, regenerate" data-confirm-danger><button class="btn sm ghost-danger" type="submit">⟳ Regenerate hook</button></form>
+      </div>
+    </div>
+    {% else %}
+    <div class="sec">
+      <h3>Source</h3><p class="desc">This project was deployed from a ZIP or a file. Connect a repository to deploy on every push.</p>
+      <a class="btn sm" href="/git/import">Import from Git</a>
+    </div>
+    {% endif %}
+    {% if is_app %}
+    <div class="sec">
+      <h3>Start command</h3><p class="desc">How your app will be started when app hosting launches. Set it with a <code>Procfile</code> or <code>trustedbiz.yaml</code>.</p>
+      <div class="kv"><b>Start</b><span class="mono">{{ cfg.get('detected_start') or 'Not detected yet' }}</span>{% if cfg.get('build') %}<b>Build</b><span class="mono">{{ cfg.get('build') }}</span>{% endif %}<b>Runtime</b><span>{{ 'Python 3' if b.app_kind == 'python' else 'Node' }}</span>{% if bundle %}<b>Stored bundle</b><span>{{ bundle.size // 1024 }} KB</span>{% endif %}</div>
+    </div>
+    {% endif %}
+    <div class="sec" id="update">
+      <h3>Deploy a ZIP</h3><p class="desc">Replace this project's files with a new ZIP or a single HTML file.</p>
+      <form method="POST" action="/hosting/upload/{{ b.id }}" enctype="multipart/form-data" class="field">
+        <input type="file" name="project_file" accept=".zip,.html" required>
+        <button class="btn sm solid" type="submit">Deploy</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel" id="domains">
+    <header><h2>Custom domains</h2></header>
+    {% if limits.plan == 'paid' %}
+    <div class="sec">
+      <p class="desc">Point a domain you own at this project.</p>
+      {% if domain.name %}
+        <div class="kv"><b>Domain</b><span class="mono">{{ domain.name }}</span><b>Status</b><span>{{ 'Verified and live' if domain.status == 'active' else 'Waiting for DNS' }}</span></div>
+        {% if domain.status != 'active' %}<p class="note">At your domain provider, add a CNAME record pointing <code>{{ domain.name }}</code> to <code>trustedbiz.co.ug</code>. It can take up to 24 hours.</p>{% endif %}
+        <div class="field">
+          {% if domain.status != 'active' %}<form method="POST" action="/hosting/verify-domain/{{ b.id }}"><button class="btn sm solid" type="submit">Verify DNS</button></form>{% endif %}
+          <form method="POST" action="/hosting/domain/remove/{{ b.id }}" data-confirm="Remove this domain?" data-confirm-text="Visitors will no longer reach your project on {{ domain.name }}. Your trustedbiz.co.ug address keeps working." data-confirm-button="Yes, remove" data-confirm-danger><button class="btn sm ghost-danger" type="submit">Remove domain</button></form>
+        </div>
+      {% else %}
+        <form method="POST" action="/trusthost/request-domain" class="field"><input type="hidden" name="biz_id" value="{{ b.id }}"><input name="domain" required placeholder="yourdomain.co.ug"><button class="btn sm solid" type="submit">+ Add custom domain</button></form>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="paid"><span class="paidtag">⚡ PAID</span><p class="desc" style="margin:0 0 10px">Custom domains are only available on the Paid plan.</p><a class="btn dark sm" href="#plan">Upgrade</a></div>
+    {% endif %}
+  </section>
+
+  <section class="panel" id="notifications">
+    <header><h2>Notifications</h2></header>
+    <div class="sec">
+      <h3>Deploy emails</h3><p class="desc">Which Git deploys should we email you about?</p>
+      <form method="POST" action="/hosting/notify/{{ b.id }}" class="field">
+        <select name="mode">
+          <option value="failed" {{ 'selected' if b.notify_deploys in (None, 'failed') else '' }}>Only failures</option>
+          <option value="all" {{ 'selected' if b.notify_deploys == 'all' else '' }}>All deploys</option>
+          <option value="none" {{ 'selected' if b.notify_deploys == 'none' else '' }}>Nothing</option>
+        </select>
+        <button class="btn sm" type="submit">Save</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel" id="maintenance">
+    <header><h2>Maintenance mode</h2></header>
+    {% if limits.plan == 'paid' %}
+    <div class="sec">
+      <p class="desc">When on, visitors see a maintenance page (or your own page) instead of your project. You can still manage it from here.</p>
+      <form method="POST" action="/hosting/maintenance/{{ b.id }}">
+        <label class="switch"><input type="checkbox" name="on" {{ 'checked' if maint_on else '' }}> Maintenance mode {{ 'enabled' if maint_on else 'disabled' }}</label>
+        <h3 style="margin-top:14px">Custom maintenance page <span class="tag">Optional</span></h3>
+        <p class="desc">If set, visitors are sent to this URL instead of our default page.</p>
+        <div class="field mono"><input name="url" value="{{ b.maintenance_url or '' }}" placeholder="https://…"></div>
+        <div class="field"><button class="btn sm solid" type="submit">Save</button></div>
+      </form>
+    </div>
+    {% else %}
+    <div class="paid"><span class="paidtag">⚡ PAID</span><p class="desc" style="margin:0 0 10px">Maintenance mode is only available on the Paid plan.</p><a class="btn dark sm" href="#plan">Upgrade</a></div>
+    {% endif %}
+  </section>
+
+  <section class="panel" id="danger">
+    <header><h2>Danger zone</h2></header>
+    <div class="sec">
+      <h3>{{ 'Resume project' if paused_owner else 'Pause project' }}</h3>
+      <p class="desc">{{ 'Bring this project back online.' if paused_owner else 'Take this project offline without deleting it. Visitors see a paused page. You can resume it any time.' }}</p>
+      <form method="POST" action="/hosting/pause/{{ b.id }}"{% if not paused_owner %} data-confirm="Pause this project?" data-confirm-text="Visitors will see a paused page until you resume it." data-confirm-button="Yes, pause" data-confirm-danger{% endif %}><button class="btn sm {{ 'solid' if paused_owner else 'ghost-danger' }}" type="submit">{{ 'Resume project' if paused_owner else 'Pause project' }}</button></form>
+    </div>
+    <div class="sec">
+      <h3>Delete project</h3>
+      <p class="desc">Permanently removes this project, its snapshots, stored files and variables. This can't be undone. Download anything you need first.</p>
+      <form method="POST" action="/hosting/delete/{{ b.id }}" data-confirm="Delete {{ b.name }}?" data-confirm-text="This permanently removes the project, its snapshots, files and variables. This can't be undone." data-confirm-button="Yes, delete it" data-confirm-danger><button class="btn danger" type="submit">🗑 Delete project</button></form>
+    </div>
+  </section>
+{% endif %}
+
+</main>
+{% include '_alerts.html' %}
+<script>
+function tbCopy(btn, text){
+  var done=function(){tbToast('Copied to clipboard','success',2200)};
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text).then(done)}
+  else{var t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();try{document.execCommand('copy');done()}catch(e){}document.body.removeChild(t)}
+}
+</script>
+</body>
+</html>

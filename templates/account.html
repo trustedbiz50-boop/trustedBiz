@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include '_app_head.html' %}
+<title>Account | TrustedBiz</title>
+</head>
+<body class="app">
+{% include '_app_bar.html' %}
+<main class="shell">
+  <div class="crumbs"><a href="/dashboard">Projects</a><span>›</span><span>Account</span></div>
+  <noscript><div class="flashes">
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}
+    <div class="banner {{ 'bad' if cat == 'error' else '' }}"><span class="i">i</span><div>{{ msg }}</div></div>
+  {% endfor %}{% endwith %}
+  </div></noscript>
+  <div class="page-title"><h1 class="ptitle">Account</h1></div>
+
+  <section class="panel" id="profile">
+    <header><h2>Profile</h2></header>
+    <div class="sec">
+      <h3>Name</h3>
+      <form method="POST" action="/account/name" class="field"><input name="name" value="{{ current_user['name'] }}" required maxlength="100"><button class="btn sm" type="submit">Save</button></form>
+      <div class="kv" style="margin-top:14px"><b>Email</b><span>{{ current_user['email'] }}</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="billing">
+    <header><h2>Billing</h2><p class="desc" style="margin-top:6px">Plans are per project. Pay by MTN or Airtel Money on WhatsApp and we switch the plan on when we see the payment.</p></header>
+    <div class="scroll-x"><table class="tbl">
+      <thead><tr><th>Project</th><th>Plan</th><th>Status</th><th>Last payment</th><th></th></tr></thead>
+      <tbody>
+      {% for p in billing %}
+        <tr><td><a class="link" href="/hosting/site/{{ p.id }}">{{ p.name }}</a></td>
+            <td>{{ p.plan }}</td>
+            <td>{{ p.note }}</td>
+            <td>{{ p.last_payment or '—' }}</td>
+            <td style="text-align:right">{% if p.plan == 'Free' %}<a class="btn sm" href="/hosting/site/{{ p.id }}?tab=settings#plan">Upgrade</a>{% endif %}</td></tr>
+      {% else %}<tr><td colspan="5" style="color:var(--dim);font-weight:400">No projects yet.</td></tr>{% endfor %}
+      </tbody></table></div>
+    <div class="sec"><p class="desc" style="margin:0">Paid: UGX {{ monthly }} per month or UGX {{ yearly }} per year, per project. Questions? <a class="link" href="https://wa.me/{{ admin_whatsapp }}" target="_blank" rel="noopener">Message us on WhatsApp</a>.</p></div>
+  </section>
+
+  <section class="panel" id="connections">
+    <header><h2>Connected accounts</h2></header>
+    <div class="sec">
+      <h3>Sign-in</h3>
+      <p class="desc">Accounts you can use to log in.</p>
+      {% for i in identities %}<div class="kv"><b>{{ i.label }}</b><span>{{ i.email }}</span></div>{% else %}<p class="note">None yet. Log in with Google or GitHub from the login page once, using the same email, to link it.</p>{% endfor %}
+    </div>
+    <div class="sec">
+      <h3>Git providers</h3>
+      <p class="desc">Used to deploy repositories.</p>
+      {% for g in gits %}
+        <div class="field" style="justify-content:space-between"><span><b>{{ g.label }}</b> {% if g.connected %}<span class="chip ok" style="margin-left:6px">Connected{% if g.account %}: {{ g.account }}{% endif %}</span>{% elif not g.configured %}<span class="chip">Not set up on this server</span>{% endif %}</span>
+          {% if g.connected %}<form method="POST" action="/connect/{{ g.key }}/disconnect" data-confirm="Disconnect {{ g.label }}?" data-confirm-text="Projects stay live, but automatic deploys from private repositories stop until you connect again." data-confirm-button="Yes, disconnect" data-confirm-danger><button class="btn sm ghost-danger" type="submit">Disconnect</button></form>
+          {% elif g.configured %}<a class="btn sm" href="/connect/{{ g.key }}">Connect</a>{% endif %}</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel" id="security">
+    <header><h2>Security</h2></header>
+    <div class="sec">
+      <h3>Two-factor login</h3>
+      <p class="desc">{{ 'Two-factor login is on. You need a code from your authenticator app to log in.' if two_factor else 'Add a second step at login with an authenticator app.' }}</p>
+      {% if two_factor %}<form method="POST" action="/account/2fa/disable" data-confirm="Turn off two-factor login?" data-confirm-text="Your account will only be protected by your password or your Google/GitHub sign-in." data-confirm-button="Yes, turn it off" data-confirm-danger><button class="btn sm ghost-danger" type="submit">Turn off</button></form>
+      {% else %}<a class="btn sm solid" href="/account/2fa/setup">Set up two-factor login</a>{% endif %}
+    </div>
+  </section>
+</main>
+{% include '_alerts.html' %}
+</body>
+</html>

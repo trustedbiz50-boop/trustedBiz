@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TrustedBiz: host websites and apps in Uganda</title>
-<meta name="description" content="TrustedBiz is a Ugandan software company and hosting platform. Upload a ZIP and your site is live in seconds. Pay in UGX with MTN or Airtel Money. Python and Node app hosting is coming soon.">
+<meta name="description" content="TrustedBiz is a Ugandan software company and hosting platform. Upload a ZIP or connect GitHub and your site is live in seconds. Pay in UGX with MTN or Airtel Money. Python and Node app hosting is coming soon.">
 <link rel="canonical" href="https://trustedbiz.co.ug/">
 <meta property="og:title" content="TrustedBiz: host websites and apps in Uganda">
 <meta property="og:description" content="Upload a ZIP, go live in seconds, pay with mobile money.">
@@ -48,12 +48,12 @@
   <div class="wrap hero-grid">
     <div>
       <h1 class="display">Host your website or app in Uganda.</h1>
-      <p class="lede">Upload a ZIP and your site is live on its own address in seconds. Priced in UGX, paid with MTN or Airtel Money. Python and Node apps are coming soon.</p>
+      <p class="lede">Upload a ZIP or connect GitHub, and your site is live on its own address in seconds. Priced in UGX, paid with MTN or Airtel Money. Python and Node apps are coming soon.</p>
       <div class="cta-row">
-        <a href="/register" class="btn solid">Start free for {{ hosting_trial_days or 30 }} days</a>
+        <a href="/register" class="btn solid">Start free</a>
         <a href="/docs" class="btn">Read the docs</a>
       </div>
-      <p class="fine">No card needed. Mobile money number required to go live.</p>
+      <p class="fine">No card needed. Sign in with Google or GitHub, or use email.</p>
     </div>
 
     <div class="deploy" role="img" aria-label="Example deploy log: a ZIP is detected as a static site and goes live">
@@ -75,7 +75,8 @@
     <p class="sub">We only mark something Live when it works today.</p>
     <table class="status">
       <tr><td>Static sites</td><td>HTML, CSS and JavaScript from a ZIP or a single file. Small images and fonts are embedded for you.</td><td><span class="tag live">Live</span></td></tr>
-      <tr><td>Custom domains</td><td>Connect your own domain from the dashboard.</td><td><span class="tag live">Live</span></td></tr>
+      <tr><td>Custom domains</td><td>Connect your own domain on the Paid plan.</td><td><span class="tag live">Live</span></td></tr>
+      <tr><td>Deploy from GitHub and GitLab</td><td>Connect an account and every push deploys. Public repos need no login.</td><td><span class="tag live">Live</span></td></tr>
       <tr><td>Deploy history and rollback</td><td>Every deploy is logged. Restore any of the last 5 snapshots.</td><td><span class="tag live">Live</span></td></tr>
       <tr><td>Python apps</td><td>Flask and Django. Upload now, it is stored safely and starts when app hosting launches.</td><td><span class="tag soon">Coming soon</span></td></tr>
       <tr><td>Node apps</td><td>Anything with a start script. Same as Python: stored now, runs at launch.</td><td><span class="tag soon">Coming soon</span></td></tr>
@@ -89,20 +90,20 @@
   <div class="wrap">
     <h2 class="title">From files to a live site in three steps</h2>
     <ol class="steps">
-      <li><h3>Upload</h3><p>Zip your site with index.html at the top and upload it from the dashboard. A phone is enough.</p></li>
+      <li><h3>Upload</h3><p>Upload a ZIP from the dashboard, or connect GitHub or GitLab and pick a repository. A phone is enough.</p></li>
       <li><h3>Go live</h3><p>TrustedBiz checks the project and publishes it at yourname.trustedbiz.co.ug. Connect your own domain when you are ready.</p></li>
-      <li><h3>Pay with mobile money</h3><p>The first {{ hosting_trial_days or 30 }} days are free. After that, pay with MTN or Airtel Money.</p></li>
+      <li><h3>Upgrade when you need more</h3><p>Free stays free. Pay with MTN or Airtel Money when you want your own domain and always-on hosting.</p></li>
     </ol>
   </div>
 </section>
 
 <section class="block band" id="pricing">
   <div class="wrap">
-    <h2 class="title">One flat price per site</h2>
+    <h2 class="title">Free to start. One flat price to grow.</h2>
     <div class="price-line">
-      <strong>UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}</strong><span>per month, or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} per year</span>
+      <strong>UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}</strong><span>per project per month, or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} per year, for Paid</span>
     </div>
-    <p class="sub">First {{ hosting_trial_days or 30 }} days free. App hosting pricing will be announced at launch.</p>
+    <p class="sub">Your first project is free. App hosting pricing will be announced at launch.</p>
     <div class="cta-row"><a href="/pricing" class="btn">See pricing details</a></div>
   </div>
 </section>

@@ -1,0 +1,61 @@
+{# Dashboard header. Needs: current_user (row/dict), optional active. Uses only <details>, so it works without JavaScript. #}
+{% set _u = current_user %}
+{% set _initial = ((_u['name'] if _u else '?') or '?')[:1]|upper %}
+<header class="appbar">
+  <div class="bar">
+    <div class="cell">
+      <details>
+        <summary aria-label="Menu"><span style="font-size:18px;line-height:1">☰</span></summary>
+        <div class="menu-panel">
+          <a href="/dashboard">Projects</a>
+          <a href="/new">New project</a>
+          <a href="/account">Account and billing</a>
+          <hr>
+          <a href="/docs">Docs</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/status">Status</a>
+          <hr>
+          <button type="button" class="item" onclick="tbToggleTheme()">Switch light / dark</button>
+        </div>
+      </details>
+    </div>
+    <div class="cell"><a class="logo" href="/" style="font-family:var(--mono)">Trusted<span style="color:var(--teal)">Biz</span></a></div>
+    <div class="cell grow">
+      <details style="width:100%;height:100%">
+        <summary style="width:100%"><span class="ws-chip">{{ _initial }}</span><span class="ws-name">{{ _u['name'] if _u else '' }}</span><span style="margin-left:auto;color:var(--dim)">⇅</span></summary>
+        <div class="menu-panel">
+          <div class="lbl">Workspace</div>
+          <a href="/account"><span><b>{{ _u['name'] if _u else '' }}</b></span><span class="tag">{{ 'Paid' if (paid_count or 0) > 0 else 'Free' }}</span></a>
+          <a href="/account">Billing</a>
+          <a href="/account#connections">Connected accounts</a>
+        </div>
+      </details>
+    </div>
+    <div class="cell hide-sm">
+      <details>
+        <summary aria-label="New">＋ <span>New</span></summary>
+        <div class="menu-panel right">
+          <div class="lbl">Deploy</div>
+          <a href="/new#upload">Static site from ZIP</a>
+          <a href="/git/import">Import from GitHub or GitLab</a>
+          <div class="lbl">Coming with app hosting</div>
+          <a href="/new#upload">Python / Node app <span class="tag soon">Soon</span></a>
+          <a href="/pricing#services">PostgreSQL <span class="tag soon">Soon</span></a>
+          <a href="/pricing#services">Cron job <span class="tag soon">Soon</span></a>
+        </div>
+      </details>
+    </div>
+    <div class="cell">
+      <details>
+        <summary aria-label="Account"><span class="dot-avatar">{{ _initial }}</span></summary>
+        <div class="menu-panel right">
+          <div class="lbl">{{ _u['email'] if _u else '' }}</div>
+          <a href="/account">Account settings</a>
+          <a href="/account#security">Two-factor login</a>
+          <hr>
+          <a href="/logout">Log out</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>

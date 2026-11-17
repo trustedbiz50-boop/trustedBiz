@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include '_app_head.html' %}
+<title>Import from Git | TrustedBiz</title>
+<style>
+.page{padding:44px 0 64px}
+.card{background:var(--surface);border:1px solid var(--line);padding:22px 22px;margin-top:18px}
+.card h2{font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card p,.card li{font-size:14px;color:var(--mid)}
+.card p{margin-top:8px}
+form.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+input,select{padding:11px 12px;border:1.5px solid var(--line);background:var(--paper);color:var(--text);font-family:inherit;font-size:14px;border-radius:4px;min-width:0}
+input{flex:1 1 200px}select{flex:2 1 240px}
+.flash{padding:12px 14px;margin-top:14px;font-size:14px;border:1px solid var(--line);background:var(--surface)}
+.flash.err{border-color:#b91c1c;color:#b91c1c}
+.note{font-size:12.5px;color:var(--dim);margin-top:8px}
+.muted-link{font-size:13px;color:var(--mid);text-decoration:underline;background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
+</style>
+</head>
+<body>
+{% include '_app_bar.html' %}
+<main class="shell" style="padding-top:20px"><div>
+  <div class="crumbs"><a href="/dashboard">Projects</a><span>›</span><a href="/new">New</a><span>›</span><span>Git</span></div>
+  <h1 class="title" style="margin-top:10px;max-width:none">Import from Git</h1>
+  <p class="sub">Deploy a repository, and redeploy automatically on every push. The repo goes through the same checks as a ZIP upload.</p>
+
+  <noscript>{% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash {{ 'err' if cat == 'error' else '' }}">{{ msg }}</div>{% endfor %}{% endwith %}</noscript>
+
+  {% if free_full %}
+  <div class="flash err">Your Free plan project slot is used. Upgrade your project to Paid or delete it before importing another.</div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Public repository <span class="tag live">No login needed</span></h2>
+    <p>Paste a public GitHub or GitLab link. Add <code>/tree/branch</code> to pick a branch. Public imports don't redeploy on push, but you can press Redeploy on the project page.</p>
+    <form class="row" method="POST" action="/git/deploy-public">
+      <input name="url" required placeholder="https://github.com/you/your-site">
+      <input name="name" placeholder="Project name (optional)">
+      <button class="btn solid" type="submit">Deploy</button>
+    </form>
+  </div>
+
+  {% for s in sections %}
+  <div class="card">
+    <h2>{{ s.label }}
+      {% if not s.configured %}<span class="tag soon">Not set up yet</span>
+      {% elif s.connected %}<span class="tag live">Connected{% if s.account %}: {{ s.account }}{% endif %}</span>{% endif %}</h2>
+
+    {% if not s.configured %}
+      <p>{{ s.label }} sign-in isn't configured on this server yet. Public repositories above still work.</p>
+    {% elif not s.connected %}
+      <p>Connect your {{ s.label }} account to deploy private repositories and get automatic deploys on every push.</p>
+      <p style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+        <a class="btn solid" href="/connect/{{ s.name }}">Connect public repositories</a>
+        {% if s.name == 'github' %}<a class="btn" href="/connect/github?private=1">Connect incl. private repositories</a>{% endif %}
+      </p>
+      {% if s.name == 'github' %}<p class="note">Private access asks GitHub for the broader “repo” permission. Choose the first button if you only deploy public repositories.</p>{% endif %}
+    {% else %}
+      {% if s.error %}<div class="flash err">{{ s.error }}</div>{% endif %}
+      {% if s.repos %}
+      <form class="row" method="POST" action="/git/deploy">
+        <input type="hidden" name="provider" value="{{ s.name }}">
+        <select name="repo" required>
+          {% for r in s.repos %}<option value="{{ r.repo_id }}::{{ r.repo }}::{{ r.default_branch }}">{{ r.repo }}{% if r.private %} (private){% endif %}</option>{% endfor %}
+        </select>
+        <input name="branch" placeholder="Branch (default: repo default)">
+        <input name="name" placeholder="Project name (optional)">
+        <button class="btn solid" type="submit">Deploy</button>
+      </form>
+      {% elif not s.error %}<p>No repositories found on this account.</p>{% endif %}
+      <form method="POST" action="/connect/{{ s.name }}/disconnect" style="margin-top:12px" data-confirm="Disconnect {{ s.label }}?" data-confirm-text="Projects stay live, but automatic deploys from private repositories stop." data-confirm-button="Yes, disconnect" data-confirm-danger><button class="muted-link" type="submit">Disconnect {{ s.label }}</button></form>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <div class="card">
+    <h2>Bitbucket <span class="tag soon">Coming soon</span></h2>
+    <p>Not available yet. Upload a ZIP from Bitbucket in the meantime.</p>
+  </div>
+</div></main>
+{% include '_alerts.html' %}
+</body>
+</html>

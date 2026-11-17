@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include '_app_head.html' %}
+<title>Projects | TrustedBiz</title>
+</head>
+<body class="app">
+{% include '_app_bar.html' %}
+<main class="shell">
+  <noscript><div class="flashes">
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}
+    <div class="banner {{ 'bad' if cat == 'error' else '' }}"><span class="i">i</span><div>{{ msg }}</div></div>
+  {% endfor %}{% endwith %}
+  </div></noscript>
+  <div class="flashes">
+  {% for n in notices %}<div class="banner warn"><span class="i" style="color:var(--soon)">!</span><div>{{ n }}</div></div>{% endfor %}
+  
+  </div>
+
+  <div class="page-title" style="margin-top:26px">
+    <h1 class="ptitle">Projects</h1>
+    <a class="btn solid" href="/new">+ New project</a>
+  </div>
+
+  {% if free_until %}
+  <div class="banner"><span class="i">i</span><div>Welcome back. Your Free project{{ 's' if free_count != 1 else '' }} {{ 'stays' if free_count == 1 else 'stay' }} live until <b>{{ free_until }}</b>, and opening this page renews {{ 'them' if free_count != 1 else 'it' }} again.</div></div>
+  {% endif %}
+
+  {% if projects %}
+  <div class="list">
+    {% for p in projects %}
+    <a class="item" href="/hosting/site/{{ p.id }}">
+      <div class="ico">{{ p.icon }}</div>
+      <div>
+        <div class="ttl">{{ p.name }}</div>
+        <div class="sub">{{ p.kind_label }} · {{ p.url_short }}{% if p.repo %} · ⎇ {{ p.repo }}{% endif %}</div>
+        <div class="sub" style="color:var(--dim)">{{ 'Updated ' ~ p.updated ~ ' EAT' if p.updated else 'No deploys yet' }}</div>
+      </div>
+      <div class="end" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+        <span class="chip {{ p.status.cls }}"><span class="dotx {{ p.status.cls }}"></span>{{ p.status.label }}</span>
+        <span class="chip {{ 'accent' if p.plan == 'Paid' else '' }}">{{ p.plan }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <section class="panel">
+    <div class="empty">
+      <h3>Ship your first project</h3>
+      <p style="max-width:46ch;margin:0 auto 18px">Upload a ZIP or connect GitHub. Your site goes live on its own address in seconds, free.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <a class="btn dark" href="/new">Deploy my code</a>
+        <a class="btn" href="/docs/quickstart-static">Choose a quickstart</a>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <p class="note" style="margin-top:22px">Need help or want to upgrade? <a class="link" href="https://wa.me/{{ admin_whatsapp }}" target="_blank" rel="noopener">Message us on WhatsApp</a> · <a class="link" href="/docs">Docs</a> · <a class="link" href="/status">Status</a></p>
+</main>
+{% include '_alerts.html' %}
+</body>
+</html>

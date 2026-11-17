@@ -8,13 +8,30 @@
   --font:'DM Sans',system-ui,sans-serif; --mono:'DM Mono',ui-monospace,monospace;
 }
 @media (prefers-color-scheme: dark){
-  :root{
+  :root:not([data-theme="light"]){
     --ink:#eef5f4; --paper:#0d1412; --surface:#141d1b; --line:#233230;
     --text:#eef5f4; --mid:#a9c4c1; --dim:#7d9a97;
     --teal:#4fb3b0; --teal-ink:#0d1412;
     --live:#4ade80; --soon:#fbbf24;
     --term-bg:#0a100f; --term-text:#d7ecea; --term-dim:#6f918e; --term-ok:#6ee7b7;
+    color-scheme:dark;
   }
+}
+:root[data-theme="dark"]{
+    --ink:#eef5f4; --paper:#0d1412; --surface:#141d1b; --line:#233230;
+    --text:#eef5f4; --mid:#a9c4c1; --dim:#7d9a97;
+    --teal:#4fb3b0; --teal-ink:#0d1412;
+    --live:#4ade80; --soon:#fbbf24;
+    --term-bg:#0a100f; --term-text:#d7ecea; --term-dim:#6f918e; --term-ok:#6ee7b7;
+    color-scheme:dark;
+}
+:root[data-theme="light"]{
+    --ink:#0d1c1c; --paper:#f5f8f8; --surface:#ffffff; --line:#d8e4e4;
+    --text:#0d1c1c; --mid:#43605f; --dim:#6f8c8b;
+    --teal:#2b7a78; --teal-ink:#ffffff;
+    --live:#15803d; --soon:#a16207;
+    --term-bg:#0d1c1c; --term-text:#d7ecea; --term-dim:#7fa3a0; --term-ok:#6ee7b7;
+    color-scheme:light;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -59,3 +76,14 @@ footer.bottom .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;ga
 footer.bottom .links{display:flex;flex-wrap:wrap;gap:6px 20px}
 footer.bottom a:hover{color:var(--text);text-decoration:underline}
 </style>
+<script>
+/* Apply the saved theme before first paint so there is no flash. */
+(function(){try{var t=localStorage.getItem('tb-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+function tbToggleTheme(){
+  var r=document.documentElement,cur=r.getAttribute('data-theme');
+  if(!cur){cur=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}
+  var next=cur==='dark'?'light':'dark';
+  r.setAttribute('data-theme',next);
+  try{localStorage.setItem('tb-theme',next);}catch(e){}
+}
+</script>

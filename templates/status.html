@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Status | TrustedBiz</title>
+<meta name="description" content="Live status of the TrustedBiz website, dashboard, static hosting and Git deploys.">
+<link rel="canonical" href="https://trustedbiz.co.ug/status">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include '_platform_css.html' %}
+{% include '_app_css.html' %}
+</head>
+<body>
+{% include '_platform_nav.html' %}
+<main class="shell" style="padding-top:34px">
+  <h1 class="ptitle">Status</h1>
+  <div class="banner {{ '' if overall_ok else 'bad' }}" style="margin-top:20px"><span class="i" style="color:{{ 'var(--live)' if overall_ok else '#b91c1c' }}">{{ '✓' if overall_ok else '!' }}</span><div><b>{{ 'All systems operational' if overall_ok else 'Some systems have problems' }}</b><div class="note" style="margin-top:4px">Checked just now. This page runs real checks each time it loads.</div></div></div>
+  <section class="panel" style="margin-top:22px">
+    {% for c in components %}
+    <div class="sec" style="display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap">
+      <div><b>{{ c.name }}</b><div class="note" style="margin-top:2px">{{ c.detail }}</div></div>
+      <span class="chip {{ c.cls }}"><span class="dotx {{ c.cls }}"></span>{{ c.state }}</span>
+    </div>
+    {% endfor %}
+  </section>
+  <p class="note" style="margin-top:18px">Server running for {{ uptime }}. Machine-readable version: <a class="link" href="/status.json">/status.json</a>. For problems not shown here, <a class="link" href="https://wa.me/{{ admin_whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp</a>.</p>
+</main>
+{% include '_platform_foot.html' %}
+</body>
+</html>

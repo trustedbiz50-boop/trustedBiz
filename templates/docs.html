@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% if mode == 'page' %}{{ page.title }} | {% endif %}TrustedBiz Documentation</title>
+<meta name="description" content="Learn how to deploy and host websites and apps on TrustedBiz: quickstarts, plans, custom domains, Git deploys, rollbacks and more.">
+<link rel="canonical" href="https://trustedbiz.co.ug/docs{% if mode == 'page' %}/{{ page.slug }}{% endif %}">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include '_platform_css.html' %}
+{% include '_app_css.html' %}
+<style>
+.docs{max-width:1100px;margin:0 auto;padding:0 18px 70px;display:grid;grid-template-columns:260px 1fr;gap:40px}
+.side{padding-top:30px;font-size:14px}
+.side h4{font:500 11px var(--mono);letter-spacing:.6px;text-transform:uppercase;color:var(--dim);margin:20px 0 6px}
+.side a{display:block;padding:6px 0;color:var(--mid)}
+.side a:hover,.side a.on{color:var(--text);font-weight:600}
+.content{padding-top:30px;min-width:0}
+.content h1{font-size:clamp(28px,5vw,40px);letter-spacing:-1px;line-height:1.1;font-weight:700}
+.content .crumb{font:500 12px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.content h2{font-size:21px;margin:30px 0 8px;letter-spacing:-.3px}
+.content p,.content li{font-size:15.5px;color:var(--mid);line-height:1.7;margin-top:12px;max-width:68ch}
+.content ul,.content ol{padding-left:22px}
+.content code{background:color-mix(in srgb,var(--text) 8%,transparent);padding:1px 6px;font-size:13px;border-radius:3px}
+.content pre{background:var(--surface);border:1px solid var(--line);padding:14px;overflow:auto;margin-top:14px;color:var(--text);font-size:13px}
+.content a{color:var(--teal);text-decoration:underline}
+.search{display:flex;gap:8px;margin-top:20px;max-width:560px}
+.search input{flex:1;padding:13px 14px;border:1.5px solid var(--line);background:var(--surface);color:var(--text);font-family:inherit;font-size:15px;border-radius:3px}
+.hero-card{border:1px solid var(--line);background:var(--surface);padding:28px;margin-top:26px;max-width:640px}
+.hero-card h3{font-size:22px;margin-bottom:6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:14px}
+.cards a{display:block;border:1px solid var(--line);background:var(--surface);padding:16px 18px;text-decoration:none;color:var(--text)}
+.cards a:hover{border-color:var(--text)}
+.cards b{display:block;font-size:15px}.cards span{font-size:13px;color:var(--mid);line-height:1.5;display:block;margin-top:4px}
+.pn{display:flex;justify-content:space-between;gap:12px;margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:14px;flex-wrap:wrap}
+@media(max-width:820px){.docs{grid-template-columns:1fr;gap:0}.side{padding-top:18px;border-bottom:1px solid var(--line);padding-bottom:14px}.side .grp{display:none}.side details[open] .grp{display:block}}
+</style>
+</head>
+<body>
+{% include '_platform_nav.html' %}
+<div class="docs">
+  <aside class="side">
+    <details {{ 'open' if mode == 'page' and false else '' }}>
+      <summary style="cursor:pointer;font-weight:600;color:var(--text);list-style:none">☰ Docs menu</summary>
+      <div class="grp">
+        <a href="/docs" class="{{ 'on' if mode != 'page' else '' }}">Overview</a>
+        {% for s in sections %}<h4>{{ s.name }}</h4>
+          {% for it in s['items'] %}<a href="/docs/{{ it.slug }}" class="{{ 'on' if mode == 'page' and page.slug == it.slug else '' }}">{{ it.title }}</a>{% endfor %}
+        {% endfor %}
+      </div>
+    </details>
+  </aside>
+
+  <main class="content">
+  {% if mode == 'page' %}
+    <div class="crumb">{{ page.section }}</div>
+    <h1>{{ page.title }}</h1>
+    {{ page.html|safe }}
+    <div class="pn">
+      {% if prev %}<a href="/docs/{{ prev.slug }}">← {{ prev.title }}</a>{% else %}<span></span>{% endif %}
+      {% if next %}<a href="/docs/{{ next.slug }}">{{ next.title }} →</a>{% endif %}
+    </div>
+  {% else %}
+    <h1>TrustedBiz Documentation</h1>
+    <p>Learn how to deploy and host websites and apps on TrustedBiz.</p>
+    <form class="search" method="GET" action="/docs" role="search"><input name="q" value="{{ q }}" placeholder="Search the docs" aria-label="Search the docs"><button class="btn solid" type="submit">Search</button></form>
+    {% if mode == 'results' %}
+      <h2>{{ results|length }} result{{ '' if results|length == 1 else 's' }} for “{{ q }}”</h2>
+      <div class="cards">{% for r in results %}<a href="/docs/{{ r.slug }}"><b>{{ r.title }}</b><span>{{ r.summary }}</span></a>{% else %}<p>Nothing found. Try a simpler word, or <a href="/docs">browse all topics</a>.</p>{% endfor %}</div>
+    {% else %}
+      <div class="hero-card"><h3>Ship your first project</h3><p style="margin-top:0">Get up and running in minutes. Bring your own code or start from a quickstart.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><a class="btn dark" href="/new" style="text-decoration:none;color:var(--paper)">Deploy my code</a><a class="btn" href="/docs/quickstart-static" style="text-decoration:none;color:var(--text)">Choose a quickstart</a></div></div>
+      {% for s in sections %}<h2>{{ s.name }}</h2>
+        <div class="cards">{% for it in s['items'] %}<a href="/docs/{{ it.slug }}"><b>{{ it.title }}</b><span>{{ it.summary }}</span></a>{% endfor %}</div>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+  </main>
+</div>
+{% include '_platform_foot.html' %}
+</body>
+</html>

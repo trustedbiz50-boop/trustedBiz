@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include '_app_head.html' %}
+<title>New project | TrustedBiz</title>
+</head>
+<body class="app">
+{% include '_app_bar.html' %}
+<main class="shell">
+  <div class="crumbs"><a href="/dashboard">Projects</a><span>›</span><span>New</span></div>
+  <noscript><div class="flashes">
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}
+    <div class="banner {{ 'bad' if cat == 'error' else '' }}"><span class="i">i</span><div>{{ msg }}</div></div>
+  {% endfor %}{% endwith %}
+  </div></noscript>
+  <div class="page-title"><h1 class="ptitle">New project</h1></div>
+  <p class="desc" style="color:var(--mid);max-width:60ch">Pick how you want to deploy. Every project starts on the Free plan.</p>
+  {% if free_full %}
+  <div class="banner warn"><span class="i" style="color:var(--soon)">!</span><div>Your Free project slot is used. Upgrade your project to Paid or delete it to add another.</div></div>
+  {% endif %}
+
+  <section class="panel" id="git">
+    <header><h2>From Git</h2></header>
+    <div class="sec"><p class="desc">Connect GitHub or GitLab, pick a repository, and redeploy on every push. Public repositories work with just a link.</p>
+      <a class="btn solid" href="/git/import">Import from Git</a></div>
+  </section>
+
+  <section class="panel" id="upload">
+    <header><h2>From a ZIP or file</h2></header>
+    <div class="sec">
+      <p class="desc">Upload a ZIP with <code>index.html</code> at the top for a static site. Python and Node apps can be uploaded too: they're stored safely and start running when app hosting launches.</p>
+      <form method="POST" action="/deploy" enctype="multipart/form-data">
+        <div class="field"><input name="name" required placeholder="Project name" maxlength="100"></div>
+        <div class="field"><input type="file" name="project_file" accept=".zip,.html" required></div>
+        <p class="note">Up to 8 MB. Small images and fonts are embedded for you. <a class="link" href="/docs/limits">Limits</a></p>
+        <div class="field"><button class="btn solid" type="submit" {{ 'disabled' if free_full else '' }}>Deploy</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel" id="paste">
+    <header><h2>Paste HTML</h2></header>
+    <div class="sec">
+      <form method="POST" action="/deploy">
+        <div class="field"><input name="name" required placeholder="Project name" maxlength="100"></div>
+        <textarea class="in" name="custom_html" rows="6" required placeholder="&lt;html&gt;…&lt;/html&gt;" style="width:100%;margin-top:8px;font-family:var(--mono);font-size:13px"></textarea>
+        <div class="field"><button class="btn sm solid" type="submit" {{ 'disabled' if free_full else '' }}>Deploy</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Coming with app hosting</h2></header>
+    <div class="sec"><p class="desc">PostgreSQL, Redis-compatible key-value storage, cron jobs and background workers are planned. <a class="link" href="/pricing#services">See what's planned</a>.</p></div>
+  </section>
+</main>
+{% include '_alerts.html' %}
+</body>
+</html>

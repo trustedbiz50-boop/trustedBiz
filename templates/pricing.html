@@ -4,71 +4,159 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pricing | TrustedBiz</title>
-<meta name="description" content="One flat price per site: UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }} per month or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} per year, first {{ hosting_trial_days or 30 }} days free. Pay with MTN or Airtel Money.">
+<meta name="description" content="Start free. Upgrade a project to Paid for UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }} a month: your own domain and always-on hosting. Pay with MTN or Airtel Money.">
 <link rel="canonical" href="https://trustedbiz.co.ug/pricing">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% include '_platform_css.html' %}
+{% include '_app_css.html' %}
 <style>
-.page{padding:60px 0 56px}
-.plans{display:grid;grid-template-columns:1.15fr .85fr;gap:0;margin-top:34px;border:1px solid var(--line);background:var(--surface)}
-.plan{padding:28px 26px}
-.plan + .plan{border-left:1px solid var(--line)}
-.plan h2{font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.amt{font-size:38px;font-weight:800;letter-spacing:-1.2px;margin-top:14px;line-height:1}
-.amt small{font-size:15px;font-weight:500;color:var(--mid);letter-spacing:0}
-.alt{font-size:14px;color:var(--mid);margin-top:8px}
-.plan ul{list-style:none;margin-top:20px;display:grid;gap:10px}
-.plan li{font-size:14.5px;color:var(--mid);padding-left:22px;position:relative}
-.plan li::before{content:"";position:absolute;left:2px;top:.55em;width:9px;height:5px;border-left:2px solid var(--live);border-bottom:2px solid var(--live);transform:rotate(-45deg)}
+.pg{max-width:1040px;margin:0 auto;padding:56px 22px 70px}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
+.plan{background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column}
+.plan .hd{padding:18px 22px;border-bottom:1px solid var(--line);font-size:19px;font-weight:700;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.plan.pop .hd{background:color-mix(in srgb,var(--text) 9%,var(--surface))}
+.plan .bd{padding:22px;display:flex;flex-direction:column;gap:16px;flex:1}
+.plan .for{font-size:14.5px;color:var(--mid);line-height:1.55;min-height:44px}
+.plan .amt{font-size:34px;font-weight:700;letter-spacing:-1px;line-height:1}
+.plan .amt small{font-size:14px;font-weight:500;color:var(--mid);letter-spacing:0}
+.plan ul{list-style:none;display:grid;gap:9px;margin-top:2px}
+.plan li{font-size:14px;color:var(--mid);padding-left:22px;position:relative}
+.plan li::before{content:"";position:absolute;left:2px;top:.5em;width:9px;height:5px;border-left:2px solid var(--live);border-bottom:2px solid var(--live);transform:rotate(-45deg)}
 .plan li.later::before{border-color:var(--soon);border-left-style:dashed;border-bottom-style:dashed}
-.plan .btn{margin-top:24px;width:100%}
-.notes{margin-top:30px;max-width:64ch;font-size:14px;color:var(--mid);line-height:1.7}
-.notes a{text-decoration:underline}
-@media(max-width:760px){.plans{grid-template-columns:1fr}.plan + .plan{border-left:none;border-top:1px solid var(--line)}}
+.plan .btn{margin-top:auto;justify-content:space-between;width:100%}
+.svc{background:var(--surface);border:1px solid var(--line);margin-top:20px;padding:26px}
+.svc .top{display:flex;gap:16px;align-items:flex-start}
+.svc .ic{width:46px;height:46px;flex:none;display:grid;place-items:center;background:color-mix(in srgb,var(--teal) 16%,var(--surface));color:var(--teal);font:700 14px var(--mono)}
+.svc h3{font-size:22px;font-weight:700;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.svc .s{font-size:14.5px;color:var(--mid);margin-top:4px}
+.svc ul{list-style:none;display:grid;gap:10px;margin-top:20px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.svc li{font-size:14.5px;color:var(--text);padding-left:24px;position:relative}
+.svc li::before{content:"";position:absolute;left:2px;top:.5em;width:10px;height:5px;border-left:2px solid var(--dim);border-bottom:2px solid var(--dim);transform:rotate(-45deg)}
+.rows{margin-top:20px;border-top:1px solid var(--line)}
+.rows div{display:flex;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);font-size:14.5px;color:var(--mid)}
+.rows b{color:var(--text);font-weight:500}
+h2.sec{font-size:clamp(24px,4vw,34px);letter-spacing:-.8px;font-weight:700;margin-top:56px}
+details.cmp,details.q{border:1px solid var(--line);background:var(--surface);margin-top:14px}
+details.cmp>summary,details.q>summary{list-style:none;cursor:pointer;padding:16px 20px;font-weight:600;font-size:15.5px;display:flex;justify-content:space-between;gap:10px}
+details>summary::-webkit-details-marker{display:none}
+details.cmp>summary::after,details.q>summary::after{content:"⌄";color:var(--dim)}
+details[open]>summary::after{content:"⌃"}
+details .in{padding:0 20px 18px;font-size:14.5px;color:var(--mid);line-height:1.7}
+details .in p{margin-top:10px;max-width:70ch}
+td.y{color:var(--live)!important;font-weight:700}td.n{color:var(--dim)!important}
+@media(max-width:860px){.plans{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 {% include '_platform_nav.html' %}
-<main>
-<section class="page">
-  <div class="wrap">
-    <h1 class="display">Simple pricing.</h1>
-    <p class="lede">One flat price per site. Pay in UGX with MTN or Airtel Money.</p>
+<main class="pg">
+  <h1 class="display" style="max-width:20ch">Predictable pricing that scales with you.</h1>
+  <p class="lede">Start free. Pay one flat price per project when you need your own domain and always-on hosting. Pay in UGX with MTN or Airtel Money.</p>
 
-    <div class="plans">
-      <div class="plan">
-        <h2>Site hosting <span class="tag live">Live</span></h2>
-        <div class="amt">UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}<small> / month</small></div>
-        <p class="alt">or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} / year. First {{ hosting_trial_days or 30 }} days free.</p>
+  <div class="plans">
+    <div class="plan">
+      <div class="hd">Free <span class="tag live">Live</span></div>
+      <div class="bd">
+        <p class="for">For personal projects, portfolios and trying things out.</p>
+        <div class="amt">UGX 0</div>
         <ul>
-          <li>Deploy a static site from a ZIP or one HTML file</li>
-          <li>Live at yourname.trustedbiz.co.ug</li>
-          <li>Connect your own domain</li>
-          <li>Deploy history and one-click rollback</li>
-          <li>Submitted to Google for indexing</li>
+          <li>1 project</li>
+          <li>yourname.trustedbiz.co.ug</li>
+          <li>Deploy from a ZIP, GitHub or GitLab</li>
+          <li>Auto-deploy on every push</li>
+          <li>Snapshots and rollback</li>
+          <li>Stays live while you open your dashboard every 90 days</li>
         </ul>
-        <a class="btn solid" href="/register">Start free for {{ hosting_trial_days or 30 }} days</a>
-      </div>
-      <div class="plan">
-        <h2>Web apps <span class="tag soon">Coming soon</span></h2>
-        <div class="amt" style="font-size:22px;letter-spacing:-.4px">Priced at launch</div>
-        <p class="alt">Python (Flask, Django) and Node.</p>
-        <ul>
-          <li>Upload your app today. It is stored safely.</li>
-          <li class="later">Runs automatically when app hosting launches</li>
-          <li class="later">Background workers and scheduled tasks</li>
-          <li class="later">Managed databases</li>
-          <li class="later">API and command-line deploys</li>
-        </ul>
-        <a class="btn" href="/docs">Read the docs</a>
+        <a class="btn dark" href="/register">Start free <span>›</span></a>
       </div>
     </div>
-
-    <p class="notes">A mobile money number is needed to go live, so we know where to send payment reminders. Sites that stay unpaid after the free period can be suspended. All payments are non-refundable unless stated otherwise at purchase. See the <a href="/terms">Terms</a>.</p>
+    <div class="plan pop">
+      <div class="hd">Paid <span class="tag live">Live</span></div>
+      <div class="bd">
+        <p class="for">For projects people rely on: your own domain, always on.</p>
+        <div class="amt">UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}<small> / month per project</small></div>
+        <p class="for" style="min-height:0;margin-top:-8px">or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} / year</p>
+        <ul>
+          <li>Everything in Free</li>
+          <li>Your own domain</li>
+          <li>Always on, no renewal</li>
+          <li>Maintenance mode</li>
+          <li>Pause and resume any time</li>
+          <li class="later">Persistent storage for apps, at app launch</li>
+        </ul>
+        <a class="btn dark" href="/register">Start free, upgrade later <span>›</span></a>
+      </div>
+    </div>
+    <div class="plan">
+      <div class="hd">Teams</div>
+      <div class="bd">
+        <p class="for">For companies and schools that need several projects or help moving over.</p>
+        <div class="amt" style="font-size:24px">Let's talk</div>
+        <ul>
+          <li>Several projects, one invoice</li>
+          <li>Help migrating from another host</li>
+          <li>Direct support on WhatsApp</li>
+        </ul>
+        <a class="btn" href="https://wa.me/{{ admin_whatsapp }}" target="_blank" rel="noopener">Get in touch <span>›</span></a>
+      </div>
+    </div>
   </div>
-</section>
+
+  <h2 class="sec" id="services">Services</h2>
+  <p class="sub">Plans are per project. We label what's live and what's coming.</p>
+
+  <div class="svc">
+    <div class="top"><div class="ic">&lt;/&gt;</div><div><h3>Static sites <span class="tag live">Live</span></h3><p class="s">HTML, CSS and JavaScript from a ZIP, a single file or a Git repository.</p></div></div>
+    <ul><li>Free subdomain</li><li>Embedded CSS, JS and small images</li><li>Multi-page sites</li><li>Snapshots and rollback</li><li>Custom domain on Paid</li><li>Deploy hooks</li></ul>
+    <div class="rows"><div><b>Free</b><span>UGX 0</span></div><div><b>Paid</b><span>UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }} / month</span></div></div>
+  </div>
+
+  <div class="svc">
+    <div class="top"><div class="ic">▲</div><div><h3>Web services: Python and Node <span class="tag soon">Coming soon</span></h3><p class="s">Flask, Django and Node apps. Upload yours today: it's stored safely and starts when app hosting launches.</p></div></div>
+    <ul><li>Environment variables (encrypted)</li><li>Deploy from Git</li><li>Free apps sleep after 20 minutes idle</li><li>Always-on on Paid</li><li>Logs</li><li>Custom domains on Paid</li></ul>
+    <div class="rows"><div><b>Free</b><span>Pricing announced at launch</span></div><div><b>Paid</b><span>Pricing announced at launch</span></div></div>
+  </div>
+
+  <div class="svc">
+    <div class="top"><div class="ic">DB</div><div><h3>PostgreSQL <span class="tag soon">Coming soon</span></h3><p class="s">Managed Postgres for your apps.</p></div></div>
+    <ul><li>Fully managed</li><li>Automatic backups</li><li>Connect from your apps</li></ul>
+    <div class="rows"><div><b>Pricing</b><span>Announced at launch</span></div></div>
+  </div>
+
+  <div class="svc">
+    <div class="top"><div class="ic">KV</div><div><h3>Key Value and cron jobs <span class="tag soon">Coming soon</span></h3><p class="s">Redis-compatible storage for caching and queues, and scheduled tasks.</p></div></div>
+    <div class="rows"><div><b>Pricing</b><span>Announced at launch</span></div></div>
+  </div>
+
+  <details class="cmp" id="compare">
+    <summary>Compare all features</summary>
+    <div class="in scroll-x"><table class="tbl">
+      <thead><tr><th>Feature</th><th>Free</th><th>Paid</th></tr></thead>
+      <tbody>
+        <tr><td>Projects</td><td>1</td><td>Upgrade any</td></tr>
+        <tr><td>Static site hosting</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Deploy from ZIP</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Deploy from GitHub and GitLab</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Auto-deploy on push, deploy hooks</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Snapshots and rollback</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Deploy email notifications</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Pause and resume</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Custom domain</td><td class="n">—</td><td class="y">✓</td></tr>
+        <tr><td>Maintenance mode</td><td class="n">—</td><td class="y">✓</td></tr>
+        <tr><td>Always on (no 90-day renewal)</td><td class="n">—</td><td class="y">✓</td></tr>
+        <tr><td>Support</td><td>Docs and WhatsApp</td><td>Docs and WhatsApp</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <h2 class="sec">Frequently asked questions</h2>
+  <details class="q"><summary>How does billing work?</summary><div class="in"><p>Plans are per project. Free is free. Paid is UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }} a month or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} a year. You request an upgrade in your project's settings, pay by MTN or Airtel Money on WhatsApp, and we switch the plan on when we see the payment.</p></div></details>
+  <details class="q"><summary>What happens if I don't open my dashboard?</summary><div class="in"><p>A Free project pauses after 90 days without a dashboard visit, and visitors see a paused page. Opening your dashboard brings it straight back. We remind you a week before. Paid projects never pause.</p></div></details>
+  <details class="q"><summary>Can I leave and take my site with me?</summary><div class="in"><p>Yes. Your files are yours. Keep your source in Git or your own ZIP and you can host it anywhere. We never delete a project without you asking, apart from unpaid Paid projects after a grace period.</p></div></details>
+  <details class="q"><summary>Can I run Python or Node apps today?</summary><div class="in"><p>Not yet. You can upload them and they are stored safely, then start running automatically when app hosting launches. Until then only static sites are served.</p></div></details>
+  <details class="q"><summary>What payment methods do you accept?</summary><div class="in"><p>MTN Mobile Money and Airtel Money, arranged on WhatsApp. Card payments are not available yet.</p></div></details>
+  <details class="q"><summary>Do you offer refunds?</summary><div class="in"><p>All payments are non-refundable unless stated otherwise at purchase. See the <a href="/terms" style="text-decoration:underline">Terms</a>.</p></div></details>
 </main>
 {% include '_platform_foot.html' %}
 </body>
