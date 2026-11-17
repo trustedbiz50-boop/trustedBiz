@@ -32,6 +32,7 @@ from html import escape
 from urllib.parse import unquote
 
 import requests as _requests
+import secrets_box
 from flask import (request, jsonify, redirect, flash, session, Response,
                    render_template_string)
 
@@ -118,6 +119,15 @@ _NEW_COLUMNS = [
     ("app_runtime",  "TEXT"),
     ("app_config",   "TEXT"),                  # JSON: parsed trustedbiz.yaml + detected start command
     ("app_upstream", "TEXT"),
+    ("renew_by",     "TEXT"),                  # free plan: YYYY-MM-DD, renewed by opening the dashboard
+    ("renew_notified", "TEXT"),
+    ("upgrade_requested_at", "TEXT"),
+    ("upgrade_phone", "TEXT"),
+    ("upgrade_period", "TEXT"),
+    ("maintenance_on", "INTEGER DEFAULT 0"),
+    ("maintenance_url", "TEXT"),
+    ("owner_paused", "INTEGER DEFAULT 0"),
+    ("notify_deploys", "TEXT DEFAULT 'failed'"),   # all | failed | none
 ]
 
 
@@ -142,6 +152,9 @@ def ensure_schema():
             d["db_execute"]("CREATE TABLE IF NOT EXISTS app_bundles (id SERIAL PRIMARY KEY, business_id INTEGER, filename TEXT, size INTEGER, sha256 TEXT, data_b64 TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         else:
             d["db_execute"]("CREATE TABLE IF NOT EXISTS app_bundles (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER, filename TEXT, size INTEGER, sha256 TEXT, data_b64 TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+        pk = "SERIAL PRIMARY KEY" if d["USE_POSTGRES"] else "INTEGER PRIMARY KEY AUTOINCREMENT"
+        ts = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" if d["USE_POSTGRES"] else "DATETIME DEFAULT CURRENT_TIMESTAMP"
+        d["db_execute"](f"CREATE TABLE IF NOT EXISTS env_vars (id {pk}, business_id INTEGER, name TEXT, value_enc TEXT, created_at {ts}, UNIQUE(business_id, name))")
         return True
     except Exception as e:
         print(f"[hosting] ensure_schema error: {e}")
@@ -162,7 +175,7 @@ def _read_member(zf, info, limit):
 class Project:
     """A cleaned view of an uploaded ZIP: safe paths, one top folder stripped."""
 
-    def __init__(self, raw):
+    def __init__(self, raw, subdir=None):
         try:
             self.zf = zipfile.ZipFile(io.BytesIO(raw))
         except zipfile.BadZipFile:
@@ -192,6 +205,11 @@ class Project:
         if len(firsts) == 1 and all("/" in n for n, _ in members):
             cut = len(next(iter(firsts))) + 1
             members = [(n[cut:], i) for n, i in members]
+        if subdir:
+            sd = subdir.strip("/")
+            members = [(n[len(sd) + 1:], i) for n, i in members if n.startswith(sd + "/")]
+            if not members:
+                raise UploadError(f'The root directory "{sd}" was not found in the repository.')
         self.files = {n: i for n, i in members}
         self.names = list(self.files)
         self._cache = {}
@@ -516,99 +534,300 @@ def load_bundle(biz_id):
     return base64.b64decode(row["data_b64"]) if row.get("data_b64") else None
 
 
+# ── PLANS ────────────────────────────────────────────────────────────────────
+FREE_MAX_PROJECTS     = 1     # free projects per user
+FREE_RENEW_DAYS       = 90    # opening the dashboard renews every free project
+FREE_APP_SLEEP_MINUTES = 20   # apps only; enforced by the runner once servers exist
+RENEW_REMINDER_DAYS   = 7
+
+
+def plan_limits(row):
+    """What a project's plan allows. The runner (when it exists) must read
+    sleep_after_minutes and persistent_storage from here."""
+    paid = bool((row or {}).get("is_premium"))
+    return {
+        "plan": "paid" if paid else "free",
+        "custom_domain": paid,
+        "always_on": paid,
+        "sleep_after_minutes": None if paid else FREE_APP_SLEEP_MINUTES,
+        "persistent_storage": paid,
+        "renew_every_days": None if paid else FREE_RENEW_DAYS,
+    }
+
+
 def clean_phone(raw):
     """Digits only; 9-15 long, else None."""
     digits = re.sub(r"\D", "", raw or "")
     return digits if 9 <= len(digits) <= 15 else None
 
 
-def start_trial(biz_id, phone):
-    """Starts the free-trial clock the billing job already understands
-    (is_premium + free_trial_end + payment_phone). Same fields go-live sets."""
-    from datetime import date, timedelta
+# Set by integrations.py: git_info(biz_id) -> dict or None. Used by the Manage page.
+git_info = lambda biz_id: None
+# Callables run before a project is deleted (e.g. to remove its Git webhook).
+on_delete = []
+
+
+def _today():
+    from datetime import date
+    return date.today()
+
+
+def _renew_date():
+    from datetime import timedelta
+    return (_today() + timedelta(days=FREE_RENEW_DAYS)).isoformat()
+
+
+def is_paused(row):
+    """A live free project whose renewal date has passed. Paid projects and
+    legacy projects with no renewal date never pause."""
+    if not row or row.get("status") != "approved":
+        return False
+    if row.get("owner_paused"):
+        return True
+    if row.get("is_premium"):
+        return False
+    rb = str(row.get("renew_by") or "")[:10]
+    return bool(rb) and rb < _today().isoformat()
+
+
+def count_free_projects(user_id):
     d = _deps
-    trial_end = (date.today() + timedelta(days=d["HOSTING_TRIAL_DAYS"])).isoformat()
-    d["db_execute"](d["q"]("UPDATE business SET is_premium=1, free_trial_end=?, payment_phone=? WHERE id=?"),
-                    (trial_end, phone, biz_id))
-    return trial_end
+    r = d["db_fetchone"](d["q"]("SELECT COUNT(*) AS c FROM business WHERE owner_id=? AND COALESCE(is_premium,0)=0 AND status IN ('approved','draft','paused')"), (user_id,))
+    return int(dict(r)["c"]) if r else 0
 
 
-def deploy_project(user, name, category, whatsapp, brand_color, description, upload, phone=None):
-    """Handle an uploaded .zip or .html. Returns dict:
-    {ok, message, biz_id, kind, warnings}. Never raises UploadError."""
+def check_free_slot(user_id):
+    """Raises UploadError if this user already has their free project. Call it BEFORE
+    downloading or parsing anything, so an over-limit request costs us nothing."""
+    if count_free_projects(user_id) >= FREE_MAX_PROJECTS:
+        raise UploadError(f"The Free plan includes {FREE_MAX_PROJECTS} project. Upgrade it to Paid or delete it to add another.")
+
+
+def renew_free_projects(user_id):
+    """Called whenever the owner opens the dashboard. Keeps every free project live
+    for another FREE_RENEW_DAYS. Does not touch suspended (unpaid) sites."""
     d = _deps
     try:
-        filename = (upload.filename or "").strip()
-        low = filename.lower()
-        if not (low.endswith(".zip") or low.endswith(".html")):
-            raise UploadError("Please upload a .zip or a single .html file.")
-        raw = upload.read(MAX_STATIC_ZIP_BYTES + 1)
-        if len(raw) > MAX_STATIC_ZIP_BYTES:
-            raise UploadError("That file is over 8 MB. Remove big media files and try again.")
-        if not raw:
-            raise UploadError("That file is empty.")
-        if not name:
-            raise UploadError("Site name is required.")
+        d["db_execute"](d["q"]("UPDATE business SET renew_by=?, renew_notified=NULL WHERE owner_id=? AND COALESCE(is_premium,0)=0 AND status='approved'"),
+                        (_renew_date(), user_id))
+    except Exception as e:
+        print(f"[hosting] renew_free_projects: {e}")   # columns not created yet
 
-        warnings, config, kind, pages, order, labels = [], {}, "static", None, None, None
 
-        if low.endswith(".html"):
-            html = raw.decode("utf-8", errors="replace")
-            if len(html) < 20:
-                raise UploadError("That HTML file looks too short to be a real page.")
-            pages, order, labels = {"index": html}, ["index"], {"index": "Home"}
-        else:
-            p = Project(raw)
-            det = detect_project(p)
-            kind = det["kind"]
-            if kind == "needs_build":
-                raise UploadError("This looks like a project that must be built first (it has a build script but no built folder). "
-                                  "Run the build locally and upload the dist/ or build/ folder as the ZIP instead.")
-            if kind == "unknown":
-                raise UploadError((det.get("hint") or "I couldn't tell what this ZIP is.") +
-                                  " A static site needs index.html at the top; a Python app needs requirements.txt or app.py; a Node app needs package.json with a start script.")
-            config, cw = parse_config(p)
-            warnings += cw
-            if kind == "static":
-                pages, order, labels, bw, stats = build_static_site(p, det["root"])
-                warnings += bw
-            else:
-                config["detected_start"] = config.get("start") or _procfile_start(p)
-                if len(raw) > MAX_APP_BUNDLE_BYTES:
-                    raise UploadError("App bundles are limited to 5 MB for now. Remove virtual environments, node_modules and media files.")
-
-        slug = d["make_slug"](name)
-        if kind == "static":
-            phone = clean_phone(phone)
-            if not phone:
-                raise UploadError("Enter your mobile money number (MTN or Airtel) so we can bill you after the free trial.")
-            html_blob = d["_encode_site"](pages, order, labels)
-            biz_id = d["db_insert"](
-                d["q"]("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
-                (name, category, whatsapp, description, brand_color, slug, user["id"], "approved", "free", 0, html_blob))
-            d["db_execute"](d["q"]("UPDATE business SET app_kind='static', app_status='none', app_runtime='static' WHERE id=?"), (biz_id,))
-            start_trial(biz_id, phone)
-            d["snapshot_site_html"](biz_id, html_blob)
+def free_tier_job():
+    """Run from the admin payment check. Reminds owners whose free project will pause
+    soon (or just paused). At most one reminder per project per 7 days."""
+    from datetime import timedelta
+    d = _deps
+    soon = (_today() + timedelta(days=RENEW_REMINDER_DAYS)).isoformat()
+    week_ago = (_today() - timedelta(days=7)).isoformat()
+    rows = d["db_fetchall"](d["q"]("SELECT id, name, slug, owner_id, renew_by, renew_notified FROM business WHERE COALESCE(is_premium,0)=0 AND status='approved' AND renew_by IS NOT NULL AND renew_by <= ?"), (soon,))
+    sent = 0
+    for r in rows:
+        r = dict(r)
+        if r.get("renew_notified") and str(r["renew_notified"])[:10] > week_ago:
+            continue
+        paused = str(r["renew_by"])[:10] < _today().isoformat()
+        msg = (f'"{r["name"]}" is paused. Open your TrustedBiz dashboard to bring it back.' if paused
+               else f'"{r["name"]}" will pause on {str(r["renew_by"])[:10]}. Open your TrustedBiz dashboard before then to keep it live.')
+        if r.get("owner_id"):
+            d["db_insert"](d["q"]("INSERT INTO notifications (user_id,message) VALUES (?,?)"), (r["owner_id"], msg))
             try:
-                d["ping_google"](slug)
-            except Exception:
-                pass
-            d["log_deploy_event"](biz_id, user["id"], "deploy", f'"{name}" deployed as a static site ({len(pages)} page(s)). {d["HOSTING_TRIAL_DAYS"]}-day free trial started', "ok")
-            return {"ok": True, "biz_id": biz_id, "kind": "static", "warnings": warnings, "slug": slug,
-                    "message": f'🚀 "{name}" is LIVE at {slug}.trustedbiz.co.ug ({len(pages)} page{"s" if len(pages) != 1 else ""}). Your {d["HOSTING_TRIAL_DAYS"]}-day free trial has started.'}
+                u = d["db_fetchone"](d["q"]("SELECT email, name FROM users WHERE id=?"), (r["owner_id"],))
+                if u and d.get("send_email"):
+                    d["send_email"](dict(u)["email"], "Keep your TrustedBiz project live", f"<p>{msg}</p><p><a href='https://trustedbiz.co.ug/dashboard'>Open your dashboard</a></p>")
+            except Exception as e:
+                print(f"[hosting] reminder email: {e}")
+        d["db_execute"](d["q"]("UPDATE business SET renew_notified=? WHERE id=?"), (_today().isoformat(), r["id"]))
+        sent += 1
+    return sent
 
-        # python / node: store it, don't run it
+
+# ── ENVIRONMENT VARIABLES (stored encrypted; used by the app runner later) ───
+_ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
+MAX_ENV_VARS = 50
+
+
+def env_names(biz_id):
+    d = _deps
+    return [dict(r)["name"] for r in d["db_fetchall"](d["q"]("SELECT name FROM env_vars WHERE business_id=? ORDER BY name"), (biz_id,))]
+
+
+def env_set(biz_id, name, value):
+    d = _deps
+    name = (name or "").strip()
+    if not _ENV_NAME.match(name):
+        raise UploadError("Variable names use letters, numbers and underscores, and can't start with a number.")
+    if len(value or "") > 4000:
+        raise UploadError("A value can be at most 4,000 characters.")
+    exists = d["db_fetchone"](d["q"]("SELECT id FROM env_vars WHERE business_id=? AND name=?"), (biz_id, name))
+    if not exists and len(env_names(biz_id)) >= MAX_ENV_VARS:
+        raise UploadError(f"At most {MAX_ENV_VARS} variables per project.")
+    try:
+        blob = secrets_box.encrypt(value or "")
+    except secrets_box.SecretsError as e:
+        raise UploadError(str(e))
+    if exists:
+        d["db_execute"](d["q"]("UPDATE env_vars SET value_enc=? WHERE business_id=? AND name=?"), (blob, biz_id, name))
+    else:
+        d["db_execute"](d["q"]("INSERT INTO env_vars (business_id, name, value_enc) VALUES (?,?,?)"), (biz_id, name, blob))
+
+
+def env_delete(biz_id, name):
+    d = _deps
+    d["db_execute"](d["q"]("DELETE FROM env_vars WHERE business_id=? AND name=?"), (biz_id, name))
+
+
+def env_values(biz_id):
+    """Decrypted {NAME: value}. For the app runner only. Never render these in a page."""
+    d = _deps
+    out = {}
+    for r in d["db_fetchall"](d["q"]("SELECT name, value_enc FROM env_vars WHERE business_id=?"), (biz_id,)):
+        r = dict(r)
+        v = secrets_box.decrypt(r["value_enc"])
+        if v is not None:
+            out[r["name"]] = v
+    return out
+
+
+def fmt_dt(v):
+    """'Nov 13, 2026 at 8:36 AM' in East Africa Time (UTC+3) from a DB timestamp."""
+    from datetime import datetime, timedelta
+    if not v:
+        return ""
+    if isinstance(v, str):
+        try:
+            v = datetime.fromisoformat(v.replace("Z", "").split(".")[0].replace("T", " "))
+        except ValueError:
+            return v[:16]
+    try:
+        v = v + timedelta(hours=3)
+        return v.strftime("%b %-d, %Y at %-I:%M %p")
+    except Exception:
+        return str(v)[:16]
+
+
+# ── PREPARE (parse + validate, no database writes) ───────────────────────────
+def clean_subdir(raw):
+    """Validates a repository root directory; returns '' or a safe relative path."""
+    sd = (raw or "").strip().strip("/")
+    if not sd:
+        return ""
+    if len(sd) > 100 or ".." in sd.split("/") or not re.match(r"^[\w.\-/]+$", sd):
+        raise UploadError("Root directory can only contain letters, numbers, dots, dashes and slashes.")
+    return sd
+
+
+def prepare_upload(raw, filename, subdir=None):
+    """Turns uploaded/downloaded bytes into a Prepared dict, or raises UploadError.
+    Used by the upload form and by Git deploys, so both obey the same rules."""
+    low = (filename or "").lower()
+    if not raw:
+        raise UploadError("That file is empty.")
+    if len(raw) > MAX_STATIC_ZIP_BYTES:
+        raise UploadError("That is over 8 MB. Remove big media files and try again.")
+    warnings, config = [], {}
+    if low.endswith(".html"):
+        html = raw.decode("utf-8", errors="replace")
+        if len(html) < 20:
+            raise UploadError("That HTML file looks too short to be a real page.")
+        return {"kind": "static", "pages": {"index": html}, "order": ["index"], "labels": {"index": "Home"},
+                "warnings": [], "config": {}, "runtime": "static", "raw": raw, "filename": filename}
+    if not low.endswith(".zip"):
+        raise UploadError("Please upload a .zip or a single .html file.")
+    p = Project(raw, subdir=subdir)
+    det = detect_project(p)
+    kind = det["kind"]
+    if kind == "needs_build":
+        raise UploadError("This looks like a project that must be built first (it has a build script but no built folder). "
+                          "Run the build locally and upload the dist/ or build/ folder as the ZIP instead.")
+    if kind == "unknown":
+        raise UploadError((det.get("hint") or "I couldn't tell what this ZIP is.") +
+                          " A static site needs index.html at the top; a Python app needs requirements.txt or app.py; a Node app needs package.json with a start script.")
+    config, cw = parse_config(p)
+    warnings += cw
+    out = {"kind": kind, "warnings": warnings, "config": config, "runtime": det["runtime"], "raw": raw, "filename": filename,
+           "pages": None, "order": None, "labels": None}
+    if kind == "static":
+        out["pages"], out["order"], out["labels"], bw, _stats = build_static_site(p, det["root"])
+        out["warnings"] += bw
+    else:
+        config["detected_start"] = config.get("start") or _procfile_start(p)
+        if len(raw) > MAX_APP_BUNDLE_BYTES:
+            raise UploadError("App bundles are limited to 5 MB for now. Remove virtual environments, node_modules and media files.")
+    return out
+
+
+# ── CREATE / UPDATE ──────────────────────────────────────────────────────────
+def create_project(user, name, category, whatsapp, brand_color, description, prep, source_note="uploaded"):
+    """Creates a new FREE project from a Prepared upload. Returns result dict. Raises UploadError."""
+    d = _deps
+    name = (name or "").strip()[:100]
+    if not name:
+        raise UploadError("Project name is required.")
+    check_free_slot(user["id"])
+    kind = prep["kind"]
+    slug = d["make_slug"](name)
+    renew = _renew_date()
+    if kind == "static":
+        blob = d["_encode_site"](prep["pages"], prep["order"], prep["labels"])
+        biz_id = d["db_insert"](
+            d["q"]("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
+            (name, category, whatsapp, description, brand_color, slug, user["id"], "approved", "free", 0, blob))
+        d["db_execute"](d["q"]("UPDATE business SET app_kind='static', app_status='none', app_runtime='static', renew_by=? WHERE id=?"), (renew, biz_id))
+        d["snapshot_site_html"](biz_id, blob)
+        try:
+            d["ping_google"](slug)
+        except Exception:
+            pass
+        d["log_deploy_event"](biz_id, user["id"], "deploy", f'"{name}" deployed as a static site ({len(prep["pages"])} page{"s" if len(prep["pages"]) != 1 else ""}), {source_note}', "ok")
+        msg = f'🚀 "{name}" is LIVE at {slug}.trustedbiz.co.ug ({len(prep["pages"])} page{"s" if len(prep["pages"]) != 1 else ""}) on the Free plan.'
+    else:
         biz_id = d["db_insert"](
             d["q"]("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium) VALUES (?,?,?,?,?,?,?,?,?,?)"),
             (name, category, whatsapp, description, brand_color, slug, user["id"], "approved", "free", 0))
-        d["db_execute"](d["q"]("UPDATE business SET app_kind=?, app_status='waiting_for_server', app_runtime=?, app_config=? WHERE id=?"),
-                        (kind, det["runtime"], json.dumps(config), biz_id))
-        _store_bundle(biz_id, filename, raw)
-        d["log_deploy_event"](biz_id, user["id"], "app_upload",
-                              f'"{name}" ({kind} app) uploaded and stored. Waiting for app servers to launch.', "pending")
-        label = "Python" if kind == "python" else "Node"
-        return {"ok": True, "biz_id": biz_id, "kind": kind, "warnings": warnings, "slug": slug,
-                "message": f'📦 Your {label} app "{name}" is uploaded and stored safely. App hosting launches soon, and it will go live automatically then.'}
+        d["db_execute"](d["q"]("UPDATE business SET app_kind=?, app_status='waiting_for_server', app_runtime=?, app_config=?, renew_by=? WHERE id=?"),
+                        (kind, prep["runtime"], json.dumps(prep["config"]), renew, biz_id))
+        _store_bundle(biz_id, prep["filename"] or "app.zip", prep["raw"])
+        d["log_deploy_event"](biz_id, user["id"], "app_upload", f'"{name}" ({kind} app) stored, {source_note}. Waiting for app servers to launch.', "pending")
+        msg = f'📦 Your {"Python" if kind == "python" else "Node"} app "{name}" is uploaded and stored safely. App hosting launches soon, and it will go live automatically then.'
+    return {"ok": True, "biz_id": biz_id, "kind": kind, "warnings": prep["warnings"], "slug": slug, "message": msg}
+
+
+def update_project(biz_id, user_id, prep, note="redeployed"):
+    """Replaces the content of an existing project with a Prepared upload."""
+    d = _deps
+    row = d["db_fetchone"](d["q"]("SELECT * FROM business WHERE id=?"), (biz_id,))
+    if not row:
+        raise UploadError("Project not found.")
+    row = dict(row)
+    kind = prep["kind"]
+    old_kind = row.get("app_kind") or "none"
+    is_app_row = old_kind in APP_KINDS
+    if kind == "static" and is_app_row or kind in APP_KINDS and not is_app_row and old_kind in ("static",):
+        raise UploadError("This repository changed type (static site vs app). Create a new project for it.")
+    if kind == "static":
+        blob = d["_encode_site"](prep["pages"], prep["order"], prep["labels"])
+        d["save_site_html"](biz_id, blob)
+        d["log_deploy_event"](biz_id, user_id, "deploy", f'"{row["name"]}" {note} ({len(prep["pages"])} page{"s" if len(prep["pages"]) != 1 else ""})', "ok")
+    else:
+        _store_bundle(biz_id, prep["filename"] or "app.zip", prep["raw"])
+        d["db_execute"](d["q"]("UPDATE business SET app_config=?, app_runtime=? WHERE id=?"), (json.dumps(prep["config"]), prep["runtime"], biz_id))
+        d["log_deploy_event"](biz_id, user_id, "app_upload", f'"{row["name"]}" {note}. New bundle stored.', "pending" if not _live(row) else "ok")
+    return {"ok": True, "biz_id": biz_id, "kind": kind, "warnings": prep["warnings"]}
+
+
+# ── FORM ENTRY POINT ─────────────────────────────────────────────────────────
+def deploy_project(user, name, category, whatsapp, brand_color, description, upload):
+    """Handle an uploaded .zip or .html. Returns {ok, message, biz_id, kind, warnings}. Never raises."""
+    try:
+        if not (name or "").strip():
+            raise UploadError("Project name is required.")
+        check_free_slot(user["id"])
+        filename = (upload.filename or "").strip()
+        raw = upload.read(MAX_STATIC_ZIP_BYTES + 1)
+        prep = prepare_upload(raw, filename)
+        return create_project(user, name, category, whatsapp, brand_color, description, prep, "uploaded")
     except UploadError as e:
         return {"ok": False, "message": str(e), "warnings": [], "kind": None, "biz_id": None}
     except Exception as e:
@@ -641,6 +860,63 @@ a{color:var(--brand)}
 {% endif %}
 <p style="font-size:12px;margin-top:18px">Hosted on <a href="https://trustedbiz.co.ug">TrustedBiz</a></p>
 </div></body></html>"""
+
+_PAUSED_PAGE = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex">
+<title>{{ name }} is paused</title>
+<style>
+:root{--bg:#f5f8f8;--surface:#fff;--border:#d8e4e4;--text:#0d1c1c;--mid:#43605f;--brand:#2b7a78;}
+@media (prefers-color-scheme: dark){:root{--bg:#0d1412;--surface:#141d1b;--border:#233230;--text:#eef5f4;--mid:#a9c4c1;}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;padding:24px}
+.card{max-width:460px;background:var(--surface);border:1px solid var(--border);padding:32px 28px;text-align:center}
+h1{font-size:22px;margin:0 0 10px}p{color:var(--mid);line-height:1.6;font-size:14.5px;margin:0 0 10px}a{color:var(--brand)}
+</style></head><body><div class="card">
+<h1>{{ name }} is paused</h1>
+{% if owner %}<p>This project is paused. Open your dashboard: free projects come straight back, and projects you paused yourself can be resumed from Settings.</p>
+<p><a href="/dashboard">Open dashboard</a></p>
+{% else %}<p>This site is paused by its owner and will be back soon.</p>{% endif %}
+<p style="font-size:12px;margin-top:18px">Hosted on <a href="https://trustedbiz.co.ug">TrustedBiz</a></p>
+</div></body></html>"""
+
+
+_MAINT_PAGE = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex">
+<title>{{ name }} is under maintenance</title>
+<style>
+:root{--bg:#f5f8f8;--surface:#fff;--border:#d8e4e4;--text:#0d1c1c;--mid:#43605f;--brand:#2b7a78;}
+@media (prefers-color-scheme: dark){:root{--bg:#0d1412;--surface:#141d1b;--border:#233230;--text:#eef5f4;--mid:#a9c4c1;}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;padding:24px}
+.card{max-width:460px;background:var(--surface);border:1px solid var(--border);padding:32px 28px;text-align:center}
+h1{font-size:22px;margin:0 0 10px}p{color:var(--mid);line-height:1.6;font-size:14.5px;margin:0 0 10px}a{color:var(--brand)}
+</style></head><body><div class="card">
+<h1>Down for maintenance</h1>
+<p>{{ name }} is being updated and will be back shortly.</p>
+{% if owner %}<p><a href="/hosting/site/{{ biz_id }}?tab=settings">Maintenance mode is on. Turn it off in Settings.</a></p>{% endif %}
+<p style="font-size:12px;margin-top:18px">Hosted on <a href="https://trustedbiz.co.ug">TrustedBiz</a></p>
+</div></body></html>"""
+
+
+def maintenance_response(row):
+    """Paid feature. None when maintenance is off or the viewer is an admin."""
+    if not row or not row.get("maintenance_on") or session.get("admin_auth"):
+        return None
+    url = (row.get("maintenance_url") or "").strip()
+    if re.match(r"^https?://[^\s]+$", url):
+        return redirect(url, code=302)
+    html = render_template_string(_MAINT_PAGE, name=row.get("name") or "This site", owner=_is_owner_or_admin(row), biz_id=row.get("id"))
+    resp = Response(html, status=503, mimetype="text/html")
+    resp.headers["Retry-After"] = "600"
+    resp.headers["X-Robots-Tag"] = "noindex"
+    return resp
+
+
+def _paused_response(row):
+    html = render_template_string(_PAUSED_PAGE, name=row.get("name") or "This site", owner=_is_owner_or_admin(row))
+    resp = Response(html, status=503, mimetype="text/html")
+    resp.headers["Retry-After"] = "86400"
+    resp.headers["X-Robots-Tag"] = "noindex"
+    return resp
+
 
 _HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers",
         "transfer-encoding", "upgrade", "host", "content-length", "content-encoding"}
@@ -693,7 +969,7 @@ def _row_for_slug(slug):
     if not d:
         return None
     try:
-        row = d["db_fetchone"](d["q"]("SELECT id, name, slug, status, owner_id, app_kind, app_status, app_upstream FROM business WHERE slug=?"), (slug,))
+        row = d["db_fetchone"](d["q"]("SELECT id, name, slug, status, owner_id, is_premium, renew_by, owner_paused, maintenance_on, maintenance_url, app_kind, app_status, app_upstream FROM business WHERE slug=?"), (slug,))
     except Exception:
         return None   # columns not created yet: behave like before
     return dict(row) if row else None
@@ -707,7 +983,14 @@ def subdomain_app_response(slug):
     """Called by app.py for every <slug>.trustedbiz.co.ug request. Returns a
     Response for app sites, or None so normal static handling continues."""
     row = _row_for_slug(slug)
-    if not row or (row.get("app_kind") or "none") not in APP_KINDS:
+    if not row:
+        return None
+    if is_paused(row) and not session.get("admin_auth"):
+        return _paused_response(row)
+    m = maintenance_response(row)
+    if m is not None:
+        return m
+    if (row.get("app_kind") or "none") not in APP_KINDS:
         return None
     if row.get("status") != "approved" and not _is_owner_or_admin(row):
         return None
@@ -718,6 +1001,11 @@ def subdomain_app_response(slug):
 
 def app_gate_response(bd):
     """Called inside site() (the /site/<slug> route). None = carry on as normal."""
+    if is_paused(bd) and not session.get("admin_auth"):
+        return _paused_response(bd)
+    m = maintenance_response(bd)
+    if m is not None:
+        return m
     if (bd.get("app_kind") or "none") not in APP_KINDS:
         return None
     if _live(bd):
@@ -750,7 +1038,11 @@ _FEATURES = [
     # (name, state, note)
     ("Static site hosting (ZIP or single HTML)", "live", "Free subdomain. Local CSS, JS and small images are embedded automatically."),
     ("Multi-page static sites", "live", "Top-level .html pages. Links like about.html are converted for you."),
-    ("Custom domains", "live", "Request a domain from your dashboard and follow the DNS steps."),
+    ("Free plan", "live", "1 project, yourname.trustedbiz.co.ug, renews when you open your dashboard (every 90 days)."),
+    ("Paid plan", "live", "Custom domain, always on, no renewal needed. UGX 15,000 a month."),
+    ("Deploy from GitHub and GitLab", "live", "Connect an account, pick a repo, and every push deploys. Public repos need no login."),
+    ("Sign in with Google or GitHub", "live", "One click sign-in on the login page."),
+    ("Custom domains (Paid)", "live", "Request a domain from your dashboard and follow the DNS steps."),
     ("Deploy history", "live", "Every deploy, edit and rollback is logged."),
     ("Snapshots and one-click rollback", "live", "A snapshot is saved on every change. The last 5 are kept."),
     ("Python / Flask app upload", "soon", "Uploads are accepted and stored now. They start running when app servers launch."),
@@ -774,91 +1066,17 @@ def _caps():
     }
 
 
-_DOCS = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hosting docs | TrustedBiz</title><style>{{ style|safe }}</style></head><body>
-<header><a class="logo" href="/">Trusted<span>Biz</span></a><a class="btn" href="/dashboard#sites">Dashboard</a></header>
-<div class="wrap">
-<h1>Hosting docs</h1><p>Deploy a website or app on TrustedBiz. Pay by MTN or Airtel Money.</p>
-
-<h2>What works today</h2>
-<table><tr><th>Feature</th><th>Status</th></tr>
-{% for n, s, note in features %}<tr><td><b>{{ n }}</b><br><span style="font-size:12.5px">{{ note }}</span></td>
-<td><span class="tag {{ s }}">{{ 'Live' if s == 'live' else 'Coming soon' }}</span></td></tr>{% endfor %}</table>
-
-<h2>Deploy a static site</h2>
-<ol style="padding-left:20px"><li>Put <code>index.html</code> at the top of a ZIP, with your other pages next to it.</li>
-<li>Dashboard → Projects → Deploy site or app. Enter your mobile money number, choose the ZIP, press Deploy.</li>
-<li>Your site goes live at <code>yourname.trustedbiz.co.ug</code>.</li></ol>
-<p style="margin-top:8px">Built with React, Vite or similar? Run the build on your computer and zip the <code>dist/</code> or <code>build/</code> folder.</p>
-
-<h2>Limits</h2>
-<ul><li>ZIP up to {{ caps.limits.zip_mb }} MB, up to {{ caps.limits.max_files }} files, up to {{ caps.limits.max_pages }} pages.</li>
-<li>Each embedded image or font up to 400 KB; 3 MB embedded in total. Bigger media should be hosted elsewhere and linked.</li>
-<li>Only top-level pages are published. Pages in sub-folders are skipped for now.</li></ul>
-
-<h2>Python and Node apps</h2>
-<p>You can upload them now. TrustedBiz detects the project, checks it, and stores it. Until app servers launch the app's address shows a “coming online soon” page, and it starts serving automatically at launch.</p>
-<ul><li><b>Python:</b> include <code>requirements.txt</code> and an entry such as <code>app.py</code>. A <code>Procfile</code> line like <code>web: gunicorn app:app</code> tells us how to start it.</li>
-<li><b>Node:</b> include <code>package.json</code> with a <code>start</code> script.</li>
-<li>Don't include secrets, <code>.env</code> files, virtual environments or <code>node_modules</code>.</li></ul>
-
-<h2>trustedbiz.yaml (optional)</h2>
-<pre>name: my-app
-type: web
-runtime: python
-build: pip install -r requirements.txt
-start: gunicorn app:app
-env:
-  - DATABASE_URL
-  - SECRET_KEY</pre>
-<p><code>env</code> lists variable <b>names</b> only. Never put secret values in this file.</p>
-
-<h2>Pricing and billing</h2>
-<p>The first {{ trial }} days are free. After that a site costs UGX {{ monthly }} per month or UGX {{ yearly }} per year, paid with MTN or Airtel Money. Python and Node apps are not billed until app hosting launches.</p>
-
-<h2>Rollback</h2>
-<p>Open a site's <b>Manage</b> page from your dashboard to restore any of the last 5 snapshots.</p>
-</div></body></html>"""
-
-
-_MANAGE = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ b.name }} | Manage</title><style>{{ style|safe }}</style></head><body>
-<header><a class="logo" href="/">Trusted<span>Biz</span></a><a class="btn" href="/dashboard#sites">← Dashboard</a></header>
-<div class="wrap">
-<h1>{{ b.name }}</h1>
-<p>{{ b.slug }}.trustedbiz.co.ug &nbsp;
-{% if is_app %}<span class="tag {{ 'live' if live else 'soon' }}">{{ (b.app_kind|capitalize) ~ ' app · ' ~ ('Running' if live else 'Waiting for server') }}</span>
-{% else %}<span class="tag live">Static site</span>{% endif %}</p>
-
-{% if is_app %}
-<div class="card"><b>About this app</b>
-<p style="margin-top:6px">Your app is stored safely{% if bundle %} ({{ bundle.size // 1024 }} KB){% endif %}. App hosting is not switched on yet, so it isn't serving visitors. It will start automatically when app servers launch.</p>
-{% if cfg %}<ul style="margin-top:8px">
-{% if cfg.get('detected_start') %}<li>Start command: <code>{{ cfg.get('detected_start') }}</code></li>{% endif %}
-{% if cfg.get('build') %}<li>Build command: <code>{{ cfg.get('build') }}</code></li>{% endif %}
-{% if cfg.get('env') %}<li>Environment variables: <code>{{ cfg.get('env')|join(', ') }}</code></li>{% endif %}</ul>{% endif %}
-<p style="margin-top:8px">To update it, deploy a new ZIP from your dashboard.</p></div>
-{% else %}
-<div class="card"><b>Snapshots</b>
-<p style="margin:4px 0 8px">Restore an earlier version of this site. The last 5 are kept.</p>
-{% for s in backups %}<div class="row"><span>{{ s.created_at }} · {{ (s.size // 1024) }} KB{% if loop.first %} · latest{% endif %}</span>
-{% if not loop.first %}<form method="POST" action="/hosting/rollback/{{ b.id }}/{{ s.id }}" onsubmit="return confirm('Restore this version? Your current version stays in snapshots.')"><button class="btn" type="submit">Restore</button></form>{% endif %}</div>
-{% else %}<p>No snapshots yet.</p>{% endfor %}</div>
-{% endif %}
-
-<div class="card"><b>Deploy history</b>
-{% for e in events %}<div class="row"><span>{{ e.message }}</span><span class="tag">{{ e.status }}</span></div>
-{% else %}<p style="margin-top:6px">Nothing yet.</p>{% endfor %}</div>
-<p style="margin-top:18px"><a href="/docs">Hosting docs</a></p>
-</div></body></html>"""
-
-
 _ADMIN = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>App hosting | Admin</title><style>{{ style|safe }}</style></head><body>
 <header><a class="logo" href="/">Trusted<span>Biz</span></a><a class="btn" href="/admin">← Admin</a></header>
 <div class="wrap"><h1>App hosting</h1>
 <p>App hosting switch: <span class="tag {{ 'live' if enabled else 'soon' }}">{{ 'ON' if enabled else 'OFF (set APP_HOSTING_ENABLED=true on Render when the server is ready)' }}</span></p>
 {% if msg %}<div class="card">{{ msg }}</div>{% endif %}
+<h2>Upgrade requests</h2>
+{% for u in upgrades %}<div class="card"><b>{{ u.name }}</b> · {{ u.slug }}.trustedbiz.co.ug · {{ u.upgrade_period or 'monthly' }} · phone {{ u.upgrade_phone }}
+<form method="POST" action="/admin/hosting/upgrade/{{ u.id }}" style="margin-top:8px"><button class="btn solid" type="submit">Mark paid and switch to Paid</button></form></div>
+{% else %}<p>No pending upgrade requests.</p>{% endfor %}
+<h2>Apps</h2>
 {% for a in apps %}
 <div class="card"><b>{{ a.name }}</b> · {{ a.slug }}.trustedbiz.co.ug · {{ a.app_kind }} · <span class="tag">{{ a.app_status }}</span>
 <p style="margin:6px 0">Bundle: {% if a.bundle_size %}{{ a.bundle_size // 1024 }} KB · <a href="/admin/hosting/{{ a.id }}/bundle.zip">download</a>{% else %}none{% endif %}
@@ -890,11 +1108,6 @@ def init_hosting(app, deps):
     def hosting_capabilities():
         return jsonify(_caps())
 
-    @app.route("/docs")
-    def hosting_docs():
-        return render_template_string(_DOCS, style=_STYLE, features=_FEATURES, caps=_dot(_caps()),
-                                      trial=deps["HOSTING_TRIAL_DAYS"], monthly="{:,}".format(deps["HOSTING_FEE_MONTHLY"]), yearly="{:,}".format(deps["HOSTING_FEE_YEARLY"]))
-
     def _owned(biz_id):
         row = fetchone(q("SELECT * FROM business WHERE id=?"), (biz_id,))
         if not row:
@@ -904,26 +1117,53 @@ def init_hosting(app, deps):
             return row
         return None
 
-    @app.route("/hosting/site/<int:biz_id>")
+    @app.route("/hosting/upgrade/<int:biz_id>", methods=["POST"])
     @login_required
-    def hosting_manage(biz_id):
+    def hosting_upgrade(biz_id):
         b = _owned(biz_id)
         if not b:
-            flash("Not found.")
+            flash("Not found.", "error")
             return redirect("/dashboard#sites")
-        is_app = (b.get("app_kind") or "none") in APP_KINDS
-        events = [dict(e) for e in fetchall(q("SELECT message, status FROM deploy_events WHERE business_id=? ORDER BY id DESC LIMIT 15"), (biz_id,))]
-        backups = []
-        for s in fetchall(q("SELECT id, created_at, html_snapshot FROM site_backups WHERE business_id=? ORDER BY id DESC LIMIT 5"), (biz_id,)):
-            s = dict(s)
-            backups.append({"id": s["id"], "created_at": str(s["created_at"])[:16], "size": len(s.get("html_snapshot") or "")})
-        bundle = None
-        if is_app:
-            r = fetchone(q("SELECT size FROM app_bundles WHERE business_id=? ORDER BY id DESC"), (biz_id,))
-            bundle = dict(r) if r else None
-        return render_template_string(_MANAGE, style=_STYLE, b=_dot(b), is_app=is_app, live=_live(b), events=_dot_list(events),
-                                      backups=_dot_list(backups), bundle=_dot(bundle) if bundle else None,
-                                      cfg=_json_or_empty(b.get("app_config")))
+        if b.get("is_premium"):
+            flash("This project is already on the Paid plan.", "success")
+            return redirect(f"/hosting/site/{biz_id}")
+        phone = clean_phone(request.form.get("phone"))
+        period = "yearly" if request.form.get("period") == "yearly" else "monthly"
+        if not phone:
+            flash("Enter the mobile money number you will pay from.", "error")
+            return redirect(f"/hosting/site/{biz_id}")
+        execute(q("UPDATE business SET upgrade_requested_at=?, upgrade_phone=?, upgrade_period=? WHERE id=?"),
+                (_today().isoformat(), phone, period, biz_id))
+        deps["log_deploy_event"](biz_id, session.get("user_id"), "upgrade_requested", f'Upgrade to Paid requested ({period})', "pending")
+        try:
+            if deps.get("send_email") and deps.get("ADMIN_EMAIL"):
+                deps["send_email"](deps["ADMIN_EMAIL"], "Upgrade request", f'<p>{b["name"]} ({b["slug"]}) asked to upgrade, {period}, phone {phone}.</p>')
+        except Exception as e:
+            print(f"[hosting] admin email: {e}")
+        flash("Upgrade requested. Pay on WhatsApp and we will switch it on.", "success")
+        return redirect(f"/hosting/site/{biz_id}")
+
+    @app.route("/hosting/delete/<int:biz_id>", methods=["POST"])
+    @login_required
+    def hosting_delete(biz_id):
+        b = _owned(biz_id)
+        if not b:
+            flash("Not found.", "error")
+            return redirect("/dashboard#sites")
+        for fn in on_delete:
+            try:
+                fn(biz_id)
+            except Exception as e:
+                print(f"[hosting] on_delete hook: {e}")
+        for table in ("deploy_events", "site_backups", "app_bundles", "reviews", "branches"):
+            try:
+                execute(q(f"DELETE FROM {table} WHERE business_id=?"), (biz_id,))
+            except Exception:
+                pass
+        execute(q("DELETE FROM business WHERE id=?"), (biz_id,))
+        deps["log_deploy_event"](None, session.get("user_id"), "delete", f'Deleted "{b["name"]}"', "ok")
+        flash(f'"{b["name"]}" was deleted.', "success")
+        return redirect("/dashboard#sites")
 
     @app.route("/hosting/rollback/<int:biz_id>/<int:backup_id>", methods=["POST"])
     @login_required
@@ -935,11 +1175,11 @@ def init_hosting(app, deps):
         snap = fetchone(q("SELECT id, html_snapshot FROM site_backups WHERE id=? AND business_id=?"), (backup_id, biz_id))
         if not snap or not dict(snap).get("html_snapshot"):
             flash("That snapshot no longer exists.", "error")
-            return redirect(f"/hosting/site/{biz_id}")
+            return redirect(f"/hosting/site/{biz_id}?tab=events#snapshots")
         deps["save_site_html"](biz_id, dict(snap)["html_snapshot"])
         deps["log_deploy_event"](biz_id, session.get("user_id"), "rollback", f'"{b["name"]}" restored to an earlier snapshot', "ok")
         flash("Restored. Your site is now showing the earlier version.", "success")
-        return redirect(f"/hosting/site/{biz_id}")
+        return redirect(f"/hosting/site/{biz_id}?tab=events#snapshots")
 
     # ── admin ────────────────────────────────────────────────────────────────
     def _admin_apps():
@@ -956,8 +1196,23 @@ def init_hosting(app, deps):
     @app.route("/admin/hosting")
     @admin_required
     def admin_hosting():
-        return render_template_string(_ADMIN, style=_STYLE, enabled=APP_HOSTING_ENABLED, apps=_admin_apps(),
+        ups = [_dot(dict(r)) for r in fetchall(q("SELECT id, name, slug, upgrade_period, upgrade_phone FROM business WHERE upgrade_requested_at IS NOT NULL AND COALESCE(is_premium,0)=0 ORDER BY id DESC"))]
+        return render_template_string(_ADMIN, style=_STYLE, enabled=APP_HOSTING_ENABLED, apps=_admin_apps(), upgrades=ups,
                                       statuses=APP_STATUSES, msg=request.args.get("msg"))
+
+    @app.route("/admin/hosting/upgrade/<int:biz_id>", methods=["POST"])
+    @admin_required
+    def admin_hosting_upgrade(biz_id):
+        b = fetchone(q("SELECT id, name, owner_id FROM business WHERE id=?"), (biz_id,))
+        if not b:
+            return redirect("/admin/hosting?msg=Not+found")
+        # Same fields the existing admin "mark hosting paid" action sets.
+        execute(q("UPDATE business SET plan='hosted', is_premium=1, last_payment_date=CURRENT_DATE, renew_by=NULL, upgrade_requested_at=NULL WHERE id=?"), (biz_id,))
+        b = dict(b)
+        if b.get("owner_id"):
+            deps["db_insert"](q("INSERT INTO notifications (user_id,message) VALUES (?,?)"), (b["owner_id"], f'Payment confirmed. "{b["name"]}" is now on the Paid plan.'))
+        deps["log_deploy_event"](biz_id, None, "upgrade", "Switched to Paid plan", "ok")
+        return redirect("/admin/hosting?msg=Switched+to+Paid")
 
     @app.route("/admin/hosting/<int:biz_id>", methods=["POST"])
     @admin_required

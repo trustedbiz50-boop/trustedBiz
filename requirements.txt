@@ -9,3 +9,4 @@ ffmpeg-python
 pyotp
 pypdf
 pyyaml
+cryptography

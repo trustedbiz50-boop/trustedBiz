@@ -233,6 +233,9 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 
 from payments import payments_bp
 import hosting
+import integrations
+import console
+import docs_site
 app.register_blueprint(payments_bp)
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
@@ -2725,7 +2728,7 @@ def login():
             session.permanent = True
             session['user_id']   = user['id']
             session['user_name'] = user['name']
-            return redirect(request.args.get('next','/dashboard'))
+            return redirect(integrations.safe_next(request.args.get('next','/dashboard')))
         flash("Wrong email or password.")
     return render_template('login.html', current_user=None)
 
@@ -3137,43 +3140,9 @@ def generate_site(biz_id):
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    user_id    = session['user_id']
-    businesses = db_fetchall(q("SELECT * FROM business WHERE owner_id=? ORDER BY created_at DESC"), (user_id,))
-    stats = {}
-    for b in businesses:
-        rv = db_fetchone(q("SELECT AVG(rating) as a, COUNT(*) as c FROM reviews WHERE business_id=?"), (b['id'],))
-        stats[b['id']] = {"avg_rating": round(float(rv['a']),1) if rv and rv['a'] else 0, "total_reviews": rv['c'] if rv else 0}
-    businesses   = [biz_to_dict(b) for b in businesses]
-    total_views  = sum(b.get('views',0) or 0 for b in businesses)
-    live_count   = sum(1 for b in businesses if b.get('status')=='approved')
-    # Building is free/unplanned now — the only thing left to track per
-    # account is how many businesses have paid, active hosting.
-    hosted_count = sum(1 for b in businesses if b.get('is_premium'))
-    current_user = get_current_user()
-
-    deploy_events = db_fetchall(q(
-        "SELECT de.*, b.name as biz_name FROM deploy_events de "
-        "LEFT JOIN business b ON b.id = de.business_id "
-        "WHERE de.user_id=? ORDER BY de.created_at DESC LIMIT 8"), (user_id,))
-    deploy_events = [biz_to_dict(e) for e in deploy_events]
-
-    last_scan = db_fetchone(q("SELECT * FROM security_scans WHERE user_id=? ORDER BY created_at DESC LIMIT 1"), (user_id,))
-    security = None
-    if last_scan:
-        try:
-            security = {'score': last_scan['score'], 'checks': json.loads(last_scan['checks']),
-                       'scanned_at': biz_to_dict(last_scan).get('created_at')}
-            security['passes'] = sum(1 for c in security['checks'] if c['status'] == 'pass')
-            security['total']  = len(security['checks'])
-        except Exception as e:
-            print(f"[dashboard] security scan parse error: {e}")
-
-    return render_template('console.html', businesses=businesses, stats=stats,
-                           current_user=current_user, total_listings=len(businesses),
-                           live_count=live_count, total_views=total_views,
-                           hosted_count=hosted_count, deploy_events=deploy_events,
-                           security=security, hosting_fee_monthly=HOSTING_FEE_MONTHLY,
-                           hosting_fee_yearly=HOSTING_FEE_YEARLY)
+    # The old business dashboard (Daisy builder, reviews, directory) is gone.
+    # The projects dashboard lives in console.py.
+    return console.dashboard_view()
 
 # ── VISUAL BLOCK EDITOR: PAGE + API ─────────────────────────────────────────
 @app.route('/editor')
@@ -3635,6 +3604,7 @@ def migrate_db():
         except Exception as e:
             print(f"Migration (hosting/security) error: {e}")
         hosting.ensure_schema()
+        integrations.ensure_schema()
         return "Migration done! All columns added."
     except Exception as e:
         return f"Migration error: {e}"
@@ -3706,7 +3676,12 @@ def check_payments():
                 db_insert(q("INSERT INTO notifications (user_id,message) VALUES (?,?)"),
                     (b['owner_id'], f"Payment reminder: Your free month has ended. Pay UGX {HOSTING_FEE_MONTHLY:,} via WhatsApp. You have {14 - days_overdue} days before suspension."))
             reminded += 1
-    return f"Done. {reminded} reminded. {suspended} suspended."
+    free_reminded = 0
+    try:
+        free_reminded = hosting.free_tier_job()
+    except Exception as e:
+        print(f"[check_payments] free tier job: {e}")
+    return f"Done. {reminded} reminded. {suspended} suspended. {free_reminded} free projects reminded to renew."
 
 
 @app.route('/about')
@@ -3719,7 +3694,7 @@ def pricing():
     # Public — no login required, so people can see prices before committing.
     return render_template('pricing.html', hosting_fee_monthly=HOSTING_FEE_MONTHLY,
                             hosting_fee_yearly=HOSTING_FEE_YEARLY, hosting_trial_days=HOSTING_TRIAL_DAYS,
-                            current_user=get_current_user())
+                            current_user=get_current_user(), admin_whatsapp=ADMIN_WHATSAPP)
 
 @app.route('/daisy')
 def daisy_page():
@@ -3829,82 +3804,43 @@ Sitemap: https://trustedbiz.co.ug/sitemap.xml
 @app.route('/deploy', methods=['POST'])
 @login_required
 def deploy_site():
-    """Bring-your-own-HTML hosting, the actual 'hosting platform' side of
-    TrustedBiz — same idea as Render or Netlify, deploy what you already have.
-    Separate from Daisy's business-builder flow, which creates the business
-    record itself; this just needs a name and HTML."""
-    user        = get_current_user()
+    """Deploy a site or app: a ZIP, one .html file, pasted HTML, or a public Git URL.
+    Everything becomes a FREE project (see hosting.py for the plan rules). Detection,
+    inlining and limits live in hosting.py; Git imports live in integrations.py."""
+    user        = dict(get_current_user())
     name        = request.form.get('name','').strip()
     category    = request.form.get('category','Website').strip()
     whatsapp    = request.form.get('whatsapp','').strip()
     brand_color = request.form.get('brand_color','#2b7a78').strip()
     description = request.form.get('description','').strip()
     custom_html = request.form.get('custom_html','').strip()
-    html_file   = request.files.get('html_file')
     github_url  = request.form.get('github_url','').strip()
+    project_file = request.files.get('project_file') or request.files.get('html_file')
 
-    # New: ZIP (static site, Python app, Node app) or a single .html file.
-    # Detection, inlining and storage live in hosting.py.
-    project_file = request.files.get('project_file')
-    if project_file and project_file.filename:
-        res = hosting.deploy_project(user, name, category, whatsapp, brand_color, description, project_file,
-                                     phone=request.form.get('payment_phone', ''))
+    def finish(res):
         flash(res['message'], 'success' if res['ok'] else 'error')
         if res.get('warnings'):
             flash('Heads up: ' + ' · '.join(res['warnings'][:4]), 'success')
         return redirect('/dashboard#sites')
 
-    if html_file and html_file.filename.endswith('.html'):
-        custom_html = html_file.read().decode('utf-8')
-
-    # Simple GitHub import — pulls index.html from a public repo's default
-    # branch. Real push-to-deploy (via a GitHub App + webhook) needs GitHub
-    # App credentials that don't exist yet; this covers "connect a repo" for now.
-    if github_url and not custom_html:
+    if not name and not github_url:
+        flash('Project name is required.', 'error')
+        return redirect('/dashboard#sites')
+    if project_file and project_file.filename:
+        return finish(hosting.deploy_project(user, name, category, whatsapp, brand_color, description, project_file))
+    if github_url:
         try:
-            m = re.search(r'github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$', github_url)
-            if m:
-                owner, repo = m.group(1), m.group(2)
-                for branch in ('main', 'master'):
-                    r = requests.get(
-                        f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/index.html",
-                        timeout=10
-                    )
-                    if r.status_code == 200 and r.text.strip():
-                        custom_html = r.text
-                        break
-                if not custom_html:
-                    flash('Could not find an index.html on the main or master branch of that repo.', 'error')
-                    return redirect('/dashboard#sites')
-            else:
-                flash('That doesn\'t look like a valid GitHub repo URL.', 'error')
-                return redirect('/dashboard#sites')
-        except Exception as e:
-            print(f"GitHub import error: {e}")
-            flash('Could not fetch that repo. Check the URL and that it\'s public.', 'error')
-            return redirect('/dashboard#sites')
-
-    if not name:
-        flash('Site name is required.', 'error')
-        return redirect('/dashboard#sites')
-    if not custom_html:
-        flash('Please upload HTML, paste it, or link a public GitHub repo.', 'error')
-        return redirect('/dashboard#sites')
-    phone = hosting.clean_phone(request.form.get('payment_phone', ''))
-    if not phone:
-        flash('Enter your mobile money number (MTN or Airtel) so we can bill you after the free trial.', 'error')
-        return redirect('/dashboard#sites')
-    slug   = make_slug(name)
-    biz_id = db_insert(
-        q("INSERT INTO business (name, category, whatsapp, description, brand_color, slug, owner_id, status, plan, is_premium, generated_html) VALUES (?,?,?,?,?,?,?,?,?,?,?)"),
-        (name, category, whatsapp, description, brand_color, slug, user['id'], 'approved', 'free', 0, custom_html)
-    )
-    db_execute(q("UPDATE business SET app_kind='static', app_status='none', app_runtime='static' WHERE id=?"), (biz_id,))
-    hosting.start_trial(biz_id, phone)
-    ping_google(slug)
-    snapshot_site_html(biz_id, custom_html)
-    log_deploy_event(biz_id, user['id'], 'deploy', f'"{name}" deployed successfully', 'ok')
-    flash(f'🚀 "{name}" is now LIVE at {slug}.trustedbiz.co.ug!', 'success')
+            res = integrations.deploy_public(user, github_url, name)
+            return finish(res)
+        except (hosting.UploadError, integrations.OAuthError) as e:
+            return finish({'ok': False, 'message': str(e), 'warnings': []})
+    if custom_html:
+        try:
+            prep = hosting.prepare_upload(custom_html.encode('utf-8'), 'index.html')
+            return finish(hosting.create_project(user, name, category, whatsapp, brand_color, description, prep, 'pasted'))
+        except hosting.UploadError as e:
+            return finish({'ok': False, 'message': str(e), 'warnings': []})
+    flash('Please upload a ZIP or HTML file, paste HTML, or link a public GitHub or GitLab repo.', 'error')
     return redirect('/dashboard#sites')
 
 
@@ -3917,11 +3853,14 @@ def trusthost_request_domain():
     custom_domain = custom_domain.replace('https://','').replace('http://','').rstrip('/')
     if not biz_id or not custom_domain:
         flash('Pick a site and enter a domain.', 'error')
-        return redirect('/dashboard#hosting')
-    biz = db_fetchone(q("SELECT id, name FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
+        return redirect('/dashboard')
+    biz = db_fetchone(q("SELECT id, name, is_premium FROM business WHERE id=? AND owner_id=?"), (biz_id, user['id']))
     if not biz:
         flash('Site not found.', 'error')
-        return redirect('/dashboard#hosting')
+        return redirect('/dashboard')
+    if not dict(biz).get('is_premium'):
+        flash('Custom domains are part of the Paid plan. Open the project and choose Upgrade to Paid.', 'error')
+        return redirect(f'/hosting/site/{biz_id}?tab=settings#plan')
     try:
         db_execute(q("UPDATE business SET custom_domain=?, domain_status='pending' WHERE id=?"), (custom_domain, biz_id))
         log_deploy_event(biz_id, user['id'], 'domain_requested',
@@ -3931,7 +3870,7 @@ def trusthost_request_domain():
     except Exception as e:
         print(f"[trusthost_request_domain] {e}")
         flash('Could not save that domain — run /admin/migrate-db then try again.', 'error')
-    return redirect('/dashboard#hosting')
+    return redirect(f'/hosting/site/{biz_id}?tab=settings#domains')
 
 
 @app.route('/hosting/verify-domain/<int:biz_id>', methods=['POST'])
@@ -3947,7 +3886,7 @@ def verify_domain(biz_id):
     biz  = dict(biz) if biz else None
     if not biz or not biz.get('custom_domain'):
         flash('No pending domain for that site.', 'error')
-        return redirect('/dashboard#hosting')
+        return redirect('/dashboard')
     ok, detail, _days = check_domain_ssl(biz['custom_domain'])
     if ok:
         db_execute(q("UPDATE business SET domain_status='active' WHERE id=?"), (biz_id,))
@@ -3958,7 +3897,7 @@ def verify_domain(biz_id):
         flash(f'✅ {biz["custom_domain"]} is verified and live!', 'success')
     else:
         flash(f'Not verified yet — {detail}. DNS changes can take up to 24hrs.', 'error')
-    return redirect('/dashboard#hosting')
+    return redirect(f'/hosting/site/{biz_id}?tab=settings#domains')
 
 
 @app.route('/security/scan', methods=['POST'])
@@ -4036,7 +3975,7 @@ def account_2fa_setup():
     user = get_current_user()
     if user and dict(user).get('two_factor_enabled'):
         flash('Two-factor login is already enabled.')
-        return redirect('/dashboard#security')
+        return redirect('/account#security')
     secret = pyotp.random_base32()
     session['pending_2fa_secret'] = secret
     uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user['email'], issuer_name='TrustedBiz')
@@ -4049,7 +3988,7 @@ def account_2fa_enable():
     code   = request.form.get('code','').strip()
     if not secret:
         flash('Start setup again.', 'error')
-        return redirect('/dashboard#security')
+        return redirect('/account#security')
     if pyotp.TOTP(secret).verify(code, valid_window=1):
         db_execute(q("UPDATE users SET two_factor_enabled=1, two_factor_secret=? WHERE id=?"), (secret, session['user_id']))
         session.pop('pending_2fa_secret', None)
@@ -4057,7 +3996,7 @@ def account_2fa_enable():
         if user.get('email'):
             _email_2fa_enabled(user.get('name') or 'there', user['email'])
         flash('✅ Two-factor login enabled.', 'success')
-        return redirect('/dashboard#security')
+        return redirect('/account#security')
     flash("That code didn't match — try again.")
     return redirect('/account/2fa/setup')
 
@@ -4066,7 +4005,7 @@ def account_2fa_enable():
 def account_2fa_disable():
     db_execute(q("UPDATE users SET two_factor_enabled=0, two_factor_secret=NULL WHERE id=?"), (session['user_id'],))
     flash('Two-factor login turned off.', 'success')
-    return redirect('/dashboard#security')
+    return redirect('/account#security')
 
 @app.route('/login/verify-2fa', methods=['GET','POST'])
 def login_verify_2fa():
@@ -4899,4 +4838,24 @@ hosting.init_hosting(app, {
     "_encode_site": _encode_site, "_decode_site": _decode_site,
     "USE_POSTGRES": USE_POSTGRES, "HOSTING_TRIAL_DAYS": HOSTING_TRIAL_DAYS,
     "HOSTING_FEE_MONTHLY": HOSTING_FEE_MONTHLY, "HOSTING_FEE_YEARLY": HOSTING_FEE_YEARLY,
+    "ADMIN_WHATSAPP": ADMIN_WHATSAPP, "ADMIN_EMAIL": os.environ.get("ADMIN_EMAIL", "hello@trustedbiz.co.ug"),
+    "send_email": _send_email,
 })
+
+# ── GIT + SOCIAL SIGN-IN (integrations.py) ────────────────────────────────────
+integrations.init_integrations(app, {
+    "q": q, "db_fetchone": db_fetchone, "db_fetchall": db_fetchall,
+    "db_execute": db_execute, "db_insert": db_insert,
+    "login_required": login_required, "get_current_user": get_current_user,
+    "email_welcome": _email_welcome, "USE_POSTGRES": USE_POSTGRES,
+    "log_deploy_event": log_deploy_event, "send_email": _send_email,
+})
+
+# ── DASHBOARD SCREENS + DOCS ──────────────────────────────────────────────────
+_console_deps = {
+    "q": q, "db_fetchone": db_fetchone, "db_fetchall": db_fetchall, "db_execute": db_execute,
+    "login_required": login_required, "get_current_user": get_current_user, "log_deploy_event": log_deploy_event,
+    "ADMIN_WHATSAPP": ADMIN_WHATSAPP, "HOSTING_FEE_MONTHLY": HOSTING_FEE_MONTHLY, "HOSTING_FEE_YEARLY": HOSTING_FEE_YEARLY,
+}
+console.init_console(app, _console_deps)
+docs_site.init_docs(app, _console_deps)

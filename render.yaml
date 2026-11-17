@@ -15,3 +15,25 @@ services:
       # an app server exists. Uploads are stored either way.
       - key: APP_HOSTING_ENABLED
         value: "false"
+      # Public address used in sign-in and webhook URLs.
+      - key: APP_BASE_URL
+        value: https://trustedbiz.co.ug
+      # Encrypts Git tokens and environment variables. Generated once. Never change it
+      # afterwards, or stored tokens and variables become unreadable.
+      - key: TOKEN_KEY
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: hello@trustedbiz.co.ug
+      # Sign in with Google / GitHub, and Git deploys. Leave a pair empty to hide that option.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITLAB_CLIENT_ID
+        sync: false
+      - key: GITLAB_CLIENT_SECRET
+        sync: false
