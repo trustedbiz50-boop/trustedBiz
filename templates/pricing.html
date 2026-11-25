@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% include '_platform_css.html' %}
 {% include '_app_css.html' %}
+{% include '_cartoon_css.html' %}
 <style>
 .pg{max-width:1040px;margin:0 auto;padding:56px 22px 70px}
 .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
@@ -18,6 +19,7 @@
 .plan .hd{padding:18px 22px;border-bottom:1px solid var(--line);font-size:19px;font-weight:700;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .plan.pop .hd{background:color-mix(in srgb,var(--text) 9%,var(--surface))}
 .plan .bd{padding:22px;display:flex;flex-direction:column;gap:16px;flex:1}
+.plan-art{display:flex;justify-content:center;margin:-4px 0 -4px}
 .plan .for{font-size:14.5px;color:var(--mid);line-height:1.55;min-height:44px}
 .plan .amt{font-size:34px;font-weight:700;letter-spacing:-1px;line-height:1}
 .plan .amt small{font-size:14px;font-weight:500;color:var(--mid);letter-spacing:0}
@@ -28,7 +30,7 @@
 .plan .btn{margin-top:auto;justify-content:space-between;width:100%}
 .svc{background:var(--surface);border:1px solid var(--line);margin-top:20px;padding:26px}
 .svc .top{display:flex;gap:16px;align-items:flex-start}
-.svc .ic{width:46px;height:46px;flex:none;display:grid;place-items:center;background:color-mix(in srgb,var(--teal) 16%,var(--surface));color:var(--teal);font:700 14px var(--mono)}
+.svc .ic{width:56px;height:56px;flex:none;display:grid;place-items:center;background:var(--sky);border:2.5px solid var(--out);border-radius:14px}
 .svc h3{font-size:22px;font-weight:700;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .svc .s{font-size:14.5px;color:var(--mid);margin-top:4px}
 .svc ul{list-style:none;display:grid;gap:10px;margin-top:20px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
@@ -58,7 +60,7 @@ td.y{color:var(--live)!important;font-weight:700}td.n{color:var(--dim)!important
   <div class="plans">
     <div class="plan">
       <div class="hd">Free <span class="tag live">Live</span></div>
-      <div class="bd">
+      <div class="bd"><div class="plan-art">{{ crest("egg", size=120) }}</div>
         <p class="for">For personal projects, portfolios and trying things out.</p>
         <div class="amt">UGX 0</div>
         <ul>
@@ -74,7 +76,7 @@ td.y{color:var(--live)!important;font-weight:700}td.n{color:var(--dim)!important
     </div>
     <div class="plan pop">
       <div class="hd">Paid <span class="tag live">Live</span></div>
-      <div class="bd">
+      <div class="bd"><div class="plan-art">{{ crest("fly", size=130) }}</div>
         <p class="for">For projects people rely on: your own domain, always on.</p>
         <div class="amt">UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}<small> / month per project</small></div>
         <p class="for" style="min-height:0;margin-top:-8px">or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} / year</p>
@@ -91,7 +93,7 @@ td.y{color:var(--live)!important;font-weight:700}td.n{color:var(--dim)!important
     </div>
     <div class="plan">
       <div class="hd">Teams</div>
-      <div class="bd">
+      <div class="bd"><div class="plan-art">{{ crest("flock", size=210) }}</div>
         <p class="for">For companies and schools that need several projects or help moving over.</p>
         <div class="amt" style="font-size:24px">Let's talk</div>
         <ul>
@@ -108,25 +110,25 @@ td.y{color:var(--live)!important;font-weight:700}td.n{color:var(--dim)!important
   <p class="sub">Plans are per project. We label what's live and what's coming.</p>
 
   <div class="svc">
-    <div class="top"><div class="ic">&lt;/&gt;</div><div><h3>Static sites <span class="tag live">Live</span></h3><p class="s">HTML, CSS and JavaScript from a ZIP, a single file or a Git repository.</p></div></div>
+    <div class="top"><div class="ic">{{ icon("globe", 46) }}</div><div><h3>Static sites <span class="tag live">Live</span></h3><p class="s">HTML, CSS and JavaScript from a ZIP, a single file or a Git repository.</p></div></div>
     <ul><li>Free subdomain</li><li>Embedded CSS, JS and small images</li><li>Multi-page sites</li><li>Snapshots and rollback</li><li>Custom domain on Paid</li><li>Deploy hooks</li></ul>
     <div class="rows"><div><b>Free</b><span>UGX 0</span></div><div><b>Paid</b><span>UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }} / month</span></div></div>
   </div>
 
   <div class="svc">
-    <div class="top"><div class="ic">▲</div><div><h3>Web services: Python and Node <span class="tag soon">Coming soon</span></h3><p class="s">Flask, Django and Node apps. Upload yours today: it's stored safely and starts when app hosting launches.</p></div></div>
+    <div class="top"><div class="ic">{{ icon("rocket", 46) }}</div><div><h3>Web services: Python and Node <span class="tag soon">Coming soon</span></h3><p class="s">Flask, Django and Node apps. Upload yours today: it's stored safely and starts when app hosting launches.</p></div></div>
     <ul><li>Environment variables (encrypted)</li><li>Deploy from Git</li><li>Free apps sleep after 20 minutes idle</li><li>Always-on on Paid</li><li>Logs</li><li>Custom domains on Paid</li></ul>
     <div class="rows"><div><b>Free</b><span>Pricing announced at launch</span></div><div><b>Paid</b><span>Pricing announced at launch</span></div></div>
   </div>
 
   <div class="svc">
-    <div class="top"><div class="ic">DB</div><div><h3>PostgreSQL <span class="tag soon">Coming soon</span></h3><p class="s">Managed Postgres for your apps.</p></div></div>
+    <div class="top"><div class="ic">{{ icon("db", 46) }}</div><div><h3>PostgreSQL <span class="tag soon">Coming soon</span></h3><p class="s">Managed Postgres for your apps.</p></div></div>
     <ul><li>Fully managed</li><li>Automatic backups</li><li>Connect from your apps</li></ul>
     <div class="rows"><div><b>Pricing</b><span>Announced at launch</span></div></div>
   </div>
 
   <div class="svc">
-    <div class="top"><div class="ic">KV</div><div><h3>Key Value and cron jobs <span class="tag soon">Coming soon</span></h3><p class="s">Redis-compatible storage for caching and queues, and scheduled tasks.</p></div></div>
+    <div class="top"><div class="ic">{{ icon("kv", 46) }}</div><div><h3>Key Value and cron jobs <span class="tag soon">Coming soon</span></h3><p class="s">Redis-compatible storage for caching and queues, and scheduled tasks.</p></div></div>
     <div class="rows"><div><b>Pricing</b><span>Announced at launch</span></div></div>
   </div>
 

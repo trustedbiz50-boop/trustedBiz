@@ -13,7 +13,7 @@
     <div class="banner {{ 'bad' if cat == 'error' else '' }}"><span class="i">i</span><div>{{ msg }}</div></div>
   {% endfor %}{% endwith %}
   </div></noscript>
-  <div class="page-title"><h1 class="ptitle">New project</h1></div>
+  <div class="page-title"><h1 class="ptitle">New project</h1>{{ crest("deliver", size=140, cls="float-crest") }}</div>
   <p class="desc" style="color:var(--mid);max-width:60ch">Pick how you want to deploy. Every project starts on the Free plan.</p>
   {% if free_full %}
   <div class="banner warn"><span class="i" style="color:var(--soon)">!</span><div>Your Free project slot is used. Upgrade your project to Paid or delete it to add another.</div></div>

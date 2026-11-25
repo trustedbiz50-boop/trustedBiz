@@ -14,10 +14,11 @@
 .tb-toast.out{animation:tbOut .2s ease forwards}
 .tb-ov{position:fixed;inset:0;z-index:10100;display:grid;place-items:center;padding:20px;background:rgba(6,14,13,.58);backdrop-filter:blur(3px);animation:tbFade .18s ease}
 .tb-modal{width:min(430px,100%);background:var(--surface);color:var(--text);border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.35);padding:30px 26px 24px;text-align:center;animation:tbPop .24s cubic-bezier(.2,.9,.3,1.2)}
+.tb-ic.face{border:none;width:auto;height:auto;margin:-4px auto 6px;display:flex;justify-content:center}
 .tb-ic{width:78px;height:78px;margin:0 auto 18px;border-radius:50%;border:4px solid var(--c);color:var(--c);display:grid;place-items:center;font:700 38px var(--font);line-height:1}
 .tb-ic.warning{--c:var(--soon)}.tb-ic.error{--c:#dc2626}.tb-ic.success{--c:var(--live)}.tb-ic.info{--c:var(--teal)}.tb-ic.question{--c:var(--teal)}
-.tb-ic svg{width:40px;height:40px;stroke:currentColor;fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
-.tb-ic.success svg path{stroke-dasharray:60;stroke-dashoffset:60;animation:tbDraw .5s .15s ease forwards}
+.tb-ic:not(.face) svg{width:40px;height:40px;stroke:currentColor;fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.tb-ic.success:not(.face) svg path{stroke-dasharray:60;stroke-dashoffset:60;animation:tbDraw .5s .15s ease forwards}
 .tb-modal h2{font-size:23px;font-weight:700;letter-spacing:-.4px;line-height:1.25}
 .tb-modal p{margin-top:10px;font-size:15px;color:var(--mid);line-height:1.6;word-break:break-word}
 .tb-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:24px}
@@ -37,6 +38,13 @@
 @media (prefers-reduced-motion:reduce){.tb-toast,.tb-ov,.tb-modal,.tb-ic svg path{animation:none!important;stroke-dashoffset:0!important}.tb-toast .tbar{display:none}}
 </style>
 <div class="tb-toasts" id="tb-toasts" aria-live="polite" aria-atomic="false"></div>
+<div hidden id="tb-faces">
+  <template data-icon="success">{{ crest("happy", crop="face", size=132) }}</template>
+  <template data-icon="error">{{ crest("oops", crop="face", size=132) }}</template>
+  <template data-icon="warning">{{ crest("think", crop="face", size=132) }}</template>
+  <template data-icon="info">{{ crest("ok", crop="face", size=132) }}</template>
+  <template data-icon="question">{{ crest("think", crop="face", size=132) }}</template>
+</div>
 <script>
 (function(){
   var ICONS={success:'<svg viewBox="0 0 52 52"><path d="M14 27l8 8 16-17"/></svg>',error:'×',warning:'!',info:'i',question:'?'};
@@ -69,7 +77,9 @@
       var d=document.createElement('div');d.className='tb-modal';d.setAttribute('role',o.cancel?'alertdialog':'dialog');d.setAttribute('aria-modal','true');
       var icon=o.icon||'info';
       var ic=document.createElement('div');ic.className='tb-ic '+icon;
-      if(ICONS[icon].charAt(0)==='<')ic.innerHTML=ICONS[icon];else ic.textContent=ICONS[icon];
+      var tpl=document.querySelector('#tb-faces template[data-icon="'+icon+'"]');
+      if(tpl){ic.className='tb-ic face';ic.appendChild(tpl.content.cloneNode(true))}
+      else if(ICONS[icon].charAt(0)==='<')ic.innerHTML=ICONS[icon];else ic.textContent=ICONS[icon];
       var h=document.createElement('h2');h.id='tb-t'+Date.now();esc(h,o.title||'');
       d.setAttribute('aria-labelledby',h.id);
       d.appendChild(ic);d.appendChild(h);

@@ -16,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% include '_platform_css.html' %}
+{% include '_cartoon_css.html' %}
 <style>
 .hero{padding:68px 0 64px}
 .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
@@ -28,15 +29,18 @@
 .dl b{font-weight:400;color:var(--term-dim)}
 .dl .ok{color:var(--term-ok)}
 .dl-url{word-break:break-all}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:30px;counter-reset:s;list-style:none}
-.steps li{counter-increment:s;border-top:2px solid var(--teal);padding-top:14px}
-.steps li::before{content:counter(s);font-family:var(--mono);font-size:13px;color:var(--teal);display:block;margin-bottom:6px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:30px;counter-reset:s;list-style:none}
+.steps li{counter-increment:s;border:2.5px solid var(--out);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow);padding:18px 18px 20px}
+.step-ico{margin-bottom:6px}
+.steps li::before{content:counter(s);position:absolute;display:none}
 .steps h3{font-size:17px;font-weight:700;margin-bottom:6px}
 .steps p{font-size:14.5px;color:var(--mid)}
 .price-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-top:20px}
 .price-line strong{font-size:34px;letter-spacing:-1px}
 .price-line span{color:var(--mid);font-size:15px}
 .band{background:var(--surface)}
+.price-art{display:flex;align-items:center;justify-content:space-between;gap:20px}
+@media(max-width:700px){.price-art .crest{display:none}}
 @media(max-width:860px){.hero-grid{grid-template-columns:1fr}.steps{grid-template-columns:1fr;gap:22px}}
 </style>
 </head>
@@ -56,16 +60,7 @@
       <p class="fine">No card needed. Sign in with Google or GitHub, or use email.</p>
     </div>
 
-    <div class="deploy" role="img" aria-label="Example deploy log: a ZIP is detected as a static site and goes live">
-      <div class="deploy-bar"><span>Example deploy</span><span class="tag">site.zip</span></div>
-      <div class="deploy-body">
-        <div class="dl"><b>Uploaded</b><span>site.zip, 2.1 MB</span></div>
-        <div class="dl"><b>Detected</b><span>static site, 4 pages</span></div>
-        <div class="dl"><b>Embedded</b><span>style.css, app.js, 6 images</span></div>
-        <div class="dl"><b>Snapshot</b><span>saved, rollback ready</span></div>
-        <div class="dl"><b class="ok">Live</b><span class="dl-url ok">yourname.trustedbiz.co.ug</span></div>
-      </div>
-    </div>
+    <div class="hero-art"><span class="sticker">Made in Uganda</span>{{ scene_deploy() }}</div>
   </div>
 </section>
 
@@ -90,21 +85,21 @@
   <div class="wrap">
     <h2 class="title">From files to a live site in three steps</h2>
     <ol class="steps">
-      <li><h3>Upload</h3><p>Upload a ZIP from the dashboard, or connect GitHub or GitLab and pick a repository. A phone is enough.</p></li>
-      <li><h3>Go live</h3><p>TrustedBiz checks the project and publishes it at yourname.trustedbiz.co.ug. Connect your own domain when you are ready.</p></li>
-      <li><h3>Upgrade when you need more</h3><p>Free stays free. Pay with MTN or Airtel Money when you want your own domain and always-on hosting.</p></li>
+      <li><div class="step-ico">{{ icon("upload", 64) }}</div><h3>Upload</h3><p>Upload a ZIP from the dashboard, or connect GitHub or GitLab and pick a repository. A phone is enough.</p></li>
+      <li><div class="step-ico">{{ icon("globe", 64) }}</div><h3>Go live</h3><p>TrustedBiz checks the project and publishes it at yourname.trustedbiz.co.ug. Connect your own domain when you are ready.</p></li>
+      <li><div class="step-ico">{{ icon("coin", 64) }}</div><h3>Upgrade when you need more</h3><p>Free stays free. Pay with MTN or Airtel Money when you want your own domain and always-on hosting.</p></li>
     </ol>
   </div>
 </section>
 
 <section class="block band" id="pricing">
   <div class="wrap">
-    <h2 class="title">Free to start. One flat price to grow.</h2>
+    <div class="price-art"><div><h2 class="title">Free to start. One flat price to grow.</h2>
     <div class="price-line">
       <strong>UGX {{ '{:,}'.format(hosting_fee_monthly or 15000) }}</strong><span>per project per month, or UGX {{ '{:,}'.format(hosting_fee_yearly or 150000) }} per year, for Paid</span>
     </div>
     <p class="sub">Your first project is free. App hosting pricing will be announced at launch.</p>
-    <div class="cta-row"><a href="/pricing" class="btn">See pricing details</a></div>
+    <div class="cta-row"><a href="/pricing" class="btn solid">See pricing details</a></div></div>{{ crest("fly", size=190, cls="float-crest") }}</div>
   </div>
 </section>
 </main>

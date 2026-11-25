@@ -1,0 +1,24 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% include '_crest_css.html' %}
+<style>
+/* Cartoon theme for the standalone pages (login, register, 404) that use their own variable names. */
+:root{--out:#14302f;--bg:#fff7e6;--surface:#fffdf7;--border:#e8dcc2;--text:#14302f;--mid:#46605f;--dim:#7b8f8c;--brand:#1f9d8f;--brand-dark:#14786d;--brand-light:#3fc2b2;--dot:#ecdfc2;--gold:#ffc933}
+@media (prefers-color-scheme: dark){:root{--out:#04100f;--bg:#0d1f1e;--surface:#14302d;--border:#24504b;--text:#f2fbf8;--mid:#b4d3cd;--dim:#86aaa3;--brand:#3fd0bd;--brand-dark:#2ab5a3;--dot:#16322f}}
+body{background-color:var(--bg)!important;background-image:radial-gradient(var(--dot) 1.6px,transparent 1.8px);background-size:24px 24px}
+header{border-bottom:3px solid var(--out)!important;background:var(--bg)}
+.logo{font-family:'Fredoka',var(--font)!important;font-weight:700!important;font-size:18px!important}
+h1,h2,.auth-head h2,.code{font-family:'Fredoka',var(--font)!important;font-weight:700}
+.auth-box,.not-found .card{background:var(--surface);border:2.5px solid var(--out)!important;border-radius:18px!important;box-shadow:5px 5px 0 var(--out)}
+.form-group input,.pw-wrap input{border:2.5px solid var(--out)!important;border-radius:12px!important;background:var(--surface);color:var(--text)}
+.submit-btn,.btn{border:2.5px solid var(--out)!important;border-radius:14px!important;background:var(--brand)!important;color:#fff!important;font-family:'Fredoka',var(--font);font-weight:600;box-shadow:0 4px 0 var(--out);transition:transform .09s,box-shadow .09s}
+.submit-btn:hover,.btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--out)}
+.submit-btn:active,.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--out)}
+.btn.alt{background:var(--surface)!important;color:var(--text)!important}
+.oauth a{border:2.5px solid var(--out)!important;border-radius:14px;font-family:'Fredoka',var(--font);font-weight:600;background:var(--surface);box-shadow:0 3px 0 var(--out)}
+.oauth a:hover{transform:translateY(-1px)}
+.flash{border:2.5px solid var(--out);border-radius:12px}
+.crest-top{display:flex;justify-content:center;margin:-70px 0 2px}
+.auth-box{position:relative;margin-top:70px}
+@media(max-width:480px){.crest-top{margin-top:-62px}}
+</style>

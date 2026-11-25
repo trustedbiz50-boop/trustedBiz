@@ -11,11 +11,12 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% include '_platform_css.html' %}
 {% include '_app_css.html' %}
+{% include '_cartoon_css.html' %}
 </head>
 <body>
 {% include '_platform_nav.html' %}
 <main class="shell" style="padding-top:34px">
-  <h1 class="ptitle">Status</h1>
+  <div class="title-art" style="justify-content:space-between;flex-wrap:wrap"><h1 class="ptitle">Status</h1>{{ crest('ok' if overall_ok else 'oops', size=150, cls="float-crest") }}</div>
   <div class="banner {{ '' if overall_ok else 'bad' }}" style="margin-top:20px"><span class="i" style="color:{{ 'var(--live)' if overall_ok else '#b91c1c' }}">{{ '✓' if overall_ok else '!' }}</span><div><b>{{ 'All systems operational' if overall_ok else 'Some systems have problems' }}</b><div class="note" style="margin-top:4px">Checked just now. This page runs real checks each time it loads.</div></div></div>
   <section class="panel" style="margin-top:22px">
     {% for c in components %}

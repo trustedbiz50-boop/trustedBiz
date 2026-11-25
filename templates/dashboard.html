@@ -30,7 +30,7 @@
   <div class="list">
     {% for p in projects %}
     <a class="item" href="/hosting/site/{{ p.id }}">
-      <div class="ico">{{ p.icon }}</div>
+      <div class="ico">{{ crest(p.status.face, crop="face") }}</div>
       <div>
         <div class="ttl">{{ p.name }}</div>
         <div class="sub">{{ p.kind_label }} · {{ p.url_short }}{% if p.repo %} · ⎇ {{ p.repo }}{% endif %}</div>
@@ -46,6 +46,7 @@
   {% else %}
   <section class="panel">
     <div class="empty">
+      {{ crest("wave", size=190, cls="float-crest") }}
       <h3>Ship your first project</h3>
       <p style="max-width:46ch;margin:0 auto 18px">Upload a ZIP or connect GitHub. Your site goes live on its own address in seconds, free.</p>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">

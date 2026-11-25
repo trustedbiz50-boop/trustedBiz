@@ -22,7 +22,7 @@ input{flex:1 1 200px}select{flex:2 1 240px}
 {% include '_app_bar.html' %}
 <main class="shell" style="padding-top:20px"><div>
   <div class="crumbs"><a href="/dashboard">Projects</a><span>›</span><a href="/new">New</a><span>›</span><span>Git</span></div>
-  <h1 class="title" style="margin-top:10px;max-width:none">Import from Git</h1>
+  <div class="title-art" style="justify-content:space-between;flex-wrap:wrap"><h1 class="title" style="margin-top:10px;max-width:none">Import from Git</h1>{{ crest("fly", size=130, cls="float-crest") }}</div>
   <p class="sub">Deploy a repository, and redeploy automatically on every push. The repo goes through the same checks as a ZIP upload.</p>
 
   <noscript>{% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash {{ 'err' if cat == 'error' else '' }}">{{ msg }}</div>{% endfor %}{% endwith %}</noscript>

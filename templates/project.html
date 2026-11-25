@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% include '_platform_css.html' %}
 {% include '_app_css.html' %}
+{% include '_cartoon_css.html' %}
 </head>
 <body class="app">
 {% include '_app_bar.html' %}
@@ -28,6 +29,7 @@
       <div class="kind">{{ kind_label }}</div>
       <h1 class="ptitle">{{ b.name }}</h1>
     </div>
+    <div class="proj-art">{{ crest(status.art, size=130, cls="float-crest", label="Crest the crane: " ~ status.label) }}</div>
   </div>
 
   <div class="badges">
@@ -97,7 +99,7 @@
       <div><div class="t">{{ e.message }}</div><div class="when">{{ e.when }} EAT</div></div>
     </div>
     {% else %}
-    <div class="empty"><h3>No events yet</h3>Deploys, rollbacks and domain changes will show up here.</div>
+    <div class="empty">{{ crest("think", size=120) }}<h3>No events yet</h3>Deploys, rollbacks and domain changes will show up here.</div>
     {% endfor %}
   </section>
 

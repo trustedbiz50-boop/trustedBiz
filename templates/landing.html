@@ -13,8 +13,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% include '_platform_css.html' %}
+{% include '_cartoon_css.html' %}
 <style>
 .page{padding:64px 0 24px}
+.title-art{justify-content:space-between;flex-wrap:wrap}
+.title-art .display{flex:1 1 360px}
+@media(max-width:700px){.title-art .crest{width:150px}}
 .prose{max-width:60ch}
 .prose p{font-size:16px;color:var(--mid);margin-top:16px;line-height:1.7}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:26px}
@@ -29,7 +33,7 @@
 <main>
 <section class="page">
   <div class="wrap">
-    <h1 class="display">We build software in Uganda, for Uganda.</h1>
+    <div class="title-art"><h1 class="display">We build software in Uganda, for Uganda.</h1>{{ crest("wave", size=210, cls="float-crest") }}</div>
     <div class="prose">
       <p>TrustedBiz is a software company. Our main product is a hosting platform for websites and apps, in the spirit of Render and PythonAnywhere, but priced in Ugandan shillings and paid for with MTN or Airtel Money.</p>
       <p>Today you can host static sites, connect your own domain, and roll back to an earlier version. Python and Node apps can already be uploaded and are stored safely. They start running when we switch on app hosting. We list exactly what works and what does not on the <a href="/docs" style="text-decoration:underline">docs page</a>.</p>

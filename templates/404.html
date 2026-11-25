@@ -1,45 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Page Not Found | TrustedBiz</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Page not found | TrustedBiz</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{
-  --brand:#2b7a78;--bg:#f5f8f8;--surface:#fff;--border:#d8e4e4;
-  --text:#0d1c1c;--mid:#43605f;--dim:#8aa5a4;
-  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
-}
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#0d1412;--surface:#141d1b;--border:#233230;--text:#eef5f4;--mid:#a9c4c1;--dim:#5f7d7a; }
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
-a{text-decoration:none;color:inherit;}
-header{border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center;}
-.logo{font-family:var(--mono);font-weight:500;font-size:15px;}
-.logo span{color:var(--brand);}
-.back{font-size:13.5px;font-weight:500;color:var(--mid);}
-.back:hover{color:var(--text);}
-.not-found{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;}
-.code{font-family:var(--mono);font-size:15px;color:var(--brand);letter-spacing:2px;margin-bottom:18px;}
-h1{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px;}
-p{color:var(--dim);font-size:14.5px;margin-bottom:28px;max-width:320px;}
-.btn{display:inline-flex;padding:12px 26px;background:var(--text);color:var(--bg);border-radius:4px;font-weight:600;font-size:14px;}
-.btn:hover{background:var(--brand);}
+:root{--brand:#2b7a78;--bg:#fff7e6;--surface:#fff;--border:#d8e4e4;--text:#14302f;--mid:#46605f;--dim:#7b8f8c;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+header{padding:0 24px;height:60px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:18px}.logo span{color:var(--brand)}
+.back{font-size:14px;font-weight:600;color:var(--mid)}
+.not-found{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 20px 60px}
+.code{font-size:15px;color:var(--brand);letter-spacing:3px;margin-bottom:6px}
+h1{font-size:30px;margin-bottom:8px}
+p{color:var(--mid);font-size:15.5px;margin-bottom:26px;max-width:340px;line-height:1.55}
+.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.btn{display:inline-flex;padding:12px 24px;font-size:15px}
 </style>
+{% include '_cartoon_legacy_css.html' %}
 </head>
 <body>
-<header>
-  <a href="/" class="logo">Trusted<span>Biz</span></a>
-  <a href="/" class="back">← Home</a>
-</header>
-<div class="not-found">
-  <div class="code">404</div>
-  <h1>Page not found</h1>
-  <p>The page you're looking for doesn't exist, or was moved.</p>
-  <a href="/" class="btn">Go home</a>
-</div>
+<header><a href="/" class="logo">Trusted<span>Biz</span></a><a href="/" class="back">← Home</a></header>
+<main class="not-found">
+  {{ crest("lost", size=230, cls="float-crest") }}
+  <div class="code">ERROR 404</div>
+  <h1>Hmm, Crest can't find that page</h1>
+  <p>The page may have moved, or the link may be wrong. Let's get you back on track.</p>
+  <div class="row"><a href="/" class="btn">Go home</a><a href="/dashboard" class="btn alt">Open dashboard</a><a href="/docs" class="btn alt">Read the docs</a></div>
+</main>
 </body>
 </html>
