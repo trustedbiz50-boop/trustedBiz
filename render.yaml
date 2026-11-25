@@ -37,3 +37,6 @@ services:
         sync: false
       - key: GITLAB_CLIENT_SECRET
         sync: false
+      # Neon Postgres connection string (use the "pooled" one). Set in the Render dashboard; never commit it.
+      - key: DATABASE_URL
+        sync: false

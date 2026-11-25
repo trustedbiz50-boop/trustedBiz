@@ -35,19 +35,25 @@ def _is_app(row):
     return (row.get("app_kind") or "none") in hosting.APP_KINDS
 
 
+def _st(label, cls, face, art):
+    return {"label": label, "cls": cls, "face": face, "art": art}
+
+
 def status_for(row):
-    """(label, css class) for the badge shown on the dashboard and project page."""
+    """Badge label, css class, and the mascot pose shown for this project's state."""
     if row.get("status") == "suspended":
-        return {"label": "Suspended", "cls": "bad"}
+        return _st("Suspended", "bad", "oops", "oops")
     if row.get("status") != "approved":
-        return {"label": "Draft", "cls": ""}
+        return _st("Draft", "", "think", "think")
     if row.get("owner_paused") or hosting.is_paused(row):
-        return {"label": "Paused", "cls": "warn"}
+        return _st("Paused", "warn", "sleep", "sleep")
     if row.get("maintenance_on"):
-        return {"label": "Maintenance", "cls": "warn"}
+        return _st("Maintenance", "warn", "wrench", "wrench")
     if _is_app(row):
-        return ({"label": "Live", "cls": "ok"} if hosting._live(row) else {"label": "Waiting for server", "cls": "warn"})
-    return {"label": "Live", "cls": "ok"}
+        if hosting._live(row):
+            return _st("Live", "ok", "wave", "ok")
+        return _st("Waiting for server", "warn", "think", "egg")
+    return _st("Live", "ok", "wave", "ok")
 
 
 def kind_label(row):

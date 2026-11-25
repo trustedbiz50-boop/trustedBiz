@@ -17,7 +17,8 @@ on ENV VARS (add on Render dashboard):
                          it never reaches a browser.
 """
 
-import os, math, json, re, secrets, requests, socket, ssl, hashlib, base64
+import os
+import time, math, json, re, secrets, requests, socket, ssl, hashlib, base64
 import pyotp
 from datetime import timedelta, datetime
 from difflib import SequenceMatcher
@@ -236,6 +237,7 @@ import hosting
 import integrations
 import console
 import docs_site
+import mascot
 app.register_blueprint(payments_bp)
 
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','gif','webp'}
@@ -276,11 +278,34 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://","postgresql://",1)
 USE_POSTGRES = bool(DATABASE_URL)
 
+def _db_provider(url):
+    h = (url.split("@")[-1].split("/")[0] if "@" in url else "").lower()
+    if "neon.tech" in h: return "neon"
+    if "render.com" in h or h.startswith("dpg-"): return "render"
+    return "other" if h else "sqlite"
+
+if USE_POSTGRES and _db_provider(DATABASE_URL) == "neon" and "sslmode=" not in DATABASE_URL:
+    # Neon only accepts TLS connections.
+    DATABASE_URL += ("&" if "?" in DATABASE_URL else "?") + "sslmode=require"
+
 if USE_POSTGRES:
     import psycopg2, psycopg2.extras
     def get_db():
-        return psycopg2.connect(DATABASE_URL,
-               cursor_factory=psycopg2.extras.RealDictCursor)
+        """Connect with a few quick retries. Neon (and any serverless Postgres) suspends an idle
+        database and wakes it on the next connection, which can take a moment, so the first
+        attempt after a quiet spell may need a second try."""
+        last = None
+        for delay in (0, 0.5, 1.5):
+            if delay:
+                time.sleep(delay)
+            try:
+                return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor,
+                                        connect_timeout=10, keepalives=1, keepalives_idle=30,
+                                        keepalives_interval=10, keepalives_count=3)
+            except psycopg2.OperationalError as e:
+                last = e
+                print(f"[db] connect failed, retrying: {str(e).strip()[:120]}")
+        raise last
 else:
     import sqlite3
     DB_PATH = os.environ.get("DB_PATH","database.db")
@@ -4826,6 +4851,29 @@ def migrate_agents():
     return "Agent migration done!"
 
 
+@app.route('/admin/db-check')
+@admin_required
+def admin_db_check():
+    """Admin-only: which database the app is using, how fast it answers, and row counts.
+    Use it after switching databases to confirm the data came across."""
+    t0 = time.time()
+    info = {"backend": "postgres" if USE_POSTGRES else "sqlite", "provider": _db_provider(DATABASE_URL) if USE_POSTGRES else "sqlite"}
+    try:
+        info["host"] = (DATABASE_URL.split("@")[-1].split("/")[0] if USE_POSTGRES else DB_PATH)
+        info["pooled_endpoint"] = "-pooler" in info["host"]
+        if USE_POSTGRES:
+            info["version"] = dict(db_fetchone("SELECT version() AS v"))["v"].split(",")[0]
+        for tbl in ("users", "business", "deploy_events", "site_backups"):
+            try:
+                info[tbl] = dict(db_fetchone(f"SELECT COUNT(*) AS c FROM {tbl}"))["c"]
+            except Exception:
+                info[tbl] = "missing"
+        info["ok"] = True
+    except Exception as e:
+        info.update(ok=False, error=str(e)[:200])
+    info["latency_ms"] = int((time.time() - t0) * 1000)
+    return info
+
 # ── HOSTING LAYER (hosting.py) ────────────────────────────────────────────────
 # Registers /docs, /hosting/*, /admin/hosting and creates the app_* columns.
 hosting.init_hosting(app, {
@@ -4850,6 +4898,8 @@ integrations.init_integrations(app, {
     "email_welcome": _email_welcome, "USE_POSTGRES": USE_POSTGRES,
     "log_deploy_event": log_deploy_event, "send_email": _send_email,
 })
+
+mascot.init_mascot(app)   # Crest the crane + illustrations (templates call crest(), scene_deploy(), icon())
 
 # ── DASHBOARD SCREENS + DOCS ──────────────────────────────────────────────────
 _console_deps = {
